@@ -1,0 +1,29 @@
+{
+  "name": "gdmn-bot",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "clean": "shx rm -rf ./dist",
+    "build": "tsc",
+    "rebuild": "yarn clean && yarn build",
+    "start": "yarn rebuild && ts-node ./src/server.ts",
+    "start:old": "tsc && node ./dist/echo-bot.js",
+    "start:dev": "cross-env NODE_ENV=dev && yarn start",
+    "watch": "yarn rebuild && nodemon -e ts -w ./src -x yarn watch:serve",
+    "watch:serve": "ts-node ./src/server.ts"
+  },
+  "dependencies": {
+    "koa": "^2.11.0",
+    "koa-router": "^8.0.8",
+    "telegraf": "^3.36.0"
+  },
+  "devDependencies": {
+    "@types/koa": "^2.11.1",
+    "@types/koa-router": "^7.4.0",
+    "nodemon": "^2.0.2",
+    "shx": "^0.3.2",
+    "ts-node": "^8.6.2",
+    "typescript": "^3.7.5"
+  }
+}
