@@ -228,6 +228,12 @@ if (typeof process.env.GDMN_BOT_TOKEN !== 'string') {
 
 const bot = new Telegraf(process.env.GDMN_BOT_TOKEN);
 
+bot.use( (ctx, next) => {
+  console.log(`Chat ${ctx.chat?.id}: ${ctx.updateType} -- ${ctx.message?.text}`);
+  return next && next();
+});
+
+
 /**
  * При старте бота проверяем этот пользователь уже привязан
  * к учетной записи сотрудника предприятия или нет.
