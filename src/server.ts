@@ -53,6 +53,12 @@ router.get('/', (ctx, next) => {
   next();
 });
 
+router.post('/load-data', (ctx, next) => {
+  // здесь будет метод, который будет принимать данные из гедымина
+  // и помещать их в соответствующие JSON объекты.
+  next;
+});
+
 app
   .use(router.routes())
   .use(router.allowedMethods());
@@ -76,7 +82,15 @@ const withMenu = async (ctx: ContextMessageUpdate, msg: string, menu?: Markup & 
 
   if (dialogState) {
     if (dialogState.menuMessageId) {
-      await bot.telegram.editMessageReplyMarkup(ctx.chat.id, dialogState.menuMessageId);
+      try {
+        await bot.telegram.editMessageReplyMarkup(ctx.chat.id, dialogState.menuMessageId);
+      }
+      catch (e) {
+        // TODO: если сообщение уже было удалено из чата, то
+        // будет ошибка, которую мы подавляем.
+        // В будущем надо ловить события удаления сообщения
+        // и убирать его ИД из сохраненных данных
+      }
     }
 
     if (menu) {
@@ -229,7 +243,7 @@ if (typeof process.env.GDMN_BOT_TOKEN !== 'string') {
 const bot = new Telegraf(process.env.GDMN_BOT_TOKEN);
 
 bot.use( (ctx, next) => {
-  console.log(`Chat ${ctx.chat?.id}: ${ctx.updateType} -- ${ctx.message?.text}`);
+  console.log(`Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
   return next && next();
 });
 
