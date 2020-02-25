@@ -7,11 +7,10 @@
     "clean": "shx rm -rf ./dist",
     "build": "tsc",
     "rebuild": "yarn clean && yarn build",
-    "start": "yarn rebuild && ts-node ./src/server.ts",
-    "start:old": "tsc && node ./dist/echo-bot.js",
+    "start": "yarn rebuild && node --harmony ./dist/server.js",
     "start:dev": "cross-env NODE_ENV=dev && yarn start",
     "watch": "yarn rebuild && nodemon -e ts -w ./src -x yarn watch:serve",
-    "watch:serve": "ts-node ./src/server.ts"
+    "watch:serve": "node --harmony ./dist/server.js"
   },
   "dependencies": {
     "koa": "^2.11.0",
