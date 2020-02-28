@@ -6,20 +6,24 @@
   "scripts": {
     "clean": "shx rm -rf ./dist",
     "build": "tsc",
+    "dev": "nodemon src/server.ts",
     "rebuild": "yarn clean && yarn build",
-    "start": "yarn rebuild && ts-node ./src/server.ts",
+    "start": "yarn rebuild && node --harmony ./dist/server.js",
     "start:old": "tsc && node ./dist/echo-bot.js",
     "start:dev": "cross-env NODE_ENV=dev && yarn start",
     "watch": "yarn rebuild && nodemon -e ts -w ./src -x yarn watch:serve",
-    "watch:serve": "ts-node ./src/server.ts"
+    "watch:serve": "node --harmony ./dist/server.js"
   },
   "dependencies": {
     "koa": "^2.11.0",
+    "koa-bodyparser": "^4.2",
     "koa-router": "^8.0.8",
-    "telegraf": "^3.36.0"
+    "telegraf": "^3.36.0",
+    "ts-node": "^8.6.2"
   },
   "devDependencies": {
     "@types/koa": "^2.11.1",
+    "@types/koa-bodyparser": "^4.3",
     "@types/koa-router": "^7.4.0",
     "nodemon": "^2.0.2",
     "shx": "^0.3.2",

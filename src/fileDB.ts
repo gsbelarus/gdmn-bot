@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 
 interface IData<T> {
   [key: string]: T;
@@ -45,6 +46,11 @@ export class FileDB<T extends Object> {
     return this._load();
   }
 
+  public clear() {
+    this._data = {};
+    this._modified = true;
+  }
+
   public read(key: string): T | undefined {
     return this._load()[key];
   }
@@ -77,10 +83,19 @@ export class FileDB<T extends Object> {
 
   public flush(force = false) {
     if (this._data && (force || this._modified)) {
-      const envelope: IDataEnvelope<T> = {
+      const envelope: IDataEnvelope<T> =
+      {
         version: '1.0',
         data: this._data
       };
+
+      const dirName = path.dirname(this._fn);
+
+      if (!fs.existsSync(dirName)) {
+        // создадим папку, если она не существует
+        fs.mkdirSync(dirName, { recursive: true });
+      }
+
       fs.writeFileSync(this._fn, JSON.stringify(envelope, undefined, 2), { encoding: 'utf8' });
       this._modified = false;
       console.log(`Data has been written to ${this._fn}...`);

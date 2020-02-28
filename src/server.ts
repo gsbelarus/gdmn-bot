@@ -1,10 +1,12 @@
 import Koa from "koa";
+import bodyParser from 'koa-bodyparser';
 import Router from 'koa-router';
 import https from 'https';
+import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import Telegraf, { Extra, Markup, ContextMessageUpdate } from 'telegraf';
-import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee } from "./types";
+import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee, IAccDed } from "./types";
 import { FileDB } from "./fileDB";
 import { normalizeStr } from "./utils";
 import { InlineKeyboardMarkup } from "telegraf/typings/telegram-types";
@@ -28,10 +30,19 @@ const cListok =
   Оклад:             450.24
 ${'`'}${'`'}${'`'}`;
 
+/**
+ * Связь между ИД чата и человеком, сотрудником предприятия.
+ */
 const accountLink = new FileDB<IAccountLink>(path.resolve(process.cwd(), 'data/accountlink.json'), {});
 const dialogStates = new FileDB<DialogState>(path.resolve(process.cwd(), 'data/dialogstates.json'), {});
 const customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), {});
 const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
+
+/**
+ * справочники начислений/удержаний для каждого клиента.
+ * ключем объекта выступает РУИД записи из базы Гедымина.
+ */
+const customerAccDed: { [customerID: string]: FileDB<IAccDed> } = {};
 
 let app = new Koa();
 let router = new Router();
@@ -47,25 +58,63 @@ const config = {
   },
 };
 
-router.get('/', (ctx, next) => {
+router.get('/load', (ctx, next) => {
   // ctx.router available
+  load(ctx);
+  next();
+});
+
+const load = (ctx: any) => {
+  ctx.body = 'Hello World!';
+}
+
+router.get('/', (ctx, next) => {
   ctx.body = 'Hello World!';
   next();
 });
 
-router.post('/load-data', (ctx, next) => {
+router.post('/upload', (ctx, next) => {
+  console.log('11111');
+  upload(ctx);
   // здесь будет метод, который будет принимать данные из гедымина
   // и помещать их в соответствующие JSON объекты.
-  next;
+  next();
 });
 
+const upload = (ctx: any) => {
+  const {id, jsonData} = ctx.request.body;
+  const objData = JSON.parse(jsonData);
+  let customerAccDeds = customerAccDed[id];
+
+  if (!customerAccDeds) {
+    customerAccDeds = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip.${id}/accdedref.json`), {});
+    customerAccDed[id] = customerAccDeds;
+  } else {
+    customerAccDeds.clear;
+  }
+
+  for (const [key, value] of Object.entries(objData)) {
+    customerAccDeds.write(key, value as any);
+  }
+
+  customerAccDeds.flush();
+
+  ctx.status = 200;
+  ctx.body = JSON.stringify({ status: 200, result: `ok` });
+}
+
 app
+  .use(bodyParser({
+    textLimit: '100mb',
+    formLimit: '100mb',
+    jsonLimit: '100mb',}))
   .use(router.routes())
   .use(router.allowedMethods());
 
+
 const serverCallback = app.callback();
 
-//http.createServer(serverCallback).listen(3000);
+http.createServer(serverCallback).listen(3000);
 https.createServer(config.https.options, serverCallback).listen(config.https.port);
 
 const withMenu = async (ctx: ContextMessageUpdate, msg: string, menu?: Markup & InlineKeyboardMarkup, markdown?: boolean) => {
