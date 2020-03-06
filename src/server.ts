@@ -6,7 +6,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import Telegraf, { Extra, Markup, ContextMessageUpdate } from 'telegraf';
-import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee, IAccDed } from "./types";
+import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip } from "./types";
 import { FileDB } from "./fileDB";
 import { normalizeStr } from "./utils";
 import { InlineKeyboardMarkup } from "telegraf/typings/telegram-types";
@@ -42,7 +42,14 @@ const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>>
  * справочники начислений/удержаний для каждого клиента.
  * ключем объекта выступает РУИД записи из базы Гедымина.
  */
-const customerAccDed: { [customerID: string]: FileDB<IAccDed> } = {};
+const customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
+
+/**
+ * Расчетные листки для каждого клиента.
+ * Ключем объекта выступает персональный номер из паспорта.
+ */
+const paySlips: { [employeeId: string]: FileDB<IPaySlip> } = {};
+//const paySlipsByEmploeeYear: { [employeeId: string]: FileDB<IPaySlip> } = {};
 
 let app = new Koa();
 let router = new Router();
@@ -74,43 +81,64 @@ router.get('/', (ctx, next) => {
 });
 
 router.post('/upload', (ctx, next) => {
-  console.log('11111');
   upload(ctx);
-  // здесь будет метод, который будет принимать данные из гедымина
-  // и помещать их в соответствующие JSON объекты.
   next();
 });
 
 const upload = (ctx: any) => {
-  const {id, jsonData} = ctx.request.body;
-  const objData = JSON.parse(jsonData);
-  let customerAccDeds = customerAccDed[id];
+  const { dataType, customerId, objData } = ctx.request.body;
+  switch (dataType) {
+    //Если тип загружаемых данных - Справочники видов начислений\удержаний
+    case 'accDedRef': {
+      let customerAccDed = customerAccDeds[customerId];
 
-  if (!customerAccDeds) {
-    customerAccDeds = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip.${id}/accdedref.json`), {});
-    customerAccDed[id] = customerAccDeds;
-  } else {
-    customerAccDeds.clear;
+      if (!customerAccDed) {
+        customerAccDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip.${customerId}/accdedref.json`), {});
+        customerAccDeds[customerId] = customerAccDed;
+      } else {
+        customerAccDed.clear;
+      }
+
+      for (const [key, value] of Object.entries(objData)) {
+        customerAccDed.write(key, value as any);
+      }
+
+      customerAccDed.flush();
+    }
+    //Если тип загружаемых данных - Расчетные листки по сотрудникам в разрезе года
+    case 'paySlip': {
+      let paySlip: FileDB<IPaySlip>;
+      for (const [key, value] of Object.entries(objData) as any) {
+        const employeeId = value.employeeId;
+        const year = value.year;
+
+        paySlip = paySlips[employeeId];
+
+        if (!paySlip || paySlip.getMutable(false).year !== year) {
+          paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip.${customerId}/${year}/payslip.${customerId}.${employeeId}.${year}.json`), {});
+          paySlips[employeeId] = paySlip;
+        } else {
+          paySlip.clear;
+        }
+
+        paySlip.write('employeeId', value.employeeId);
+        paySlip.write('year', value.year);
+        paySlip.write('deptName', value.deptName);
+        paySlip.write('posName', value.posName);
+        paySlip.write('hiringDate', value.hiringDate);
+        paySlip.write('data', value.data);
+        paySlip.flush();
+      }
+    }
   }
-
-  for (const [key, value] of Object.entries(objData)) {
-    customerAccDeds.write(key, value as any);
-  }
-
-  customerAccDeds.flush();
-
   ctx.status = 200;
   ctx.body = JSON.stringify({ status: 200, result: `ok` });
 }
 
 app
-  .use(bodyParser({
-    textLimit: '100mb',
-    formLimit: '100mb',
-    jsonLimit: '100mb',}))
+  .use(bodyParser())
   .use(router.routes())
   .use(router.allowedMethods());
-
 
 const serverCallback = app.callback();
 
@@ -230,6 +258,7 @@ const loginDialog = async (ctx: ContextMessageUpdate, start = false) => {
         customerId: employee.customerId,
         employeeId: found[0]
       });
+      accountLink.flush();
       dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() }, ['employee']);
       withMenu(ctx, '🏁 Регистрация прошла успешно.', keyboardMenu);
     } else {
@@ -383,7 +412,114 @@ bot.action('logout', async (ctx) => {
 
 bot.action('listok', ctx => {
   if (ctx.chat) {
-    withMenu(ctx, cListok, keyboardMenu, true);
+    const chatId = ctx.chat.id.toString();
+    const link = accountLink.read(chatId);
+    if (link?.customerId && link.employeeId) {
+      const {customerId, employeeId} = link;
+
+      let empls = employeesByCustomer[customerId];
+      if (!empls) {
+        empls = new FileDB<IEmployee>(path.resolve(process.cwd(), `data/employee.${customerId}.json`), {});
+        employeesByCustomer[customerId] = empls;
+      };
+
+      const passportId = empls.getMutable(false)[employeeId].passportId;
+
+      if (passportId) {
+
+        let paySlip = paySlips[passportId];
+        const today = new Date();
+        if (!paySlip) {
+          const year = today.getFullYear()-1;
+          paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip.${customerId}/${year}/payslip.${customerId}.${passportId}.${year}.json`), {});
+          paySlips[passportId] = paySlip;
+        };
+
+        const db = new Date(today.getFullYear()-1, today.getMonth() + 1, 1);
+        const de = new Date(today.getFullYear()-1, today.getMonth() + 2, 0);
+
+        let accDed = customerAccDeds[customerId];
+        if (!accDed) {
+          accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip.${customerId}/accdedref.json`), {});
+          customerAccDeds[customerId] = accDed;
+        };
+
+        const accDedObj = accDed.getMutable(false);
+        const paySlipObj = paySlip.getMutable(false);
+
+        if (Object.keys(paySlipObj).length == 0) {
+          throw new Error('No paySlips files');
+        }
+
+        let accrual = 0, salary = 0, tax = 0, ded = 0, saldo = 0, incomeTax = 0, pensionTax = 0, tradeUnionTax = 0, advance = 0;
+        for (const [key, value] of Object.entries(paySlipObj.data) as any) {
+          if (new Date(value.dateBegin) >= db && new Date(value.dateEnd) <= de) {
+            if (value.typeId === 'saldo') {
+              saldo = saldo + value.s;
+            } else if (value.typeId === 'salary') {
+              salary = value.s;
+            } else if (accDedObj[value.typeId]) {
+              switch (accDedObj[value.typeId].type) {
+                case 'INCOME_TAX': {
+                  incomeTax = incomeTax + value.s;
+                  break;
+                }
+                case 'PENSION_TAX': {
+                  pensionTax = pensionTax + value.s;
+                  break;
+                }
+                case 'TRADE_UNION_TAX': {
+                  tradeUnionTax = tradeUnionTax + value.s;
+                  break;
+                }
+                case 'ADVANCE': {
+                  advance = advance + value.s;
+                  break;
+                }
+                case 'DEDUCTION': {
+                  ded = ded + value.s;
+                  break;
+                }
+                case 'TAX': {
+                  tax = tax + value.s;
+                  break;
+                }
+                case 'ACCRUAL': {
+                  accrual = accrual + value.s;
+                  break;
+                }
+
+              }
+            }
+          }
+        };
+
+        const taxes = incomeTax + pensionTax + tradeUnionTax;
+        const deptName = paySlipObj.deptName;
+        const posName = paySlipObj.posName;
+
+        const cListok =
+          `${'`'}${'`'}${'`'}ini
+          Начислено:           ${accrual.toFixed(2)}
+          ===========================
+          Зарплата (чистыми):  ${(accrual - taxes).toFixed(2)}
+            Аванс:             ${advance.toFixed(2)}
+            К выдаче:          ${saldo.toFixed(2)}
+            Удержания:         ${ded.toFixed(2)}
+          ===========================
+          Налоги:              ${taxes.toFixed(2)}
+            Подоходный:        ${incomeTax.toFixed(2)}
+            Пенсионный:        ${pensionTax.toFixed(2)}
+            Профсоюзный:       ${tradeUnionTax.toFixed(2)}
+          ===========================
+          Информация:
+            ${deptName}
+            ${posName}
+            Оклад:             ${salary.toFixed(2)}
+          ${'`'}${'`'}${'`'}`;
+          withMenu(ctx, cListok, keyboardMenu, true);
+      }
+    }
   }
 });
 

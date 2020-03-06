@@ -18,8 +18,7 @@
     "koa": "^2.11.0",
     "koa-bodyparser": "^4.2",
     "koa-router": "^8.0.8",
-    "telegraf": "^3.36.0",
-    "ts-node": "^8.6.2"
+    "telegraf": "^3.36.0"
   },
   "devDependencies": {
     "@types/koa": "^2.11.1",
@@ -28,6 +27,7 @@
     "nodemon": "^2.0.2",
     "shx": "^0.3.2",
     "ts-node": "^8.6.2",
-    "typescript": "^3.7.5"
+    "typescript": "^3.7.5",
+    "tsconfig-paths": "^3.9"
   }
 }

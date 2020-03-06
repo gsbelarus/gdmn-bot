@@ -51,18 +51,27 @@ export interface IAccDeds {
  */
 export interface IAccDed {
   name: LName;
-  type: 'ACCRUAL' | 'DEDUCTION' | 'ADVANCE' | 'EXEMPTION' | 'TAX' | 'REFERENCE' ;
+  type: 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' | 'PRIVILAGE' | 'INCOME_TAX' | 'PENSION_TAX' | 'TRADE_UNION_TAX' | 'TAX' | 'REFERENCE' ;
 }
 
-/*
-export interface LName {
-  [key: string]: TName;
+export interface IPaySlip {
+  version: "1.0";
+  employeeId: string;
+  year: number;
+  deptName: string;
+  posName: string;
+  hiringDate: Date;
+  dismissalDate: Date;
+  data: {
+    typeId: string;
+    dateBegin?: Date;
+    dateEnd?: Date;
+    date?: Date;
+    granularity?: 'DAY';
+    s: number;
+    adddata?: any;
+  }[]
 }
-export interface TName {
-  name: string;
-}
-
-*/
 
 
 /**
