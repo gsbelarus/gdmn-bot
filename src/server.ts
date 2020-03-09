@@ -307,7 +307,8 @@ const keyboardLogin = Markup.inlineKeyboard([
 ]);
 
 const keyboardMenu = Markup.inlineKeyboard([
-  [Markup.callbackButton('💰 Расчетный листок', 'listok') as any],
+  [Markup.callbackButton('💰 Расчетный листок', 'listok') as any,
+  Markup.callbackButton('💰 Подробный листок', 'detail_listok') as any],
   [
     Markup.callbackButton('🚪 Выйти', 'logout') as any,
     Markup.urlButton('❓', 'http://gsbelarus.com')
@@ -447,77 +448,80 @@ bot.action('listok', ctx => {
         const accDedObj = accDed.getMutable(false);
         const paySlipObj = paySlip.getMutable(false);
 
-        if (Object.keys(paySlipObj).length == 0) {
-          throw new Error('No paySlips files');
-        }
+        if (Object.keys(paySlipObj).length === 0) {
+          withMenu(ctx,
+            `Нет расчетного листка за период ${db.toLocaleDateString()} - ${de.toLocaleDateString()}!`,
+            keyboardMenu);
+        } else {
 
-        let accrual = 0, salary = 0, tax = 0, ded = 0, saldo = 0, incomeTax = 0, pensionTax = 0, tradeUnionTax = 0, advance = 0;
-        for (const [key, value] of Object.entries(paySlipObj.data) as any) {
-          if (new Date(value.dateBegin) >= db && new Date(value.dateEnd) <= de) {
-            if (value.typeId === 'saldo') {
-              saldo = saldo + value.s;
-            } else if (value.typeId === 'salary') {
-              salary = value.s;
-            } else if (accDedObj[value.typeId]) {
-              switch (accDedObj[value.typeId].type) {
-                case 'INCOME_TAX': {
-                  incomeTax = incomeTax + value.s;
-                  break;
-                }
-                case 'PENSION_TAX': {
-                  pensionTax = pensionTax + value.s;
-                  break;
-                }
-                case 'TRADE_UNION_TAX': {
-                  tradeUnionTax = tradeUnionTax + value.s;
-                  break;
-                }
-                case 'ADVANCE': {
-                  advance = advance + value.s;
-                  break;
-                }
-                case 'DEDUCTION': {
-                  ded = ded + value.s;
-                  break;
-                }
-                case 'TAX': {
-                  tax = tax + value.s;
-                  break;
-                }
-                case 'ACCRUAL': {
-                  accrual = accrual + value.s;
-                  break;
-                }
+          let accrual = 0, salary = 0, tax = 0, ded = 0, saldo = 0, incomeTax = 0, pensionTax = 0, tradeUnionTax = 0, advance = 0;
+          for (const [key, value] of Object.entries(paySlipObj.data) as any) {
+            if (new Date(value.dateBegin) >= db && new Date(value.dateEnd) <= de) {
+              if (value.typeId === 'saldo') {
+                saldo = saldo + value.s;
+              } else if (value.typeId === 'salary') {
+                salary = value.s;
+              } else if (accDedObj[value.typeId]) {
+                switch (accDedObj[value.typeId].type) {
+                  case 'INCOME_TAX': {
+                    incomeTax = incomeTax + value.s;
+                    break;
+                  }
+                  case 'PENSION_TAX': {
+                    pensionTax = pensionTax + value.s;
+                    break;
+                  }
+                  case 'TRADE_UNION_TAX': {
+                    tradeUnionTax = tradeUnionTax + value.s;
+                    break;
+                  }
+                  case 'ADVANCE': {
+                    advance = advance + value.s;
+                    break;
+                  }
+                  case 'DEDUCTION': {
+                    ded = ded + value.s;
+                    break;
+                  }
+                  case 'TAX': {
+                    tax = tax + value.s;
+                    break;
+                  }
+                  case 'ACCRUAL': {
+                    accrual = accrual + value.s;
+                    break;
+                  }
 
+                }
               }
             }
-          }
-        };
+          };
 
-        const taxes = incomeTax + pensionTax + tradeUnionTax;
-        const deptName = paySlipObj.deptName;
-        const posName = paySlipObj.posName;
+          const taxes = incomeTax + pensionTax + tradeUnionTax;
+          const deptName = paySlipObj.deptName;
+          const posName = paySlipObj.posName;
 
-        const cListok =
-          `${'`'}${'`'}${'`'}ini
-          Начислено:           ${accrual.toFixed(2)}
-          ===========================
-          Зарплата (чистыми):  ${(accrual - taxes).toFixed(2)}
-            Аванс:             ${advance.toFixed(2)}
-            К выдаче:          ${saldo.toFixed(2)}
-            Удержания:         ${ded.toFixed(2)}
-          ===========================
-          Налоги:              ${taxes.toFixed(2)}
-            Подоходный:        ${incomeTax.toFixed(2)}
-            Пенсионный:        ${pensionTax.toFixed(2)}
-            Профсоюзный:       ${tradeUnionTax.toFixed(2)}
-          ===========================
-          Информация:
-            ${deptName}
-            ${posName}
-            Оклад:             ${salary.toFixed(2)}
-          ${'`'}${'`'}${'`'}`;
-          withMenu(ctx, cListok, keyboardMenu, true);
+          const cListok =
+            `${'`'}${'`'}${'`'}ini
+            Начислено:           ${accrual.toFixed(2)}
+            ===========================
+            Зарплата (чистыми):  ${(accrual - taxes).toFixed(2)}
+              Аванс:             ${advance.toFixed(2)}
+              К выдаче:          ${saldo.toFixed(2)}
+              Удержания:         ${ded.toFixed(2)}
+            ===========================
+            Налоги:              ${taxes.toFixed(2)}
+              Подоходный:        ${incomeTax.toFixed(2)}
+              Пенсионный:        ${pensionTax.toFixed(2)}
+              Профсоюзный:       ${tradeUnionTax.toFixed(2)}
+            ===========================
+            Информация:
+              ${deptName}
+              ${posName}
+              Оклад:             ${salary.toFixed(2)}
+            ${'`'}${'`'}${'`'}`;
+            withMenu(ctx, cListok, keyboardMenu, true);
+        }
       }
     }
   }
