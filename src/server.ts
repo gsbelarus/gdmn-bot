@@ -8,7 +8,7 @@ import path from 'path';
 import Telegraf, { Extra, Markup, ContextMessageUpdate } from 'telegraf';
 import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip, IPaySlipItem, LName } from "./types";
 import { FileDB } from "./fileDB";
-import { normalizeStr, getLanguage, getLName, getPaySlipString } from "./utils";
+import { normalizeStr, getLanguage, getLName, getPaySlipString, getYears } from "./utils";
 import { InlineKeyboardMarkup } from "telegraf/typings/telegram-types";
 
 const cListok =
@@ -113,11 +113,11 @@ const upload = (ctx: any) => {
         const employeeId = value.employeeId;
         const year = value.year;
 
-        paySlip = paySlips[employeeId];
+        paySlip = paySlips[employeeId + '_' + year];
 
         if (!paySlip || paySlip.getMutable(false).year !== year) {
           paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip.${customerId}/${year}/payslip.${customerId}.${employeeId}.${year}.json`), {});
-          paySlips[employeeId] = paySlip;
+          paySlips[employeeId + '_' + year] = paySlip;
         } else {
           paySlip.clear;
         }
@@ -308,8 +308,14 @@ const keyboardLogin = Markup.inlineKeyboard([
 ]);
 
 const keyboardMenu = Markup.inlineKeyboard([
-  [Markup.callbackButton('💰 Расчетный листок', 'paySlip') as any,
-  Markup.callbackButton('💰 Подробный листок', 'detailPaySlip') as any],
+  [
+    Markup.callbackButton('💰 Расчетный листок', 'paySlip') as any,
+    Markup.callbackButton('💰 Подробный листок', 'detailPaySlip') as any
+  ],
+  [
+    Markup.callbackButton('💰 Листок за период', 'paySlipByPeriod') as any,
+    Markup.callbackButton('💰 Сравнить..', 'paySlipCompare') as any
+  ],
   [
     Markup.callbackButton('🚪 Выйти', 'logout') as any,
     Markup.urlButton('❓', 'http://gsbelarus.com')
@@ -413,12 +419,34 @@ bot.action('logout', async (ctx) => {
 });
 
 bot.action('paySlip', ctx => {
-  const cListok = getPaySlip(ctx);
+  const today = new Date();
+  const db = new Date(today.getFullYear()-1, today.getMonth() + 1, 1);
+  const de = new Date(today.getFullYear()-1, today.getMonth() + 2, 0);
+  const cListok = getPaySlip(ctx, db, de);
   cListok && withMenu(ctx, cListok, keyboardMenu, true);
 });
 
 bot.action('detailPaySlip', ctx => {
-  const cListok = getPaySlip(ctx, true);
+  const today = new Date();
+  const db = new Date(today.getFullYear()-1, today.getMonth() + 1, 1);
+  const de = new Date(today.getFullYear()-1, today.getMonth() + 2, 0);
+  const cListok = getPaySlip(ctx, db, de, true);
+  cListok && withMenu(ctx, cListok, keyboardMenu, true);
+});
+
+bot.action('paySlipByPeriod', ctx => {
+  const db = new Date(2019, 0, 1);
+  const de = new Date(2019, 11, 31);
+  const cListok = getPaySlip(ctx, db, de);
+  cListok && withMenu(ctx, cListok, keyboardMenu, true);
+});
+
+bot.action('paySlipCompare', ctx => {
+  const fromDb = new Date(2018, 0, 1);
+  const fromDe = new Date(2018, 2, 28);
+  const toDb = new Date(2019, 0, 1);
+  const toDe = new Date(2019, 2, 28);
+  const cListok = getPaySlipCompare(ctx, fromDb, fromDe, toDb, toDe);
   cListok && withMenu(ctx, cListok, keyboardMenu, true);
 });
 
@@ -443,7 +471,7 @@ process.on('exit', code => {
 
 process.on('SIGINT', () => process.exit() );
 
-const getPaySlip = (ctx: any, isDetail?: boolean): string | undefined => {
+const getPaySlip = (ctx: any, db: Date, de: Date, isDetail?: boolean): string | undefined => {
   if (ctx.chat) {
     const chatId = ctx.chat.id.toString();
     const link = accountLink.read(chatId);
@@ -459,17 +487,13 @@ const getPaySlip = (ctx: any, isDetail?: boolean): string | undefined => {
       const passportId = empls.getMutable(false)[employeeId].passportId;
 
       if (passportId) {
+        const year = db.getFullYear();
+        let paySlip = paySlips[passportId + '_' + year];
 
-        let paySlip = paySlips[passportId];
-        const today = new Date();
         if (!paySlip) {
-          const year = today.getFullYear()-1;
           paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip.${customerId}/${year}/payslip.${customerId}.${passportId}.${year}.json`), {});
-          paySlips[passportId] = paySlip;
+          paySlips[passportId + '_' + year] = paySlip;
         };
-
-        const db = new Date(today.getFullYear()-1, today.getMonth() + 1, 1);
-        const de = new Date(today.getFullYear()-1, today.getMonth() + 2, 0);
 
         let accDed = customerAccDeds[customerId];
         if (!accDed) {
@@ -610,5 +634,153 @@ ${'`'}${'`'}${'`'}`);
       }
     }
   }
+  return undefined
+}
+
+const getPaySlipCompare = (ctx: any, fromDb: Date, fromDe: Date, toDb: Date, toDe: Date, isDetail?: boolean): string | undefined => {
+  if (ctx.chat) {
+    const chatId = ctx.chat.id.toString();
+    const link = accountLink.read(chatId);
+    if (link?.customerId && link.employeeId) {
+      const {customerId, employeeId} = link;
+
+      let empls = employeesByCustomer[customerId];
+      if (!empls) {
+        empls = new FileDB<IEmployee>(path.resolve(process.cwd(), `data/employee.${customerId}.json`), {});
+        employeesByCustomer[customerId] = empls;
+      };
+
+      const passportId = empls.getMutable(false)[employeeId].passportId;
+
+      if (passportId) {
+
+        let accDed = customerAccDeds[customerId];
+        if (!accDed) {
+          accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip.${customerId}/accdedref.json`), {});
+          customerAccDeds[customerId] = accDed;
+        };
+        const accDedObj = accDed.getMutable(false);
+
+
+        const lng = getLanguage(ctx.from?.language_code);
+
+        let allTaxes = [0, 0];
+        const len = 23;
+        const lenS = 8;
+
+        let accrual = [0, 0], salary = [0, 0], tax = [0, 0], ded = [0, 0], saldo = [0, 0],
+        incomeTax = [0, 0], pensionTax = [0, 0], tradeUnionTax = [0, 0], advance = [0, 0], tax_ded = [0, 0], privilage = [0, 0];
+
+        let strAccruals = '', strAdvances = '', strDeductions = '', strTaxes = '', strPrivilages = '', strTaxDeds = '';
+
+        const getAccDedsByPeriod = (fromDb : Date, fromDe: Date, i: number) => {
+          const years = getYears(fromDb, fromDe);
+          //пробегаемся по всем годам
+          for (let y = 0; y < years.length; y++) {
+            const year = years[y];
+            let paySlip = paySlips[passportId + '_' + year];
+
+            if (!paySlip) {
+              paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip.${customerId}/${year}/payslip.${customerId}.${passportId}.${year}.json`), {});
+              paySlips[passportId + '_' + year] = paySlip;
+            };
+
+            const paySlipObj = paySlip.getMutable(false);
+
+            if (Object.keys(paySlipObj).length === 0) {
+              withMenu(ctx,
+                `Нет расчетного листка за период ${fromDb.toLocaleDateString()} - ${fromDe.toLocaleDateString()}!`,
+                keyboardMenu);
+            } else {
+
+              for (const [key, value] of Object.entries(paySlipObj.data) as any) {
+                if (new Date(value?.dateBegin) >= fromDb && new Date(value?.dateEnd) <= fromDe || new Date(value?.date) >= fromDb && new Date(value?.date) <= fromDe) {
+                  if (value.typeId === 'saldo') {
+                    saldo[i] = saldo[i] + value.s;
+                  } else if (value.typeId === 'salary') {
+                    salary[i] = value.s;
+                  } else if (accDedObj[value.typeId]) {
+
+                    let accDedName = getLName(accDedObj[value.typeId].name, [lng, 'ru']) ;
+
+                    switch (accDedObj[value.typeId].type) {
+                      case 'INCOME_TAX': {
+                        incomeTax[i] = incomeTax[i] + value.s;
+                        strTaxes = isDetail ? getPaySlipString(strTaxes, accDedName, value.s) : ''
+                        break;
+                      }
+                      case 'PENSION_TAX': {
+                        pensionTax[i] = pensionTax[i] + value.s;
+                        strTaxes = isDetail ? getPaySlipString(strTaxes, accDedName, value.s) : ''
+                        break;
+                      }
+                      case 'TRADE_UNION_TAX': {
+                        tradeUnionTax[i] = tradeUnionTax[i] + value.s;
+                        strTaxes = isDetail ? getPaySlipString(strTaxes, accDedName, value.s) : ''
+                        break;
+                      }
+                      case 'ADVANCE': {
+                        advance[i] = advance[i] + value.s;
+                        strAdvances = isDetail ? getPaySlipString(strAdvances, accDedName, value.s) : ''
+                        break;
+                      }
+                      case 'DEDUCTION': {
+                        ded[i] = ded[i] + value.s;
+                        strDeductions = isDetail ? getPaySlipString(strDeductions, accDedName, value.s) : ''
+                        break;
+                      }
+                      case 'TAX': {
+                        tax[i] = tax[i] + value.s;
+                        break;
+                      }
+                      case 'ACCRUAL': {
+                        accrual[i] = accrual[i] + value.s;
+                        strAccruals = isDetail ? getPaySlipString(strAccruals, accDedName, value.s) : ''
+                        break;
+                      }
+                      case 'TAX_DEDUCTION': {
+                        tax_ded[i] = tax_ded[i] + value.s;
+                        strTaxDeds = isDetail ? getPaySlipString(strTaxDeds, accDedName, value.s) : ''
+                        break;
+                      }
+                      case 'PRIVILAGE': {
+                        privilage[i] = privilage[i] + value.s;
+                        strPrivilages = isDetail ? getPaySlipString(strPrivilages, accDedName, value.s) : ''
+                        break;
+                      }
+                    }
+                  }
+                }
+              };
+
+              allTaxes[i] = incomeTax[i] + pensionTax[i] + tradeUnionTax[i];
+            }
+          }//for
+        };
+
+        getAccDedsByPeriod(fromDb, fromDe, 0);
+        getAccDedsByPeriod(toDb, toDe, 1);
+
+        return (`${'`'}${'`'}${'`'}ini
+  ${'Начислено:'.padEnd(len + 2)}  ${accrual[0].toFixed(2).padStart(lenS)} ${accrual[1].toFixed(2).padStart(lenS)} ${(accrual[1] - accrual[0]).toFixed(2).padStart(lenS)}
+  =====================================================
+  ${'Зарплата (чистыми):'.padEnd(len + 2)}  ${(accrual[0] - allTaxes[0]).toFixed(2).padStart(lenS)} ${(accrual[1] - allTaxes[1]).toFixed(2).padStart(lenS)} ${(accrual[1] - allTaxes[1] - (accrual[0] - allTaxes[0])).toFixed(2).padStart(lenS)}
+    ${'Аванс:'.padEnd(len)}  ${advance[0].toFixed(2).padStart(lenS)} ${advance[1].toFixed(2).padStart(lenS)} ${(advance[1] - advance[0]).toFixed(2).padStart(lenS)}
+    ${'К выдаче:'.padEnd(len)}  ${saldo[0].toFixed(2).padStart(lenS)} ${saldo[1].toFixed(2).padStart(lenS)} ${(saldo[1] - saldo[0]).toFixed(2).padStart(lenS)}
+    ${'Удержания:'.padEnd(len)}  ${ded[0].toFixed(2).padStart(lenS)} ${ded[1].toFixed(2).padStart(lenS)} ${(ded[1] - ded[0]).toFixed(2).padStart(lenS)}
+  =====================================================
+  ${'Налоги:'.padEnd(len + 2)}  ${allTaxes[0].toFixed(2).padStart(lenS)} ${allTaxes[1].toFixed(2).padStart(lenS)} ${(allTaxes[1] - allTaxes[0]).toFixed(2).padStart(lenS)}
+    ${'Подоходный:'.padEnd(len)}  ${incomeTax[0].toFixed(2).padStart(lenS)} ${incomeTax[1].toFixed(2).padStart(lenS)} ${(incomeTax[1] - incomeTax[0]).toFixed(2).padStart(lenS)}
+    ${'Пенсионный:'.padEnd(len)}  ${pensionTax[0].toFixed(2).padStart(lenS)} ${pensionTax[1].toFixed(2).padStart(lenS)} ${(pensionTax[1] - pensionTax[0]).toFixed(2).padStart(lenS)}
+    ${'Профсоюзный:'.padEnd(len)}  ${tradeUnionTax[0].toFixed(2).padStart(lenS)} ${tradeUnionTax[1].toFixed(2).padStart(lenS)} ${(tradeUnionTax[1] - tradeUnionTax[0]).toFixed(2).padStart(lenS)}
+  =====================================================
+  ${'Информация:'.padEnd(len)}
+    ${'Оклад:'.padEnd(len)}  ${salary[0].toFixed(2).padStart(lenS)} ${salary[1].toFixed(2).padStart(lenS)} ${(salary[1] - salary[0]).toFixed(2).padStart(lenS)}
+  ${'`'}${'`'}${'`'}`);
+      }
+    }
+  }
+
+
   return undefined
 }

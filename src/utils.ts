@@ -86,8 +86,17 @@ export const getPaySlipString = (prevStr: string, name: string, s: number): stri
   } else {
     return `${prevStr}${prevStr !== '' ? '\r\n    ' : ''}  ${name.padEnd(len)} ${s.toFixed(2).padStart(8)}`;
   }
-
 }
+export function getYears(fromDate: Date, toDate: Date): number[] {
+  let years = [];
+  let fromYear = fromDate.getFullYear();
+  let toYear = toDate.getFullYear();
+  while (fromYear <= toYear) {
+    years.push(fromDate.getFullYear());
+    fromYear = fromYear + 1;
+  }
+  return years;
+};
 
 
 
