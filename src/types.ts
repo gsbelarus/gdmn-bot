@@ -51,7 +51,7 @@ export interface IAccDeds {
  */
 export interface IAccDed {
   name: LName;
-  type: 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' | 'PRIVILAGE' | 'INCOME_TAX' | 'PENSION_TAX' | 'TRADE_UNION_TAX' | 'TAX' | 'REFERENCE' ;
+  type: 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' | 'PRIVILAGE' | 'INCOME_TAX' | 'PENSION_TAX' | 'TRADE_UNION_TAX' | 'TAX' | 'REFERENCE';
 }
 
 export interface IPaySlip {
@@ -73,6 +73,11 @@ export interface IPaySlip {
   }[]
 }
 
+export interface IPaySlipItem {
+  name: string;
+  type: 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' | 'PRIVILAGE' | 'INCOME_TAX' | 'PENSION_TAX' | 'TRADE_UNION_TAX' | 'TAX' | 'REFERENCE';
+  s: number;
+ }
 
 /**
  * TODO: этот кусок мы просто скопировали из gdmn-internals
@@ -91,16 +96,4 @@ export type LName = {
   [lang in Lang]?: ITName;
 };
 
-export function getLName(n: LName, langPref: Lang[] = [], getFullName: boolean = false): string {
-  for (let i = 0; i < langPref.length; i++) {
-    const tn = n[langPref[i]];
-    if (tn) {
-      return (getFullName && tn.fullName) ? tn.fullName : tn.name;
-    }
-  }
-
-  if (!n.en) return '';
-
-  return (getFullName && n.en.fullName) ? n.en.fullName : n.en.name;
-};
 

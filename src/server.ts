@@ -6,9 +6,9 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import Telegraf, { Extra, Markup, ContextMessageUpdate } from 'telegraf';
-import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip } from "./types";
+import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip, IPaySlipItem } from "./types";
 import { FileDB } from "./fileDB";
-import { normalizeStr } from "./utils";
+import { normalizeStr, getLanguage, getLName, getPaySlipString } from "./utils";
 import { InlineKeyboardMarkup } from "telegraf/typings/telegram-types";
 
 const cListok =
@@ -96,8 +96,9 @@ const upload = (ctx: any) => {
         customerAccDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip.${customerId}/accdedref.json`), {});
         customerAccDeds[customerId] = customerAccDed;
       } else {
-        customerAccDed.clear;
+        //customerAccDed.clear;
       }
+      customerAccDed.clear;
 
       for (const [key, value] of Object.entries(objData)) {
         customerAccDed.write(key, value as any);
@@ -307,8 +308,8 @@ const keyboardLogin = Markup.inlineKeyboard([
 ]);
 
 const keyboardMenu = Markup.inlineKeyboard([
-  [Markup.callbackButton('💰 Расчетный листок', 'listok') as any,
-  Markup.callbackButton('💰 Подробный листок', 'detail_listok') as any],
+  [Markup.callbackButton('💰 Расчетный листок', 'paySlip') as any,
+  Markup.callbackButton('💰 Подробный листок', 'detailPaySlip') as any],
   [
     Markup.callbackButton('🚪 Выйти', 'logout') as any,
     Markup.urlButton('❓', 'http://gsbelarus.com')
@@ -411,7 +412,8 @@ bot.action('logout', async (ctx) => {
   }
 });
 
-bot.action('listok', ctx => {
+bot.action('paySlip', ctx => {
+  console.log('paySlip');
   if (ctx.chat) {
     const chatId = ctx.chat.id.toString();
     const link = accountLink.read(chatId);
@@ -527,6 +529,152 @@ bot.action('listok', ctx => {
   }
 });
 
+bot.action('detailPaySlip', ctx => {
+
+  if (ctx.chat) {
+    const chatId = ctx.chat.id.toString();
+    const link = accountLink.read(chatId);
+    if (link?.customerId && link.employeeId) {
+      const {customerId, employeeId} = link;
+
+      let empls = employeesByCustomer[customerId];
+      if (!empls) {
+        empls = new FileDB<IEmployee>(path.resolve(process.cwd(), `data/employee.${customerId}.json`), {});
+        employeesByCustomer[customerId] = empls;
+      };
+
+      const passportId = empls.getMutable(false)[employeeId].passportId;
+
+      if (passportId) {
+
+        let paySlip = paySlips[passportId];
+        const today = new Date();
+        if (!paySlip) {
+          const year = today.getFullYear()-1;
+          paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip.${customerId}/${year}/payslip.${customerId}.${passportId}.${year}.json`), {});
+          paySlips[passportId] = paySlip;
+        };
+
+        const db = new Date(today.getFullYear()-1, today.getMonth() + 1, 1);
+        const de = new Date(today.getFullYear()-1, today.getMonth() + 2, 0);
+
+        let accDed = customerAccDeds[customerId];
+        if (!accDed) {
+          accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip.${customerId}/accdedref.json`), {});
+          customerAccDeds[customerId] = accDed;
+        };
+
+        const accDedObj = accDed.getMutable(false);
+        const paySlipObj = paySlip.getMutable(false);
+
+        if (Object.keys(paySlipObj).length === 0) {
+          withMenu(ctx,
+            `Нет расчетного листка за период ${db.toLocaleDateString()} - ${de.toLocaleDateString()}!`,
+            keyboardMenu);
+        } else {
+
+          let accrual = 0, salary = 0, tax = 0, ded = 0, saldo = 0, incomeTax = 0, pensionTax = 0, tradeUnionTax = 0, advance = 0, tax_ded = 0, privilage = 0;
+
+          let strAccruals = '', strAdvances = '', strDeductions = '', strTaxes = '', strPrivilages = '', strTaxDeds = '';
+          const lng = getLanguage(ctx.from?.language_code);
+
+          for (const [key, value] of Object.entries(paySlipObj.data)) {
+            if (new Date(value?.dateBegin) >= db && new Date(value?.dateEnd) <= de || new Date(value?.date) >= db && new Date(value?.date) <= de) {
+              if (value.typeId === 'saldo') {
+                saldo = saldo + value.s;
+              } else if (value.typeId === 'salary') {
+                salary = value.s;
+              } else if (accDedObj[value.typeId]) {
+
+                let accDedName = getLName(accDedObj[value.typeId].name, [lng, 'ru']) ;
+
+                switch (accDedObj[value.typeId].type) {
+                  case 'INCOME_TAX': {
+                    incomeTax = incomeTax + value.s;
+                    strTaxes = getPaySlipString(strTaxes, accDedName, value.s)
+                    break;
+                  }
+                  case 'PENSION_TAX': {
+                    pensionTax = pensionTax + value.s;
+                    strTaxes = getPaySlipString(strTaxes, accDedName, value.s)
+                    break;
+                  }
+                  case 'TRADE_UNION_TAX': {
+                    tradeUnionTax = tradeUnionTax + value.s;
+                    strTaxes = getPaySlipString(strTaxes, accDedName, value.s)
+                    break;
+                  }
+                  case 'ADVANCE': {
+                    advance = advance + value.s;
+                    strAdvances = getPaySlipString(strAdvances, accDedName, value.s)
+                    break;
+                  }
+                  case 'DEDUCTION': {
+                    ded = ded + value.s;
+                    strDeductions = getPaySlipString(strDeductions, accDedName, value.s)
+                    break;
+                  }
+                  case 'TAX': {
+                    tax = tax + value.s;
+                    break;
+                  }
+                  case 'ACCRUAL': {
+                    accrual = accrual + value.s;
+                    strAccruals = getPaySlipString(strAccruals, accDedName, value.s)
+                    break;
+                  }
+                  case 'TAX_DEDUCTION': {
+                    tax_ded = tax_ded + value.s;
+                    strTaxDeds = getPaySlipString(strTaxDeds, accDedName, value.s)
+                    break;
+                  }
+                  case 'PRIVILAGE': {
+                    privilage = privilage + value.s;
+                    strPrivilages = getPaySlipString(strPrivilages, accDedName, value.s)
+                    break;
+                  }
+                }
+              }
+            }
+          };
+
+          const allTaxes = incomeTax + pensionTax + tradeUnionTax;
+          const len = 37;
+          const lenS = 8;
+          const cListok =
+            `${'`'}${'`'}${'`'}ini
+${'Начисления:'.padEnd(len)}  ${accrual.toFixed(2).padStart(lenS)}
+=================================================
+${strAccruals}
+=================================================
+${'Аванс:'.padEnd(len)}  ${advance.toFixed(2).padStart(lenS)}
+=================================================
+${strAdvances}
+=================================================
+${'Удержания:'.padEnd(len)}  ${ded.toFixed(2).padStart(lenS)}
+=================================================
+${strDeductions}
+=================================================
+${'Налоги:'.padEnd(len)}  ${allTaxes.toFixed(2).padStart(lenS)}
+=================================================
+${strTaxes}
+=================================================
+${'Вычеты:'.padEnd(len)}  ${tax_ded.toFixed(2).padStart(lenS)}
+=================================================
+${strTaxDeds}
+=================================================
+${'Льготы:'.padEnd(len)}  ${privilage.toFixed(2).padStart(lenS)}
+=================================================
+${strPrivilages}
+
+${'`'}${'`'}${'`'}`;
+            withMenu(ctx, cListok, keyboardMenu, true);
+        }
+      }
+    }
+  }
+});
+
 bot.action('delete', ({ deleteMessage }) => deleteMessage());
 
 bot.launch();
@@ -547,3 +695,4 @@ process.on('exit', code => {
 });
 
 process.on('SIGINT', () => process.exit() );
+
