@@ -58,8 +58,8 @@ export interface IPaySlip {
   version: "1.0";
   employeeId: string;
   year: number;
-  deptName: string;
-  posName: string;
+  deptName: LName;
+  posName: LName;
   hiringDate: Date;
   dismissalDate: Date;
   data: {

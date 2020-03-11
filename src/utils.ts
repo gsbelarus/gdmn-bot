@@ -82,10 +82,12 @@ export const getPaySlipString = (prevStr: string, name: string, s: number): stri
   if (name.length > len) {
     name_1 = name.length > len ? name.slice(0, len) : name;
     name = name.slice(len).padEnd(len);
-    return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name_1} \r\n  ${name} ${s.toFixed(2).padStart(8)}`;
+    return `${prevStr}${prevStr !== '' ? '\r\n    ' : ''}  ${name_1} \r\n      ${name} ${s.toFixed(2).padStart(8)}`;
   } else {
-    return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name.padEnd(len)} ${s.toFixed(2).padStart(8)}`;
+    return `${prevStr}${prevStr !== '' ? '\r\n    ' : ''}  ${name.padEnd(len)} ${s.toFixed(2).padStart(8)}`;
   }
 
 }
+
+
 

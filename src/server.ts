@@ -6,7 +6,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import Telegraf, { Extra, Markup, ContextMessageUpdate } from 'telegraf';
-import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip, IPaySlipItem } from "./types";
+import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip, IPaySlipItem, LName } from "./types";
 import { FileDB } from "./fileDB";
 import { normalizeStr, getLanguage, getLName, getPaySlipString } from "./utils";
 import { InlineKeyboardMarkup } from "telegraf/typings/telegram-types";
@@ -413,124 +413,37 @@ bot.action('logout', async (ctx) => {
 });
 
 bot.action('paySlip', ctx => {
-  console.log('paySlip');
-  if (ctx.chat) {
-    const chatId = ctx.chat.id.toString();
-    const link = accountLink.read(chatId);
-    if (link?.customerId && link.employeeId) {
-      const {customerId, employeeId} = link;
-
-      let empls = employeesByCustomer[customerId];
-      if (!empls) {
-        empls = new FileDB<IEmployee>(path.resolve(process.cwd(), `data/employee.${customerId}.json`), {});
-        employeesByCustomer[customerId] = empls;
-      };
-
-      const passportId = empls.getMutable(false)[employeeId].passportId;
-
-      if (passportId) {
-
-        let paySlip = paySlips[passportId];
-        const today = new Date();
-        if (!paySlip) {
-          const year = today.getFullYear()-1;
-          paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip.${customerId}/${year}/payslip.${customerId}.${passportId}.${year}.json`), {});
-          paySlips[passportId] = paySlip;
-        };
-
-        const db = new Date(today.getFullYear()-1, today.getMonth() + 1, 1);
-        const de = new Date(today.getFullYear()-1, today.getMonth() + 2, 0);
-
-        let accDed = customerAccDeds[customerId];
-        if (!accDed) {
-          accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip.${customerId}/accdedref.json`), {});
-          customerAccDeds[customerId] = accDed;
-        };
-
-        const accDedObj = accDed.getMutable(false);
-        const paySlipObj = paySlip.getMutable(false);
-
-        if (Object.keys(paySlipObj).length === 0) {
-          withMenu(ctx,
-            `Нет расчетного листка за период ${db.toLocaleDateString()} - ${de.toLocaleDateString()}!`,
-            keyboardMenu);
-        } else {
-
-          let accrual = 0, salary = 0, tax = 0, ded = 0, saldo = 0, incomeTax = 0, pensionTax = 0, tradeUnionTax = 0, advance = 0;
-          for (const [key, value] of Object.entries(paySlipObj.data) as any) {
-            if (new Date(value.dateBegin) >= db && new Date(value.dateEnd) <= de) {
-              if (value.typeId === 'saldo') {
-                saldo = saldo + value.s;
-              } else if (value.typeId === 'salary') {
-                salary = value.s;
-              } else if (accDedObj[value.typeId]) {
-                switch (accDedObj[value.typeId].type) {
-                  case 'INCOME_TAX': {
-                    incomeTax = incomeTax + value.s;
-                    break;
-                  }
-                  case 'PENSION_TAX': {
-                    pensionTax = pensionTax + value.s;
-                    break;
-                  }
-                  case 'TRADE_UNION_TAX': {
-                    tradeUnionTax = tradeUnionTax + value.s;
-                    break;
-                  }
-                  case 'ADVANCE': {
-                    advance = advance + value.s;
-                    break;
-                  }
-                  case 'DEDUCTION': {
-                    ded = ded + value.s;
-                    break;
-                  }
-                  case 'TAX': {
-                    tax = tax + value.s;
-                    break;
-                  }
-                  case 'ACCRUAL': {
-                    accrual = accrual + value.s;
-                    break;
-                  }
-
-                }
-              }
-            }
-          };
-
-          const taxes = incomeTax + pensionTax + tradeUnionTax;
-          const deptName = paySlipObj.deptName;
-          const posName = paySlipObj.posName;
-
-          const cListok =
-            `${'`'}${'`'}${'`'}ini
-            Начислено:           ${accrual.toFixed(2)}
-            ===========================
-            Зарплата (чистыми):  ${(accrual - taxes).toFixed(2)}
-              Аванс:             ${advance.toFixed(2)}
-              К выдаче:          ${saldo.toFixed(2)}
-              Удержания:         ${ded.toFixed(2)}
-            ===========================
-            Налоги:              ${taxes.toFixed(2)}
-              Подоходный:        ${incomeTax.toFixed(2)}
-              Пенсионный:        ${pensionTax.toFixed(2)}
-              Профсоюзный:       ${tradeUnionTax.toFixed(2)}
-            ===========================
-            Информация:
-              ${deptName}
-              ${posName}
-              Оклад:             ${salary.toFixed(2)}
-            ${'`'}${'`'}${'`'}`;
-            withMenu(ctx, cListok, keyboardMenu, true);
-        }
-      }
-    }
-  }
+  const cListok = getPaySlip(ctx);
+  cListok && withMenu(ctx, cListok, keyboardMenu, true);
 });
 
 bot.action('detailPaySlip', ctx => {
+  const cListok = getPaySlip(ctx, true);
+  cListok && withMenu(ctx, cListok, keyboardMenu, true);
+});
 
+bot.action('delete', ({ deleteMessage }) => deleteMessage());
+
+bot.launch();
+
+/**
+ * При завершении работы сервера скидываем на диск все данные.
+ */
+process.on('exit', code => {
+  accountLink.flush();
+  dialogStates.flush();
+  customers.flush();
+
+  for (const ec of Object.values(employeesByCustomer)) {
+    ec.flush();
+  }
+
+  console.log('Process exit event with code: ', code);
+});
+
+process.on('SIGINT', () => process.exit() );
+
+const getPaySlip = (ctx: any, isDetail?: boolean): string | undefined => {
   if (ctx.chat) {
     const chatId = ctx.chat.id.toString();
     const link = accountLink.read(chatId);
@@ -578,7 +491,7 @@ bot.action('detailPaySlip', ctx => {
           let strAccruals = '', strAdvances = '', strDeductions = '', strTaxes = '', strPrivilages = '', strTaxDeds = '';
           const lng = getLanguage(ctx.from?.language_code);
 
-          for (const [key, value] of Object.entries(paySlipObj.data)) {
+          for (const [key, value] of Object.entries(paySlipObj.data) as any) {
             if (new Date(value?.dateBegin) >= db && new Date(value?.dateEnd) <= de || new Date(value?.date) >= db && new Date(value?.date) <= de) {
               if (value.typeId === 'saldo') {
                 saldo = saldo + value.s;
@@ -591,27 +504,27 @@ bot.action('detailPaySlip', ctx => {
                 switch (accDedObj[value.typeId].type) {
                   case 'INCOME_TAX': {
                     incomeTax = incomeTax + value.s;
-                    strTaxes = getPaySlipString(strTaxes, accDedName, value.s)
+                    strTaxes = isDetail ? getPaySlipString(strTaxes, accDedName, value.s) : ''
                     break;
                   }
                   case 'PENSION_TAX': {
                     pensionTax = pensionTax + value.s;
-                    strTaxes = getPaySlipString(strTaxes, accDedName, value.s)
+                    strTaxes = isDetail ? getPaySlipString(strTaxes, accDedName, value.s) : ''
                     break;
                   }
                   case 'TRADE_UNION_TAX': {
                     tradeUnionTax = tradeUnionTax + value.s;
-                    strTaxes = getPaySlipString(strTaxes, accDedName, value.s)
+                    strTaxes = isDetail ? getPaySlipString(strTaxes, accDedName, value.s) : ''
                     break;
                   }
                   case 'ADVANCE': {
                     advance = advance + value.s;
-                    strAdvances = getPaySlipString(strAdvances, accDedName, value.s)
+                    strAdvances = isDetail ? getPaySlipString(strAdvances, accDedName, value.s) : ''
                     break;
                   }
                   case 'DEDUCTION': {
                     ded = ded + value.s;
-                    strDeductions = getPaySlipString(strDeductions, accDedName, value.s)
+                    strDeductions = isDetail ? getPaySlipString(strDeductions, accDedName, value.s) : ''
                     break;
                   }
                   case 'TAX': {
@@ -620,17 +533,17 @@ bot.action('detailPaySlip', ctx => {
                   }
                   case 'ACCRUAL': {
                     accrual = accrual + value.s;
-                    strAccruals = getPaySlipString(strAccruals, accDedName, value.s)
+                    strAccruals = isDetail ? getPaySlipString(strAccruals, accDedName, value.s) : ''
                     break;
                   }
                   case 'TAX_DEDUCTION': {
                     tax_ded = tax_ded + value.s;
-                    strTaxDeds = getPaySlipString(strTaxDeds, accDedName, value.s)
+                    strTaxDeds = isDetail ? getPaySlipString(strTaxDeds, accDedName, value.s) : ''
                     break;
                   }
                   case 'PRIVILAGE': {
                     privilage = privilage + value.s;
-                    strPrivilages = getPaySlipString(strPrivilages, accDedName, value.s)
+                    strPrivilages = isDetail ? getPaySlipString(strPrivilages, accDedName, value.s) : ''
                     break;
                   }
                 }
@@ -641,58 +554,61 @@ bot.action('detailPaySlip', ctx => {
           const allTaxes = incomeTax + pensionTax + tradeUnionTax;
           const len = 37;
           const lenS = 8;
-          const cListok =
-            `${'`'}${'`'}${'`'}ini
-${'Начисления:'.padEnd(len)}  ${accrual.toFixed(2).padStart(lenS)}
-=================================================
-${strAccruals}
-=================================================
-${'Аванс:'.padEnd(len)}  ${advance.toFixed(2).padStart(lenS)}
-=================================================
-${strAdvances}
-=================================================
-${'Удержания:'.padEnd(len)}  ${ded.toFixed(2).padStart(lenS)}
-=================================================
-${strDeductions}
-=================================================
-${'Налоги:'.padEnd(len)}  ${allTaxes.toFixed(2).padStart(lenS)}
-=================================================
-${strTaxes}
-=================================================
-${'Вычеты:'.padEnd(len)}  ${tax_ded.toFixed(2).padStart(lenS)}
-=================================================
-${strTaxDeds}
-=================================================
-${'Льготы:'.padEnd(len)}  ${privilage.toFixed(2).padStart(lenS)}
-=================================================
-${strPrivilages}
+          const deptName = getLName(paySlipObj.deptName as LName, [lng, 'ru']);
+          const posName = getLName(paySlipObj.posName as LName, [lng, 'ru']);
 
-${'`'}${'`'}${'`'}`;
-            withMenu(ctx, cListok, keyboardMenu, true);
+          if (isDetail) {
+            return (
+              `${'`'}${'`'}${'`'}ini
+    ${'Начисления:'.padEnd(len)}  ${accrual.toFixed(2).padStart(lenS)}
+    ===============================================
+    ${strAccruals}
+    ===============================================
+    ${'Аванс:'.padEnd(len)}  ${advance.toFixed(2).padStart(lenS)}
+    ===============================================
+    ${strAdvances}
+    ===============================================
+    ${'Удержания:'.padEnd(len)}  ${ded.toFixed(2).padStart(lenS)}
+    ===============================================
+    ${strDeductions}
+    ===============================================
+    ${'Налоги:'.padEnd(len)}  ${allTaxes.toFixed(2).padStart(lenS)}
+    ===============================================
+    ${strTaxes}
+    ===============================================
+    ${'Вычеты:'.padEnd(len)}  ${tax_ded.toFixed(2).padStart(lenS)}
+    ===============================================
+    ${strTaxDeds}
+    ===============================================
+    ${'Льготы:'.padEnd(len)}  ${privilage.toFixed(2).padStart(lenS)}
+    ===============================================
+    ${strPrivilages}
+
+${'`'}${'`'}${'`'}`)
+          } else {
+            const len = 30;
+            return (`${'`'}${'`'}${'`'}ini
+    ${'Начислено:'.padEnd(len + 2)}  ${accrual.toFixed(2).padStart(lenS)}
+    ==========================================
+    ${'Зарплата (чистыми):'.padEnd(len + 2)}  ${(accrual - allTaxes).toFixed(2).padStart(lenS)}
+      ${'Аванс:'.padEnd(len)}  ${advance.toFixed(2).padStart(lenS)}
+      ${'К выдаче:'.padEnd(len)}  ${saldo.toFixed(2).padStart(lenS)}
+      ${'Удержания:'.padEnd(len)}  ${ded.toFixed(2).padStart(lenS)}
+    ==========================================
+    ${'Налоги:'.padEnd(len + 2)}  ${allTaxes.toFixed(2).padStart(lenS)}
+      ${'Подоходный:'.padEnd(len)}  ${incomeTax.toFixed(2).padStart(lenS)}
+      ${'Пенсионный:'.padEnd(len)}  ${pensionTax.toFixed(2).padStart(lenS)}
+      ${'Профсоюзный:'.padEnd(len)}  ${tradeUnionTax.toFixed(2).padStart(lenS)}
+    ==========================================
+    ${'Информация:'.padEnd(len)}
+      ${deptName}
+      ${posName}
+    ${'Оклад:'.padEnd(len + 2)}  ${salary.toFixed(2).padStart(lenS)}
+${'`'}${'`'}${'`'}`);
+          }
         }
       }
     }
   }
-});
-
-bot.action('delete', ({ deleteMessage }) => deleteMessage());
-
-bot.launch();
-
-/**
- * При завершении работы сервера скидываем на диск все данные.
- */
-process.on('exit', code => {
-  accountLink.flush();
-  dialogStates.flush();
-  customers.flush();
-
-  for (const ec of Object.values(employeesByCustomer)) {
-    ec.flush();
-  }
-
-  console.log('Process exit event with code: ', code);
-});
-
-process.on('SIGINT', () => process.exit() );
-
+  return undefined
+}
