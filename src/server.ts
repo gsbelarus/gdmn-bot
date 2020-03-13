@@ -6,7 +6,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import Telegraf, { Extra, Markup, ContextMessageUpdate } from 'telegraf';
-import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip, IPaySlipItem, LName } from "./types";
+import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip, IPaySlipItem, LName, ITypePaySlip, monthList, Lang, IDialogStateGettingPeriod } from "./types";
 import { FileDB } from "./fileDB";
 import { normalizeStr, getLanguage, getLName, getPaySlipString, getYears } from "./utils";
 import { InlineKeyboardMarkup } from "telegraf/typings/telegram-types";
@@ -307,6 +307,59 @@ const keyboardLogin = Markup.inlineKeyboard([
   Markup.urlButton('❓', 'http://gsbelarus.com'),
 ]);
 
+//const months = monthList.map(m => getLName(m.name as LName, ['ru']));
+
+const keyboardMonth = (lng: Lang, year: number) => {
+  let keyboard: any[] = [];
+
+  for (let i = 0; i < 3;  i++) {
+    let row: any[] = [];
+    monthList.forEach((m, idx) => {
+      if (idx >= i*4 && idx < (i+1)*4) {
+        const name = getLName(m.name as LName, ['ru']);
+        row.push(Markup.callbackButton(name, createCallBackData('month', year, idx)));
+      }
+    });
+    keyboard.push(row)
+  };
+  keyboard.push([
+    Markup.callbackButton("<", createCallBackData('prevYear', year)),
+    Markup.callbackButton(year.toString(), createCallBackData('otherYear', year)),
+    Markup.callbackButton(">", createCallBackData('nextYear', year))
+  ]);
+  return Markup.inlineKeyboard(keyboard);
+};
+
+const createCallBackData = (action: string, year: number, month?: number) => {
+  return ([action, year.toString(), month?.toString()]).join(';');
+}
+
+const separateCallBackData = (data: string) => {
+  return data.split(';');
+}
+
+const calendarSelection = (ctx: any): Date | undefined => {
+  const query = ctx.callbackQuery;
+  if (query?.data) {
+    const [action, year, month] = separateCallBackData(query.data);
+    switch (action) {
+      case 'month': {
+        return new Date(parseInt(year), parseInt(month), 1)
+      }
+      case 'prevYear': {
+
+      }
+      case 'nextYear': {
+
+      }
+      case 'otherYear': {
+
+      }
+    }
+  }
+  return undefined;
+}
+
 const keyboardMenu = Markup.inlineKeyboard([
   [
     Markup.callbackButton('💰 Расчетный листок', 'paySlip') as any,
@@ -434,12 +487,39 @@ bot.action('detailPaySlip', ctx => {
   cListok && withMenu(ctx, cListok, keyboardMenu, true);
 });
 
-bot.action('paySlipByPeriod', ctx => {
-  const db = new Date(2018, 0, 1);
-  const de = new Date(2019, 11, 31);
-  const cListok = getPaySlip(ctx, 'CONCISE', db, de);
-  cListok && withMenu(ctx, cListok, keyboardMenu, true);
+bot.action('paySlipByPeriod', async ctx => {
+  if (ctx.chat) {
+    const chatId = ctx.chat.id.toString();
+    dialogStates.merge(chatId, { type: 'GETTING_PERIOD', lastUpdated: new Date().getTime(), db: undefined, de: undefined });
+    await withMenu(ctx, 'Укажите начало периода:', keyboardMonth(getLanguage(ctx.from?.language_code), 2019));
+  }
 });
+
+bot.on('callback_query', (ctx) => {
+  if (ctx.chat) {
+    const chatId = ctx.chat.id.toString();
+    const dialogState = dialogStates.read(chatId);
+    if (dialogState?.type === 'GETTING_PERIOD') {
+      const { db, de } = dialogState as IDialogStateGettingPeriod;
+      if (!db) {
+        const db = calendarSelection(ctx);
+
+        dialogStates.merge(chatId, { type: 'GETTING_PERIOD', lastUpdated: new Date().getTime(), db });
+        withMenu(ctx, 'Укажите окончание периода:', keyboardMonth(getLanguage(ctx.from?.language_code), 2019));
+      } else if (!de) {
+        let de = calendarSelection(ctx);
+        if (de) {
+          de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
+          dialogStates.merge(chatId, { type: 'GETTING_PERIOD', lastUpdated: new Date().getTime(), de });
+
+          const cListok = de && getPaySlip(ctx, 'CONCISE', db, de);
+          cListok && withMenu(ctx, cListok, keyboardMenu, true);
+        }
+
+      }
+    }
+  }
+})
 
 bot.action('paySlipCompare', ctx => {
   const fromDb = new Date(2018, 0, 1);
@@ -471,7 +551,13 @@ process.on('exit', code => {
 
 process.on('SIGINT', () => process.exit() );
 
-const getPaySlip = (ctx: any, typePaySlip: string, db: Date, de: Date, toDb?: Date, toDe?: Date): string | undefined => {
+// const getMonth = async (ctx: any, caption: string) => {
+//   if (ctx.chat) {
+//     await withMenu(ctx, caption, keyboardMonth(getLanguage(ctx.from?.language_code)));
+//   }
+// }
+
+const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Date, toDb?: Date, toDe?: Date): string | undefined => {
   if (ctx.chat) {
     const chatId = ctx.chat.id.toString();
     const link = accountLink.read(chatId);
@@ -508,6 +594,8 @@ const getPaySlip = (ctx: any, typePaySlip: string, db: Date, de: Date, toDb?: Da
         let deptName = '';
         let posName = '';
 
+
+        /** Получить информацию по расчетным листкам за период*/
         const getAccDedsByPeriod = (fromDb : Date, fromDe: Date, i: number) => {
           const years = getYears(fromDb, fromDe);
           //пробегаемся по всем годам
@@ -596,6 +684,7 @@ const getPaySlip = (ctx: any, typePaySlip: string, db: Date, de: Date, toDb?: Da
           }//for
         };
 
+        //Данные по листку заносятся в массивы с индектом = 0
         getAccDedsByPeriod(db, de, 0);
 
         const lenS = 8;
@@ -654,6 +743,7 @@ ${'`'}${'`'}${'`'}`);
           case 'COMPARE': {
             if (toDb && toDe) {
               const len = 23;
+              //Данные по листку за второй период заносятся в массивы с индектом = 1
               getAccDedsByPeriod(toDb, toDe, 1);
               return (`${'`'}${'`'}${'`'}ini
   ${'Начислено:'.padEnd(len + 2)}  ${accrual[0].toFixed(2).padStart(lenS)} ${accrual[1].toFixed(2).padStart(lenS)} ${(accrual[1] - accrual[0]).toFixed(2).padStart(lenS)}

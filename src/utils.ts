@@ -87,6 +87,8 @@ export const getPaySlipString = (prevStr: string, name: string, s: number): stri
     return `${prevStr}${prevStr !== '' ? '\r\n    ' : ''}  ${name.padEnd(len)} ${s.toFixed(2).padStart(8)}`;
   }
 }
+
+/** Возвращает массив лет за период*/
 export function getYears(fromDate: Date, toDate: Date): number[] {
   let years = [];
   let fromYear = fromDate.getFullYear();

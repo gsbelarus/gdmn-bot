@@ -19,7 +19,7 @@ export interface IAccountLink {
 };
 
 export interface IDialogStateBase {
-  type: 'INITIAL' | 'LOGGING_IN' | 'LOGGED_IN';
+  type: 'INITIAL' | 'LOGGING_IN' | 'LOGGED_IN' | 'GETTING_PERIOD';
   lastUpdated: number;
   menuMessageId?: number;
 };
@@ -37,9 +37,16 @@ export interface IDialogStateLoggedIn extends IDialogStateBase {
   type: 'LOGGED_IN';
 };
 
+export interface IDialogStateGettingPeriod extends IDialogStateBase {
+  type: 'GETTING_PERIOD';
+  db?: Date;
+  de?: Date;
+};
+
 export type DialogState = IDialogStateInitial
   | IDialogStateLoggingIn
-  | IDialogStateLoggedIn;
+  | IDialogStateLoggedIn
+  | IDialogStateGettingPeriod;
 
 export interface IAccDeds {
  [id: string]: IAccDed
@@ -79,6 +86,7 @@ export interface IPaySlipItem {
   s: number;
  }
 
+ export type ITypePaySlip = 'DETAIL' | 'CONCISE' | 'COMPARE'
 /**
  * TODO: этот кусок мы просто скопировали из gdmn-internals
  * когда оформим gdmn-internals в отдельный пакет, надо убрать
@@ -95,5 +103,16 @@ export interface ITName {
 export type LName = {
   [lang in Lang]?: ITName;
 };
+
+export interface IMonth {
+  name: LName;
+}
+
+export const monthList: IMonth[] = [
+  {name: {'ru': {name: 'янв'}}}, {name: {'ru': {name: 'фев'}}},{name: {'ru': {name: 'март'}}},
+  {name: {'ru': {name: 'апр'}}}, {name: {'ru': {name: 'май'}}},{name: {'ru': {name: 'июн'}}},
+  {name: {'ru': {name: 'июл'}}}, {name: {'ru': {name: 'авг'}}},{name: {'ru': {name: 'сен'}}},
+  {name: {'ru': {name: 'окт'}}}, {name: {'ru': {name: 'ноя'}}},{name: {'ru': {name: 'дек'}}},
+]
 
 
