@@ -19,7 +19,7 @@ export interface IAccountLink {
 };
 
 export interface IDialogStateBase {
-  type: 'INITIAL' | 'LOGGING_IN' | 'LOGGED_IN' | 'GETTING_PERIOD';
+  type: 'INITIAL' | 'LOGGING_IN' | 'LOGGED_IN' | 'GETTING_CONCISE' | 'GETTING_COMPARE';
   lastUpdated: number;
   menuMessageId?: number;
 };
@@ -37,16 +37,25 @@ export interface IDialogStateLoggedIn extends IDialogStateBase {
   type: 'LOGGED_IN';
 };
 
-export interface IDialogStateGettingPeriod extends IDialogStateBase {
-  type: 'GETTING_PERIOD';
+export interface IDialogStateGettingConcise extends IDialogStateBase {
+  type: 'GETTING_CONCISE';
   db?: Date;
   de?: Date;
+};
+
+export interface IDialogStateGettingCompare extends IDialogStateBase {
+  type: 'GETTING_COMPARE';
+  fromDb?: Date;
+  fromDe?: Date;
+  toDb?: Date;
+  toDe?: Date;
 };
 
 export type DialogState = IDialogStateInitial
   | IDialogStateLoggingIn
   | IDialogStateLoggedIn
-  | IDialogStateGettingPeriod;
+  | IDialogStateGettingConcise
+  | IDialogStateGettingCompare;
 
 export interface IAccDeds {
  [id: string]: IAccDed

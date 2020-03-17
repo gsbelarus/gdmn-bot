@@ -6,7 +6,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import Telegraf, { Extra, Markup, ContextMessageUpdate } from 'telegraf';
-import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip, IPaySlipItem, LName, ITypePaySlip, monthList, Lang, IDialogStateGettingPeriod } from "./types";
+import { IAccountLink, IDialogStateLoggingIn, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip, IPaySlipItem, LName, ITypePaySlip, monthList, Lang, IDialogStateGettingConcise, IDialogStateGettingCompare } from "./types";
 import { FileDB } from "./fileDB";
 import { normalizeStr, getLanguage, getLName, getPaySlipString, getYears } from "./utils";
 import { InlineKeyboardMarkup } from "telegraf/typings/telegram-types";
@@ -179,6 +179,13 @@ const withMenu = async (ctx: ContextMessageUpdate, msg: string, menu?: Markup & 
   }
 };
 
+const editMenu = async (ctx: ContextMessageUpdate, menu: Markup & InlineKeyboardMarkup) => {
+  if (!ctx.chat) {
+    throw new Error('Invalid context');
+  }
+  ctx.editMessageReplyMarkup(menu);
+};
+
 const loginDialog = async (ctx: ContextMessageUpdate, start = false) => {
   if (!ctx.chat) {
     throw new Error('Invalid context');
@@ -309,7 +316,7 @@ const keyboardLogin = Markup.inlineKeyboard([
 
 //const months = monthList.map(m => getLName(m.name as LName, ['ru']));
 
-const keyboardMonth = (lng: Lang, year: number) => {
+const keyboardCalendar = (lng: Lang, year: number) => {
   let keyboard: any[] = [];
 
   for (let i = 0; i < 3;  i++) {
@@ -338,22 +345,27 @@ const separateCallBackData = (data: string) => {
   return data.split(';');
 }
 
-const calendarSelection = (ctx: any): Date | undefined => {
+const calendarSelection = (ctx: ContextMessageUpdate): Date | undefined => {
   const query = ctx.callbackQuery;
+
   if (query?.data) {
     const [action, year, month] = separateCallBackData(query.data);
+    const lng = getLanguage(ctx.from?.language_code);
     switch (action) {
       case 'month': {
-        return new Date(parseInt(year), parseInt(month), 1)
+        const selectedDate = new Date(parseInt(year), parseInt(month), 1);
+        return selectedDate;
       }
       case 'prevYear': {
-
+        editMenu(ctx, keyboardCalendar(lng, parseInt(year) - 1));
+        break;
       }
       case 'nextYear': {
-
+        editMenu(ctx, keyboardCalendar(lng, parseInt(year) + 1));
+        break;
       }
       case 'otherYear': {
-
+        break;
       }
     }
   }
@@ -487,48 +499,92 @@ bot.action('detailPaySlip', ctx => {
   cListok && withMenu(ctx, cListok, keyboardMenu, true);
 });
 
-bot.action('paySlipByPeriod', async ctx => {
+bot.action('paySlipByPeriod', ctx => {
   if (ctx.chat) {
     const chatId = ctx.chat.id.toString();
-    dialogStates.merge(chatId, { type: 'GETTING_PERIOD', lastUpdated: new Date().getTime(), db: undefined, de: undefined });
-    await withMenu(ctx, 'Укажите начало периода:', keyboardMonth(getLanguage(ctx.from?.language_code), 2019));
+    dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db: undefined, de: undefined });
+    withMenu(ctx, 'Укажите начало периода:', keyboardCalendar(getLanguage(ctx.from?.language_code), new Date().getFullYear()), true);
   }
 });
 
-bot.on('callback_query', (ctx) => {
+bot.action('paySlipCompare', ctx => {
+  if (ctx.chat) {
+    const chatId = ctx.chat.id.toString();
+    dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDb: undefined, fromDe: undefined, toDb: undefined, toDe: undefined });
+    withMenu(ctx, 'Укажите начало первого периода:', keyboardCalendar(getLanguage(ctx.from?.language_code), new Date().getFullYear()), true);
+  }
+  // const fromDb = new Date(2018, 0, 1);
+  // const fromDe = new Date(2018, 2, 28);
+  // const toDb = new Date(2019, 0, 1);
+  // const toDe = new Date(2019, 2, 28);
+  // const cListok = getPaySlip(ctx, 'COMPARE', fromDb, fromDe, toDb, toDe);
+  // cListok && withMenu(ctx, cListok, keyboardMenu, true);
+});
+
+
+bot.on('callback_query', async (ctx) => {
   if (ctx.chat) {
     const chatId = ctx.chat.id.toString();
     const dialogState = dialogStates.read(chatId);
-    if (dialogState?.type === 'GETTING_PERIOD') {
-      const { db, de } = dialogState as IDialogStateGettingPeriod;
+    const lng = getLanguage(ctx.from?.language_code);
+    if (dialogState?.type === 'GETTING_CONCISE') {
+      const { db, de } = dialogState as IDialogStateGettingConcise;
       if (!db) {
         const db = calendarSelection(ctx);
 
-        dialogStates.merge(chatId, { type: 'GETTING_PERIOD', lastUpdated: new Date().getTime(), db });
-        withMenu(ctx, 'Укажите окончание периода:', keyboardMonth(getLanguage(ctx.from?.language_code), 2019));
+        if (db) {
+          //await withMenu(ctx, db.toLocaleDateString());
+          ctx.reply(db.toLocaleDateString());
+          dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db });
+          await withMenu(ctx, 'Укажите окончание периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
+        }
       } else if (!de) {
         let de = calendarSelection(ctx);
         if (de) {
           de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
-          dialogStates.merge(chatId, { type: 'GETTING_PERIOD', lastUpdated: new Date().getTime(), de });
+         // await withMenu(ctx, de.toLocaleDateString());
+          ctx.reply(de.toLocaleDateString());
+          dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), de });
 
           const cListok = de && getPaySlip(ctx, 'CONCISE', db, de);
           cListok && withMenu(ctx, cListok, keyboardMenu, true);
         }
 
       }
+    } else if (dialogState?.type === 'GETTING_COMPARE') {
+      const { fromDb, fromDe, toDb, toDe } = dialogState as IDialogStateGettingCompare;
+      if (!fromDb) {
+        const db = calendarSelection(ctx);
+        if (db) {
+          dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDb: db });
+          await withMenu(ctx, 'Укажите окончание первого периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
+        }
+      } else if (!fromDe) {
+        let de = calendarSelection(ctx);
+        if (de) {
+          de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
+          dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDe: de });
+          await withMenu(ctx, 'Укажите начало второго периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
+        }
+      } else if (!toDb) {
+          let db = calendarSelection(ctx);
+          if (db) {
+            dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDb: db });
+            await withMenu(ctx, 'Укажите окончание второго периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
+          }
+      } else if (!toDe) {
+          let de = calendarSelection(ctx);
+          if (de) {
+            de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
+            dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDe: de });
+
+            const cListok = de && getPaySlip(ctx, 'COMPARE', fromDb, fromDe, toDb, de);
+            cListok && withMenu(ctx, cListok, keyboardMenu, true);
+          }
+      }
     }
   }
 })
-
-bot.action('paySlipCompare', ctx => {
-  const fromDb = new Date(2018, 0, 1);
-  const fromDe = new Date(2018, 2, 28);
-  const toDb = new Date(2019, 0, 1);
-  const toDe = new Date(2019, 2, 28);
-  const cListok = getPaySlip(ctx, 'COMPARE', fromDb, fromDe, toDb, toDe);
-  cListok && withMenu(ctx, cListok, keyboardMenu, true);
-});
 
 bot.action('delete', ({ deleteMessage }) => deleteMessage());
 
@@ -593,6 +649,7 @@ const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Date, toD
 
         let deptName = '';
         let posName = '';
+        const dbMonthName = db.toLocaleDateString(lng, { month: 'long', year: 'numeric' });
 
 
         /** Получить информацию по расчетным листкам за период*/
@@ -686,13 +743,13 @@ const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Date, toD
 
         //Данные по листку заносятся в массивы с индектом = 0
         getAccDedsByPeriod(db, de, 0);
-
         const lenS = 8;
 
         switch (typePaySlip) {
           case 'DETAIL': {
             const len = 37;
             return (`${'`'}${'`'}${'`'}ini
+    Расчетный листок ${dbMonthName}
     ${'Начисления:'.padEnd(len)}  ${accrual[0].toFixed(2).padStart(lenS)}
     ===============================================
     ${strAccruals}
@@ -721,7 +778,9 @@ const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Date, toD
           }
           case 'CONCISE': {
             const len = 30;
+            const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `с ${db.toLocaleDateString()} по ${de.toLocaleDateString()}` : `${dbMonthName}`
             return (`${'`'}${'`'}${'`'}ini
+  Расчетный листок ${m}
   ${'Начислено:'.padEnd(len + 2)}  ${accrual[0].toFixed(2).padStart(lenS)}
   ==========================================
   ${'Зарплата (чистыми):'.padEnd(len + 2)}  ${(accrual[0] - allTaxes[0]).toFixed(2).padStart(lenS)}
@@ -746,6 +805,10 @@ ${'`'}${'`'}${'`'}`);
               //Данные по листку за второй период заносятся в массивы с индектом = 1
               getAccDedsByPeriod(toDb, toDe, 1);
               return (`${'`'}${'`'}${'`'}ini
+  ${'Сравнение расчетных листков'.padEnd(len + 2)}
+  Период I:  ${db.toLocaleDateString()} - ${de.toLocaleDateString()}
+  Период II: ${toDb.toLocaleDateString()} - ${toDe.toLocaleDateString()}
+                                    I       II
   ${'Начислено:'.padEnd(len + 2)}  ${accrual[0].toFixed(2).padStart(lenS)} ${accrual[1].toFixed(2).padStart(lenS)} ${(accrual[1] - accrual[0]).toFixed(2).padStart(lenS)}
   =====================================================
   ${'Зарплата (чистыми):'.padEnd(len + 2)}  ${(accrual[0] - allTaxes[0]).toFixed(2).padStart(lenS)} ${(accrual[1] - allTaxes[1]).toFixed(2).padStart(lenS)} ${(accrual[1] - allTaxes[1] - (accrual[0] - allTaxes[0])).toFixed(2).padStart(lenS)}
