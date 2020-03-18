@@ -531,9 +531,8 @@ bot.on('callback_query', async (ctx) => {
       const { db, de } = dialogState as IDialogStateGettingConcise;
       if (!db) {
         const db = calendarSelection(ctx);
-
         if (db) {
-          //await withMenu(ctx, db.toLocaleDateString());
+          await withMenu(ctx, db.toLocaleDateString());
           ctx.reply(db.toLocaleDateString());
           dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db });
           await withMenu(ctx, 'Укажите окончание периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
@@ -542,42 +541,43 @@ bot.on('callback_query', async (ctx) => {
         let de = calendarSelection(ctx);
         if (de) {
           de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
-         // await withMenu(ctx, de.toLocaleDateString());
+          await withMenu(ctx, de.toLocaleDateString());
           ctx.reply(de.toLocaleDateString());
           dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), de });
-
           const cListok = de && getPaySlip(ctx, 'CONCISE', db, de);
           cListok && withMenu(ctx, cListok, keyboardMenu, true);
         }
-
       }
     } else if (dialogState?.type === 'GETTING_COMPARE') {
       const { fromDb, fromDe, toDb, toDe } = dialogState as IDialogStateGettingCompare;
       if (!fromDb) {
         const db = calendarSelection(ctx);
         if (db) {
+          await ctx.reply(db.toLocaleDateString());
           dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDb: db });
           await withMenu(ctx, 'Укажите окончание первого периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
         }
       } else if (!fromDe) {
         let de = calendarSelection(ctx);
         if (de) {
-          de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
+          de = new Date(de.getFullYear(), de.getMonth() + 1, 0);
+          await ctx.reply(de.toLocaleDateString());
           dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDe: de });
           await withMenu(ctx, 'Укажите начало второго периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
         }
       } else if (!toDb) {
           let db = calendarSelection(ctx);
           if (db) {
+            await ctx.reply(db.toLocaleDateString());
             dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDb: db });
             await withMenu(ctx, 'Укажите окончание второго периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
           }
       } else if (!toDe) {
           let de = calendarSelection(ctx);
           if (de) {
-            de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
+            de = new Date(de.getFullYear(), de.getMonth() + 1, 0);
+            await ctx.reply(de.toLocaleDateString());
             dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDe: de });
-
             const cListok = de && getPaySlip(ctx, 'COMPARE', fromDb, fromDe, toDb, de);
             cListok && withMenu(ctx, cListok, keyboardMenu, true);
           }
