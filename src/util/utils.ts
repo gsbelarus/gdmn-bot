@@ -1,7 +1,7 @@
 import { promises } from 'fs';
 //import log4js from 'log4js';
 import path from "path";
-import { Lang, LName } from './types';
+import { Lang, LName } from '../types';
 /**
  * Удаляет из строки кавычки, двойные пробелы и т.п.
  * Приводит к нижнему регистру.

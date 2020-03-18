@@ -8,6 +8,7 @@
     "build": "tsc",
     "dev": "nodemon src/server.ts",
     "rebuild": "yarn clean && yarn build",
+    "download-data": "node src/util/downloadData.js",
     "start": "yarn rebuild && node --harmony ./dist/server.js",
     "start:old": "tsc && node ./dist/echo-bot.js",
     "start:dev": "cross-env NODE_ENV=dev && yarn start",
