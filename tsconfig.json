@@ -17,10 +17,11 @@
 		"strictPropertyInitialization": true,
 		"noImplicitThis": true,
 		"alwaysStrict": true,
-		"noImplicitReturns": true,
+    "noImplicitReturns": true,
+    "resolveJsonModule": true,
 		"moduleResolution": "node",
 		"esModuleInterop": true,
-		"downlevelIteration": true,
+    "downlevelIteration": true,
 		"typeRoots": [
 			"types",
 			"node_modules/@types"

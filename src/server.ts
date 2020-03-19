@@ -6,15 +6,16 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import Telegraf, { Extra, Markup, ContextMessageUpdate } from 'telegraf';
-import { IAccountLink, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip } from "./types";
+import { IAccountLink, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip, IDialogStateGettingCurrency, NBRBCurrencies, NBRBRates } from "./types";
 import { FileDB } from "./util/fileDB";
 import { InlineKeyboardMarkup } from "telegraf/typings/telegram-types";
 import { paySlipConciseDialog } from "./actions/paySlipConciseDialog";
 import { paySlipCompareDialog } from "./actions/paySlipCompareDialog";
-import { keyboardLogin, keyboardMenu } from "./util/keybord";
+import { keyboardLogin, keyboardMenu, keyboardSettings } from "./util/keybord";
 import { loginDialog } from "./actions/loginDialog";
 import { getPaySlip } from "./actions/getPaySlip";
 import { upload } from "./actions/upload";
+import { currencyDialog } from "./actions/currencyDialog";
 
 /**
  * Связь между ИД чата и человеком, сотрудником предприятия.
@@ -23,6 +24,9 @@ export const accountLink = new FileDB<IAccountLink>(path.resolve(process.cwd(), 
 export const dialogStates = new FileDB<DialogState>(path.resolve(process.cwd(), 'data/dialogstates.json'), {});
 export const customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), {});
 export const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
+
+export const currencies: NBRBCurrencies = JSON.parse(fs.readFileSync('data/nbrbcurrencies.json', { encoding: 'utf8' }).toString());
+export const currencyRates: NBRBRates = JSON.parse(fs.readFileSync('data/nbrbrates.json', { encoding: 'utf8' }).toString());
 
 /**
  * справочники начислений/удержаний для каждого клиента.
@@ -165,6 +169,13 @@ bot.on('message', async (ctx) => {
 
     if (dialogState?.type === 'LOGGING_IN') {
       loginDialog(ctx);
+    } else if (dialogState?.type === 'GETTING_CURRENCY') {
+      withMenu(ctx,
+        `
+        🤔 Ваша команда непонятна.
+
+        Выберите одно из предложенных действий.
+        `, keyboardMenu);
     }
     else if (dialogState?.type === 'LOGGED_IN') {
       if (ctx.message?.text === 'организации') {
@@ -238,7 +249,19 @@ bot.action('paySlipCompare', ctx => {
 
 bot.action('settings', ctx => {
   if (ctx.chat) {
-    paySlipCompareDialog(ctx, true);
+    withMenu(ctx, 'Параметры', keyboardSettings);
+  }
+});
+
+bot.action('menu', ctx => {
+  if (ctx.chat) {
+    withMenu(ctx, 'Выберите одно из предложенных действий', keyboardMenu, true);
+  }
+});
+
+bot.action('getCurrency', ctx => {
+  if (ctx.chat) {
+    currencyDialog(ctx, true);
   }
 });
 
@@ -250,6 +273,8 @@ bot.on('callback_query', async (ctx) => {
       paySlipConciseDialog(ctx);
     } else if (dialogState?.type === 'GETTING_COMPARE') {
       paySlipCompareDialog(ctx)
+    } else if (dialogState?.type === 'GETTING_CURRENCY') {
+      currencyDialog(ctx);
     }
   }
 })

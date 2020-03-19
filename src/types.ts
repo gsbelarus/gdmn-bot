@@ -16,10 +16,11 @@ export interface IEmployee {
 export interface IAccountLink {
   customerId: string;
   employeeId: string;
+  currencyId?: number;
 };
 
 export interface IDialogStateBase {
-  type: 'INITIAL' | 'LOGGING_IN' | 'LOGGED_IN' | 'GETTING_CONCISE' | 'GETTING_COMPARE';
+  type: 'INITIAL' | 'LOGGING_IN' | 'LOGGED_IN' | 'GETTING_CONCISE' | 'GETTING_COMPARE' | 'GETTING_CURRENCY';
   lastUpdated: number;
   menuMessageId?: number;
 };
@@ -51,11 +52,17 @@ export interface IDialogStateGettingCompare extends IDialogStateBase {
   toDe?: Date;
 };
 
+export interface IDialogStateGettingCurrency extends IDialogStateBase {
+  type: 'GETTING_CURRENCY';
+  currencyId?: number;
+};
+
 export type DialogState = IDialogStateInitial
   | IDialogStateLoggingIn
   | IDialogStateLoggedIn
   | IDialogStateGettingConcise
-  | IDialogStateGettingCompare;
+  | IDialogStateGettingCompare
+  | IDialogStateGettingCurrency;
 
 export interface IAccDeds {
  [id: string]: IAccDed
@@ -124,4 +131,36 @@ export const monthList: IMonth[] = [
   {name: {'ru': {name: 'окт'}}}, {name: {'ru': {name: 'ноя'}}},{name: {'ru': {name: 'дек'}}},
 ]
 
+export interface INBRBCurrency  {
+  Cur_ID: number;
+  Cur_ParentID: number;
+  Cur_Code: string;
+  Cur_Abbreviation: string;
+  Cur_Name: string;
+  Cur_Name_Bel: string;
+  Cur_Name_Eng: string;
+  Cur_QuotName: string;
+  Cur_QuotName_Bel: string;
+  Cur_QuotName_Eng: string;
+  Cur_NameMulti: string;
+  Cur_Name_BelMulti: string;
+  Cur_Name_EngMulti: string;
+  Cur_Scale: number;
+  Cur_Periodicity: number;
+  Cur_DateStart: Date;
+  Cur_DateEnd: Date;
+};
+
+export type NBRBCurrencies = INBRBCurrency[];
+
+export interface INBRBRate {
+  Cur_ID: number;
+  Date: Date;
+  Cur_Abbreviation: string;
+  Cur_Scale: number;
+  Cur_Name: string;
+  Cur_OfficialRate: number;
+};
+
+export type NBRBRates = INBRBRate[];
 

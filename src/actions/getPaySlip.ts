@@ -4,13 +4,14 @@ import { FileDB } from "../util/fileDB";
 import path from 'path';
 import { getLanguage, getYears, getLName, getPaySlipString } from "../util/utils";
 import { keyboardMenu } from "../util/keybord";
+import { getRateByCurrency, getCurrencyNameById, getCurrencyAbbreviationById } from "./currencyDialog";
 
 export const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Date, toDb?: Date, toDe?: Date): string | undefined => {
   if (ctx.chat) {
     const chatId = ctx.chat.id.toString();
     const link = accountLink.read(chatId);
     if (link?.customerId && link.employeeId) {
-      const {customerId, employeeId} = link;
+      const {customerId, employeeId, currencyId} = link;
 
       let empls = employeesByCustomer[customerId];
       if (!empls) {
@@ -42,7 +43,8 @@ export const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Da
         let deptName = '';
         let posName = '';
         const dbMonthName = db.toLocaleDateString(lng, { month: 'long', year: 'numeric' });
-
+        const rate = currencyId ? getRateByCurrency(currencyId, db) : 1;
+        const currencyAbbreviation = currencyId ? getCurrencyAbbreviationById(currencyId) : '';
 
         /** Получить информацию по расчетным листкам за период*/
         const getAccDedsByPeriod = (fromDb : Date, fromDe: Date, i: number) => {
@@ -128,7 +130,7 @@ export const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Da
                 }
               };
 
-              allTaxes[i] = incomeTax[i] + pensionTax[i] + tradeUnionTax[i];
+              allTaxes[i] = getSumByRate(incomeTax[i], rate) + getSumByRate(pensionTax[i], rate) + getSumByRate(tradeUnionTax[i], rate);
             }
           }//for
         };
@@ -137,20 +139,21 @@ export const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Da
         getAccDedsByPeriod(db, de, 0);
         const lenS = 8;
 
+
         switch (typePaySlip) {
           case 'DETAIL': {
             const len = 37;
             return (`${'`'}${'`'}${'`'}ini
     Расчетный листок ${dbMonthName}
-    ${'Начисления:'.padEnd(len)}  ${accrual[0].toFixed(2).padStart(lenS)}
+    ${'Начисления:'.padEnd(len)}  ${getSumByRate(accrual[0], rate).toFixed(2).padStart(lenS)}
     ===============================================
     ${strAccruals}
     ===============================================
-    ${'Аванс:'.padEnd(len)}  ${advance[0].toFixed(2).padStart(lenS)}
+    ${'Аванс:'.padEnd(len)}  ${getSumByRate(advance[0], rate).toFixed(2).padStart(lenS)}
     ===============================================
     ${strAdvances}
     ===============================================
-    ${'Удержания:'.padEnd(len)}  ${ded[0].toFixed(2).padStart(lenS)}
+    ${'Удержания:'.padEnd(len)}  ${getSumByRate(ded[0], rate).toFixed(2).padStart(lenS)}
     ===============================================
     ${strDeductions}
     ===============================================
@@ -158,37 +161,42 @@ export const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Da
     ===============================================
     ${strTaxes}
     ===============================================
-    ${'Вычеты:'.padEnd(len)}  ${tax_ded[0].toFixed(2).padStart(lenS)}
+    ${'Вычеты:'.padEnd(len)}  ${getSumByRate(tax_ded[0], rate).toFixed(2).padStart(lenS)}
     ===============================================
     ${strTaxDeds}
     ===============================================
-    ${'Льготы:'.padEnd(len)}  ${privilage[0].toFixed(2).padStart(lenS)}
+    ${'Льготы:'.padEnd(len)}  ${getSumByRate(privilage[0], rate).toFixed(2).padStart(lenS)}
     ===============================================
     ${strPrivilages}
-
+    ${'Информация:'.padEnd(len)}
+      ${deptName}
+      ${posName}
+    ${'Оклад:'.padEnd(len + 2)}  ${getSumByRate(salary[0], rate).toFixed(2).padStart(lenS)}
+    ${'Валюта:'.padEnd(len + 2)}  ${currencyAbbreviation.padStart(lenS)}
  ${'`'}${'`'}${'`'}`)
           }
           case 'CONCISE': {
             const len = 30;
-            const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `с ${db.toLocaleDateString()} по ${de.toLocaleDateString()}` : `${dbMonthName}`
+            const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `с ${db.toLocaleDateString()} по ${de.toLocaleDateString()}` : `${dbMonthName}`;
             return (`${'`'}${'`'}${'`'}ini
   Расчетный листок ${m}
-  ${'Начислено:'.padEnd(len + 2)}  ${accrual[0].toFixed(2).padStart(lenS)}
+  ${'Начислено:'.padEnd(len + 2)}  ${getSumByRate(accrual[0], rate).toFixed(2).padStart(lenS)}
   ==========================================
-  ${'Зарплата (чистыми):'.padEnd(len + 2)}  ${(accrual[0] - allTaxes[0]).toFixed(2).padStart(lenS)}
-    ${'Аванс:'.padEnd(len)}  ${advance[0].toFixed(2).padStart(lenS)}
-    ${'К выдаче:'.padEnd(len)}  ${saldo[0].toFixed(2).padStart(lenS)}
-    ${'Удержания:'.padEnd(len)}  ${ded[0].toFixed(2).padStart(lenS)}
+  ${'Зарплата (чистыми):'.padEnd(len + 2)}  ${(getSumByRate(accrual[0], rate) - allTaxes[0]).toFixed(2).padStart(lenS)}
+    ${'Аванс:'.padEnd(len)}  ${getSumByRate(advance[0], rate).toFixed(2).padStart(lenS)}
+    ${'К выдаче:'.padEnd(len)}  ${getSumByRate(saldo[0], rate).toFixed(2).padStart(lenS)}
+    ${'Удержания:'.padEnd(len)}  ${getSumByRate(ded[0], rate).toFixed(2).padStart(lenS)}
   ==========================================
   ${'Налоги:'.padEnd(len + 2)}  ${allTaxes[0].toFixed(2).padStart(lenS)}
-    ${'Подоходный:'.padEnd(len)}  ${incomeTax[0].toFixed(2).padStart(lenS)}
-    ${'Пенсионный:'.padEnd(len)}  ${pensionTax[0].toFixed(2).padStart(lenS)}
-    ${'Профсоюзный:'.padEnd(len)}  ${tradeUnionTax[0].toFixed(2).padStart(lenS)}
+    ${'Подоходный:'.padEnd(len)}  ${getSumByRate(incomeTax[0], rate).toFixed(2).padStart(lenS)}
+    ${'Пенсионный:'.padEnd(len)}  ${getSumByRate(pensionTax[0], rate).toFixed(2).padStart(lenS)}
+    ${'Профсоюзный:'.padEnd(len)}  ${getSumByRate(tradeUnionTax[0], rate).toFixed(2).padStart(lenS)}
   ==========================================
   ${'Информация:'.padEnd(len)}
     ${deptName}
     ${posName}
-  ${'Оклад:'.padEnd(len + 2)}  ${salary[0].toFixed(2).padStart(lenS)}
+  ${'Оклад:'.padEnd(len + 2)}  ${getSumByRate(salary[0], rate).toFixed(2).padStart(lenS)}
+  ${'Валюта:'.padEnd(len + 2)}  ${currencyAbbreviation.padStart(lenS)}
 ${'`'}${'`'}${'`'}`);
           }
           case 'COMPARE': {
@@ -196,25 +204,27 @@ ${'`'}${'`'}${'`'}`);
               const len = 23;
               //Данные по листку за второй период заносятся в массивы с индектом = 1
               getAccDedsByPeriod(toDb, toDe, 1);
+
               return (`${'`'}${'`'}${'`'}ini
   ${'Сравнение расчетных листков'.padEnd(len + 2)}
   Период I:  ${db.toLocaleDateString()} - ${de.toLocaleDateString()}
   Период II: ${toDb.toLocaleDateString()} - ${toDe.toLocaleDateString()}
                                     I       II
-  ${'Начислено:'.padEnd(len + 2)}  ${accrual[0].toFixed(2).padStart(lenS)} ${accrual[1].toFixed(2).padStart(lenS)} ${(accrual[1] - accrual[0]).toFixed(2).padStart(lenS)}
+  ${'Начислено:'.padEnd(len + 2)}  ${getSumByRate(accrual[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(accrual[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(accrual[1], rate) - getSumByRate(accrual[0], rate)).toFixed(2).padStart(lenS)}
   =====================================================
-  ${'Зарплата (чистыми):'.padEnd(len + 2)}  ${(accrual[0] - allTaxes[0]).toFixed(2).padStart(lenS)} ${(accrual[1] - allTaxes[1]).toFixed(2).padStart(lenS)} ${(accrual[1] - allTaxes[1] - (accrual[0] - allTaxes[0])).toFixed(2).padStart(lenS)}
-    ${'Аванс:'.padEnd(len)}  ${advance[0].toFixed(2).padStart(lenS)} ${advance[1].toFixed(2).padStart(lenS)} ${(advance[1] - advance[0]).toFixed(2).padStart(lenS)}
-    ${'К выдаче:'.padEnd(len)}  ${saldo[0].toFixed(2).padStart(lenS)} ${saldo[1].toFixed(2).padStart(lenS)} ${(saldo[1] - saldo[0]).toFixed(2).padStart(lenS)}
-    ${'Удержания:'.padEnd(len)}  ${ded[0].toFixed(2).padStart(lenS)} ${ded[1].toFixed(2).padStart(lenS)} ${(ded[1] - ded[0]).toFixed(2).padStart(lenS)}
+  ${'Зарплата (чистыми):'.padEnd(len + 2)}  ${(getSumByRate(accrual[0], rate) - allTaxes[0]).toFixed(2).padStart(lenS)} ${(getSumByRate(accrual[1], rate) - allTaxes[1]).toFixed(2).padStart(lenS)} ${(getSumByRate(accrual[1], rate) - allTaxes[1] - (getSumByRate(accrual[0], rate) - allTaxes[0])).toFixed(2).padStart(lenS)}
+    ${'Аванс:'.padEnd(len)}  ${getSumByRate(advance[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(advance[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)).toFixed(2).padStart(lenS)}
+    ${'К выдаче:'.padEnd(len)}  ${getSumByRate(saldo[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(saldo[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)).toFixed(2).padStart(lenS)}
+    ${'Удержания:'.padEnd(len)}  ${getSumByRate(ded[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(ded[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate)).toFixed(2).padStart(lenS)}
   =====================================================
   ${'Налоги:'.padEnd(len + 2)}  ${allTaxes[0].toFixed(2).padStart(lenS)} ${allTaxes[1].toFixed(2).padStart(lenS)} ${(allTaxes[1] - allTaxes[0]).toFixed(2).padStart(lenS)}
-    ${'Подоходный:'.padEnd(len)}  ${incomeTax[0].toFixed(2).padStart(lenS)} ${incomeTax[1].toFixed(2).padStart(lenS)} ${(incomeTax[1] - incomeTax[0]).toFixed(2).padStart(lenS)}
-    ${'Пенсионный:'.padEnd(len)}  ${pensionTax[0].toFixed(2).padStart(lenS)} ${pensionTax[1].toFixed(2).padStart(lenS)} ${(pensionTax[1] - pensionTax[0]).toFixed(2).padStart(lenS)}
-    ${'Профсоюзный:'.padEnd(len)}  ${tradeUnionTax[0].toFixed(2).padStart(lenS)} ${tradeUnionTax[1].toFixed(2).padStart(lenS)} ${(tradeUnionTax[1] - tradeUnionTax[0]).toFixed(2).padStart(lenS)}
+    ${'Подоходный:'.padEnd(len)}  ${getSumByRate(incomeTax[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(incomeTax[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(incomeTax[1], rate) - getSumByRate(incomeTax[0], rate)).toFixed(2).padStart(lenS)}
+    ${'Пенсионный:'.padEnd(len)}  ${getSumByRate(pensionTax[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(pensionTax[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(pensionTax[1], rate) - getSumByRate(pensionTax[0], rate)).toFixed(2).padStart(lenS)}
+    ${'Профсоюзный:'.padEnd(len)}  ${getSumByRate(tradeUnionTax[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(getSumByRate(tradeUnionTax[1], rate), rate).toFixed(2).padStart(lenS)} ${(getSumByRate(getSumByRate(tradeUnionTax[1], rate), rate) - getSumByRate(tradeUnionTax[0], rate)).toFixed(2).padStart(lenS)}
   =====================================================
   ${'Информация:'.padEnd(len)}
-    ${'Оклад:'.padEnd(len)}  ${salary[0].toFixed(2).padStart(lenS)} ${salary[1].toFixed(2).padStart(lenS)} ${(salary[1] - salary[0]).toFixed(2).padStart(lenS)}
+    ${'Оклад:'.padEnd(len)}  ${getSumByRate(salary[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(salary[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)).toFixed(2).padStart(lenS)}
+    ${'Валюта:'.padEnd(len + 2)}${currencyAbbreviation.padStart(lenS)}
   ${'`'}${'`'}${'`'}`);
             }
           }
@@ -224,6 +234,18 @@ ${'`'}${'`'}${'`'}`);
   }
 
   return undefined
+}
+
+export const getSumByRate = (s: number, rate: number) => {
+  return round(s/rate, 2)
+}
+
+function round(value: number, decimals: number) {
+  let r = 0.5 * Number.EPSILON * value;
+  let o = 1;
+  while(decimals-- > 0) o *= 10;
+  if(value < 0) o *= -1;
+  return Math.round((value + r) * o) / o;
 }
 
 const cListok =

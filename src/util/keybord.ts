@@ -1,6 +1,12 @@
 import { Markup, ContextMessageUpdate } from "telegraf";
-import { Lang, monthList, LName } from "../types";
+import { Lang, monthList, LName, NBRBCurrencies, NBRBRates } from "../types";
 import { getLName, getLanguage } from "./utils";
+import nbrbRates from '../../data/nbrbrates.json';
+import { FileDB } from "./fileDB";
+import path from 'path';
+import fs from 'fs';
+import { withMenu, currencies } from "../server";
+import { getCurrencyNameById } from "../actions/currencyDialog";
 
 export const keyboardLogin = Markup.inlineKeyboard([
   Markup.callbackButton('✏ Зарегистрироваться', 'login') as any,
@@ -17,12 +23,11 @@ export const keyboardMenu = Markup.inlineKeyboard([
     Markup.callbackButton('💰 Сравнить..', 'paySlipCompare') as any
   ],
   [
-    Markup.callbackButton('🚪 Выйти', 'logout') as any,
-    Markup.urlButton('❓', 'http://gsbelarus.com')
+    Markup.callbackButton('🔧 Параметры', 'settings') as any,
+    Markup.callbackButton('🚪 Выйти', 'logout') as any
   ],
   [
-    Markup.callbackButton('Параметры', 'settings') as any,
-
+    Markup.urlButton('❓', 'http://gsbelarus.com')
   ]
 ]);
 
@@ -33,7 +38,7 @@ export const keyboardCalendar = (lng: Lang, year: number) => {
     let row: any[] = [];
     monthList.forEach((m, idx) => {
       if (idx >= i*4 && idx < (i+1)*4) {
-        const name = getLName(m.name as LName, ['ru']);
+        const name = getLName(m.name as LName, [lng, 'ru']);
         row.push(Markup.callbackButton(name, createCallBackData('month', year, idx)));
       }
     });
@@ -51,8 +56,12 @@ const createCallBackData = (action: string, year: number, month?: number) => {
   return ([action, year.toString(), month?.toString()]).join(';');
 }
 
-const separateCallBackData = (data: string) => {
+export const separateCallBackData = (data: string) => {
   return data.split(';');
+}
+
+const createCallBackCurrency = (action: string, currencyId: number, currencyName?: string) => {
+  return ([action, currencyId, currencyName]).join(';');
 }
 
 export const calendarSelection = (ctx: ContextMessageUpdate): Date | undefined => {
@@ -81,3 +90,59 @@ export const calendarSelection = (ctx: ContextMessageUpdate): Date | undefined =
   }
   return undefined;
 }
+
+export const currencySelection = (ctx: ContextMessageUpdate): number | undefined => {
+  const query = ctx.callbackQuery;
+
+  if (query?.data) {
+    const [action, currencyId] = separateCallBackData(query.data);
+    switch (action) {
+      case 'currency': {
+        return parseInt(currencyId);
+      }
+    }
+
+  }
+  return undefined;
+}
+
+export const keyboardSettings = Markup.inlineKeyboard([
+  [
+    Markup.callbackButton('Выбрать валюту', 'getCurrency') as any,
+    Markup.callbackButton('Еще что-нибудь', 'test') as any
+  ],
+  [
+    Markup.callbackButton('Меню', 'menu') as any
+  ]
+]);
+
+export const keyboardCurrency = (ctx: ContextMessageUpdate) => {
+  let keyboard: any[] = [];
+  if (!ctx.chat) {
+    throw new Error('Invalid context');
+  }
+
+  let row: any[] = [];
+  const lng = getLanguage(ctx.from?.language_code);
+
+  currencies.filter(c => c.Cur_ID === 292 || c.Cur_ID === 145).forEach((m, idx) => {
+    const currencyName = getCurrencyNameById(m.Cur_ID, lng);
+    currencyName && row.push(Markup.callbackButton(currencyName, createCallBackCurrency('currency', m.Cur_ID, currencyName)));
+  });
+  keyboard.push(row);
+  row = [];
+  currencies.filter(c => c.Cur_ID === 298).forEach((m, idx) => {
+    const currencyName = getCurrencyNameById(m.Cur_ID, lng);
+    currencyName && row.push(Markup.callbackButton(currencyName, createCallBackCurrency('currency', m.Cur_ID, currencyName)));
+  });
+  row.push(Markup.callbackButton('Белорусский рубль', createCallBackCurrency('currency', 0, 'Белорусский рубль')));
+
+  keyboard.push(row);
+
+  keyboard.push([
+    Markup.callbackButton('Меню', 'menu')
+  ]);
+
+  return Markup.inlineKeyboard(keyboard);
+};
+
