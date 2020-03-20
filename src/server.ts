@@ -25,9 +25,6 @@ export const dialogStates = new FileDB<DialogState>(path.resolve(process.cwd(), 
 export const customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), {});
 export const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
 
-export const currencies: NBRBCurrencies = JSON.parse(fs.readFileSync('data/nbrbcurrencies.json', { encoding: 'utf8' }).toString());
-export const currencyRates: NBRBRates = JSON.parse(fs.readFileSync('data/nbrbrates.json', { encoding: 'utf8' }).toString());
-
 /**
  * справочники начислений/удержаний для каждого клиента.
  * ключем объекта выступает РУИД записи из базы Гедымина.
@@ -169,7 +166,7 @@ bot.on('message', async (ctx) => {
 
     if (dialogState?.type === 'LOGGING_IN') {
       loginDialog(ctx);
-    } else if (dialogState?.type === 'GETTING_CURRENCY') {
+    } else if (dialogState?.type === 'GETTING_CURRENCY' || dialogState?.type === 'GETTING_SETTINGS') {
       withMenu(ctx,
         `
         🤔 Ваша команда непонятна.
@@ -249,6 +246,7 @@ bot.action('paySlipCompare', ctx => {
 
 bot.action('settings', ctx => {
   if (ctx.chat) {
+    dialogStates.merge(ctx.chat.id.toString(), { type: 'GETTING_SETTINGS', lastUpdated: new Date().getTime() });
     withMenu(ctx, 'Параметры', keyboardSettings);
   }
 });

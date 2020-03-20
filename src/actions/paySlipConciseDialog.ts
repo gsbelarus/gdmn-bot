@@ -14,7 +14,7 @@ export const paySlipConciseDialog = async (ctx: ContextMessageUpdate, start = fa
 
   if (start) {
     await withMenu(ctx, 'Укажите начало периода:', keyboardCalendar(getLanguage(ctx.from?.language_code), new Date().getFullYear()), true);
-    dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), fromDb: undefined, fromDe: undefined, toDb: undefined, toDe: undefined });
+    dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db: undefined, de: undefined });
   }
 
   const dialogState = dialogStates.getMutable(true)[chatId];

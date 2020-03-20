@@ -20,7 +20,7 @@ export interface IAccountLink {
 };
 
 export interface IDialogStateBase {
-  type: 'INITIAL' | 'LOGGING_IN' | 'LOGGED_IN' | 'GETTING_CONCISE' | 'GETTING_COMPARE' | 'GETTING_CURRENCY';
+  type: 'INITIAL' | 'LOGGING_IN' | 'LOGGED_IN' | 'GETTING_CONCISE' | 'GETTING_COMPARE' | 'GETTING_CURRENCY' | 'GETTING_SETTINGS';
   lastUpdated: number;
   menuMessageId?: number;
 };

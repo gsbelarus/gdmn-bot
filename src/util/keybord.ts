@@ -1,12 +1,7 @@
 import { Markup, ContextMessageUpdate } from "telegraf";
-import { Lang, monthList, LName, NBRBCurrencies, NBRBRates } from "../types";
+import { Lang, monthList, LName } from "../types";
 import { getLName, getLanguage } from "./utils";
-import nbrbRates from '../../data/nbrbrates.json';
-import { FileDB } from "./fileDB";
-import path from 'path';
-import fs from 'fs';
-import { withMenu, currencies } from "../server";
-import { getCurrencyNameById } from "../actions/currencyDialog";
+import { getCurrencyNameById, getCurrencies } from "../actions/currencyDialog";
 
 export const keyboardLogin = Markup.inlineKeyboard([
   Markup.callbackButton('✏ Зарегистрироваться', 'login') as any,
@@ -125,14 +120,14 @@ export const keyboardCurrency = (ctx: ContextMessageUpdate) => {
   let row: any[] = [];
   const lng = getLanguage(ctx.from?.language_code);
 
-  currencies.filter(c => c.Cur_ID === 292 || c.Cur_ID === 145).forEach((m, idx) => {
-    const currencyName = getCurrencyNameById(m.Cur_ID, lng);
+  getCurrencies()?.filter(c => c.Cur_ID === 292 || c.Cur_ID === 145).forEach((m, idx) => {
+    const currencyName = getCurrencyNameById(lng, m.Cur_ID);
     currencyName && row.push(Markup.callbackButton(currencyName, createCallBackCurrency('currency', m.Cur_ID, currencyName)));
   });
   keyboard.push(row);
   row = [];
-  currencies.filter(c => c.Cur_ID === 298).forEach((m, idx) => {
-    const currencyName = getCurrencyNameById(m.Cur_ID, lng);
+  getCurrencies()?.filter(c => c.Cur_ID === 298).forEach((m, idx) => {
+    const currencyName = getCurrencyNameById(lng, m.Cur_ID);
     currencyName && row.push(Markup.callbackButton(currencyName, createCallBackCurrency('currency', m.Cur_ID, currencyName)));
   });
   row.push(Markup.callbackButton('Белорусский рубль', createCallBackCurrency('currency', 0, 'Белорусский рубль')));

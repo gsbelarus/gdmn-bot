@@ -4,14 +4,23 @@ import { FileDB } from "../util/fileDB";
 import path from 'path';
 import { getLanguage, getYears, getLName, getPaySlipString } from "../util/utils";
 import { keyboardMenu } from "../util/keybord";
-import { getRateByCurrency, getCurrencyNameById, getCurrencyAbbreviationById } from "./currencyDialog";
+import { getRateByCurrency, getCurrencyAbbreviationById } from "./currencyDialog";
 
 export const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Date, toDb?: Date, toDe?: Date): string | undefined => {
   if (ctx.chat) {
     const chatId = ctx.chat.id.toString();
     const link = accountLink.read(chatId);
     if (link?.customerId && link.employeeId) {
-      const {customerId, employeeId, currencyId} = link;
+      const {customerId, employeeId, currencyId = 0} = link;
+      const rate = getRateByCurrency(db, currencyId);
+      const currencyAbbreviation = getCurrencyAbbreviationById(currencyId);
+
+      if (rate === -1) {
+        return (`${'`'}${'`'}${'`'}ini
+Повторите действие через несколько минут.
+Выполняется загрузка курсов валют...
+        ${'`'}${'`'}${'`'}`)
+      }
 
       let empls = employeesByCustomer[customerId];
       if (!empls) {
@@ -43,8 +52,6 @@ export const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Da
         let deptName = '';
         let posName = '';
         const dbMonthName = db.toLocaleDateString(lng, { month: 'long', year: 'numeric' });
-        const rate = currencyId ? getRateByCurrency(currencyId, db) : 1;
-        const currencyAbbreviation = currencyId ? getCurrencyAbbreviationById(currencyId) : '';
 
         /** Получить информацию по расчетным листкам за период*/
         const getAccDedsByPeriod = (fromDb : Date, fromDe: Date, i: number) => {
