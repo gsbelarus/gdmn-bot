@@ -1,10 +1,11 @@
 import { ContextMessageUpdate } from "telegraf";
-import { withMenu, dialogStates, customers, employeesByCustomer, accountLink } from "../server";
-import { normalizeStr } from "../util/utils";
-import { IDialogStateLoggingIn, ICustomer, IEmployee, IAccountLink } from "../types";
-import { FileDB } from "../util/fileDB";
+import { dialogStates, customers, employeesByCustomer, accountLink } from "../../server";
+import { normalizeStr } from "../../util/utils";
+import { IDialogStateLoggingIn, IEmployee } from "../../types";
+import { FileDB } from "../../util/fileDB";
 import { keyboardLogin, keyboardMenu } from "../util/keybord";
 import path from 'path';
+import { withMenu } from "../telegram";
 
 export const loginDialog = async (ctx: ContextMessageUpdate, start = false) => {
 

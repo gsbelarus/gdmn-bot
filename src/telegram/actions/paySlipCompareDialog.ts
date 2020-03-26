@@ -1,19 +1,22 @@
-import { withMenu, dialogStates } from "../server";
+import { dialogStates } from "../../server";
 import { ContextMessageUpdate } from "telegraf";
-import { getLanguage } from "../util/utils";
-import { IDialogStateGettingCompare } from "../types";
+import { getLanguage } from "../../util/utils";
+import { IDialogStateGettingCompare } from "../../types";
 import { keyboardMenu, keyboardCalendar, calendarSelection } from "../util/keybord";
 import { getPaySlip } from "./getPaySlip";
+import { withMenu } from "../telegram";
 
 export const paySlipCompareDialog = async (ctx: ContextMessageUpdate, start = false) => {
+
   if (!ctx.chat) {
     throw new Error('Invalid context');
   }
 
   const chatId = ctx.chat.id.toString();
+  const lng = getLanguage(ctx.from?.language_code);
 
   if (start) {
-    await withMenu(ctx, 'Укажите начало первого периода:', keyboardCalendar(getLanguage(ctx.from?.language_code), new Date().getFullYear()), true);
+    await withMenu(ctx, 'Укажите начало первого периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
     dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDb: undefined, fromDe: undefined, toDb: undefined, toDe: undefined });
   }
 
@@ -22,8 +25,6 @@ export const paySlipCompareDialog = async (ctx: ContextMessageUpdate, start = fa
   if (!dialogState || dialogState.type !== 'GETTING_COMPARE') {
     throw new Error('Invalid dialog state');
   }
-
-  const lng = getLanguage(ctx.from?.language_code);
 
   const { fromDb, fromDe, toDb, toDe } = dialogState as IDialogStateGettingCompare;
   if (!fromDb) {
@@ -58,4 +59,5 @@ export const paySlipCompareDialog = async (ctx: ContextMessageUpdate, start = fa
         cListok && withMenu(ctx, cListok, keyboardMenu, true);
       }
   }
+
 }

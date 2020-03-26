@@ -1,7 +1,6 @@
 import { Markup, ContextMessageUpdate } from "telegraf";
-import { Lang, monthList, LName } from "../types";
-import { getLName, getLanguage } from "./utils";
-import { getCurrencyNameById, getCurrencies } from "../actions/currencyDialog";
+import { Lang, monthList, LName } from "../../types";
+import { getLName, getLanguage, getCurrencies, getCurrencyNameById } from "../../util/utils";
 
 export const keyboardLogin = Markup.inlineKeyboard([
   Markup.callbackButton('✏ Зарегистрироваться', 'login') as any,

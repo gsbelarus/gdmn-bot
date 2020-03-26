@@ -1,5 +1,5 @@
 import { customerAccDeds, paySlips } from "../server";
-import { FileDB } from "../util/fileDB";
+import { FileDB } from "./fileDB";
 import { IAccDed, IPaySlip } from "../types";
 import path from 'path';
 
@@ -23,6 +23,7 @@ export const upload = (ctx: any) => {
       }
 
       customerAccDed.flush();
+      break;
     }
     //Если тип загружаемых данных - Расчетные листки по сотрудникам в разрезе года
     case 'paySlip': {
@@ -47,6 +48,7 @@ export const upload = (ctx: any) => {
         paySlip.write('hiringDate', value.hiringDate);
         paySlip.write('data', value.data);
         paySlip.flush();
+        break;
       }
     }
   }

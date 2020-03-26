@@ -17,6 +17,7 @@ export interface IAccountLink {
   customerId: string;
   employeeId: string;
   currencyId?: number;
+  language?: string;
 };
 
 export interface IDialogStateBase {

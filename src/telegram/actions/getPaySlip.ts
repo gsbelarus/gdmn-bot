@@ -1,15 +1,17 @@
-import { ITypePaySlip, IEmployee, IAccDed, IPaySlip, LName } from "../types";
-import { accountLink, employeesByCustomer, customerAccDeds, paySlips, withMenu } from "../server";
-import { FileDB } from "../util/fileDB";
+import { ITypePaySlip, IEmployee, IAccDed, IPaySlip, LName } from "../../types";
+import { accountLink, employeesByCustomer, customerAccDeds, paySlips } from "../../server";
+import { FileDB } from "../../util/fileDB";
 import path from 'path';
-import { getLanguage, getYears, getLName, getPaySlipString } from "../util/utils";
+import { getLanguage, getYears, getLName, getPaySlipString, getRateByCurrency, getCurrencyAbbreviationById } from "../../util/utils";
 import { keyboardMenu } from "../util/keybord";
-import { getRateByCurrency, getCurrencyAbbreviationById } from "./currencyDialog";
+import { withMenu } from "../telegram";
 
 export const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Date, toDb?: Date, toDe?: Date): string | undefined => {
   if (ctx.chat) {
     const chatId = ctx.chat.id.toString();
     const link = accountLink.read(chatId);
+    const lng = getLanguage(ctx.from?.language_code);
+
     if (link?.customerId && link.employeeId) {
       const {customerId, employeeId, currencyId = 0} = link;
       const rate = getRateByCurrency(db, currencyId);
@@ -38,9 +40,6 @@ export const getPaySlip = (ctx: any, typePaySlip: ITypePaySlip, db: Date, de: Da
           customerAccDeds[customerId] = accDed;
         };
         const accDedObj = accDed.getMutable(false);
-
-
-        const lng = getLanguage(ctx.from?.language_code);
 
         let allTaxes = [0, 0];
 

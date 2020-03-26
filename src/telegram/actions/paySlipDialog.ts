@@ -1,19 +1,22 @@
-import { withMenu, dialogStates } from "../server";
+import { dialogStates } from "../../server";
 import { ContextMessageUpdate } from "telegraf";
-import { getLanguage } from "../util/utils";
-import { IDialogStateGettingConcise } from "../types";
+import { getLanguage } from "../../util/utils";
+import { IDialogStateGettingConcise } from "../../types";
 import { keyboardMenu, keyboardCalendar, calendarSelection } from "../util/keybord";
 import { getPaySlip } from "./getPaySlip";
+import { withMenu } from "../telegram";
 
-export const paySlipConciseDialog = async (ctx: ContextMessageUpdate, start = false) => {
+export const paySlipDialog = async (ctx: ContextMessageUpdate, start = false) => {
+
   if (!ctx.chat) {
     throw new Error('Invalid context');
   }
 
   const chatId = ctx.chat.id.toString();
+  const lng = getLanguage(ctx.from?.language_code);
 
   if (start) {
-    await withMenu(ctx, 'Укажите начало периода:', keyboardCalendar(getLanguage(ctx.from?.language_code), new Date().getFullYear()), true);
+    await withMenu(ctx, 'Укажите начало периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
     dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db: undefined, de: undefined });
   }
 
@@ -23,7 +26,7 @@ export const paySlipConciseDialog = async (ctx: ContextMessageUpdate, start = fa
     throw new Error('Invalid dialog state');
   }
 
-  const lng = getLanguage(ctx.from?.language_code);
+
 
   const { db, de } = dialogState as IDialogStateGettingConcise;
   if (!db) {
