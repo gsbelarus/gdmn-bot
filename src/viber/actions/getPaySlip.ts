@@ -71,10 +71,9 @@ export const getPaySlip = (bot: any, response: any, typePaySlip: ITypePaySlip, d
             const paySlipObj = paySlip.getMutable(false);
 
             if (Object.keys(paySlipObj).length === 0) {
-              withMenu(bot, response, [
-                TextMessage(`Нет расчетного листка за период ${fromDb.toLocaleDateString()} - ${fromDe.toLocaleDateString()}!`),
-                keyboardMenu
-              ]);
+              withMenu(bot, response,
+                `Нет расчетного листка за период ${fromDb.toLocaleDateString()} - ${fromDe.toLocaleDateString()}!`,
+                keyboardMenu);
             } else {
 
               deptName = getLName(paySlipObj.deptName as LName, [lng, 'ru']);

@@ -3,15 +3,27 @@ const BotEvents = require('viber-bot').Events
 const TextMessage = require('viber-bot').Message.Text;
 const KeyboardMessage = require('viber-bot').Message.Keyboard;
 import * as https from 'https'
-import { config, accountLink, dialogStates, customers } from '../server'
+import { accountLink, dialogStates, customers } from '../server'
 import { keyboardMenu, keyboardLogin, keyboardSettings } from './util/keybord';
 import { loginDialog } from './actions/loginDialog';
 import { getPaySlip } from './actions/getPaySlip';
 import { paySlipDialog } from './actions/paySlipDialog';
 import { paySlipCompareDialog } from './actions/paySlipCompareDialog';
 import { currencyDialog } from './actions/currencyDialog';
+import fs from 'fs';
+import path from 'path';
 
 const token = '4b3e05a56367d074-9b93ed160b5ebc92-c3aeed25f53c282'
+export const config = {
+  domain: 'gs.selfip.biz',
+  https: {
+    port: 8443,
+    options: {
+      key: fs.readFileSync(path.resolve(process.cwd(), 'cert/gsbot-key.pem'), 'utf8').toString(),
+      cert: fs.readFileSync(path.resolve(process.cwd(), 'cert/gsbot-cert.pem'), 'utf8').toString(),
+    },
+  },
+};
 
 export default class Viber {
   public static bot: any
@@ -27,20 +39,31 @@ export default class Viber {
       avatar: ''
     })
 
-    const webhookUrl = `https://${config.domain}:${config.https.port}`
-    console.log(webhookUrl);
+    // const webhookUrl = `https://${config.domain}:${config.https.port}`
+    // console.log(webhookUrl);
 
-    // Starting webhook server
-    const serverViber = https.createServer(config.https.options, bot.middleware());
-    serverViber.listen(config.https.port, async () => {
-      try {
-        await bot.setWebhook(webhookUrl)
-       console.log(`>>> VIBER: Webhook сервер запущен!`)
-      }
-      catch (err) {
-        console.error(err)
-      }
-    })
+    // // Starting webhook server
+    // const serverViber = https.createServer(config.https.options, bot.middleware());
+    // serverViber.listen(config.https.port, async () => {
+    //   try {
+    //     await bot.setWebhook(webhookUrl)
+    //    console.log(`>>> VIBER: Webhook сервер запущен!`)
+    //   }
+    //   catch (err) {
+    //     console.error(err)
+    //   }
+    // })
+    const ngrok = require('./get_public_url');
+    const http = require('http');
+    const port = process.env.PORT || 8080;
+    ngrok.getPublicUrl().then((publicUrl: string) => {
+        console.log('Set the new webhook to"', publicUrl);
+        http.createServer(bot.middleware()).listen(port, () => bot.setWebhook(publicUrl));
+    }).catch((error: any) => {
+        console.log('Can not connect to ngrok server. Is it running?');
+        console.error(error);
+    });
+
 
     Viber.bot = bot;
 
@@ -64,16 +87,14 @@ export default class Viber {
       const link = accountLink.read(chatId);
       if (!link) {
         dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() });
-        await withMenu(bot, response, [
-          TextMessage('Приветствуем! Для получения информации о заработной плате необходимо зарегистрироваться в системе.'),
-            KeyboardMessage([keyboardLogin])
-        ])
+        await withMenu(bot, response,
+         'Приветствуем! Для получения информации о заработной плате необходимо зарегистрироваться в системе.',
+          keyboardLogin)
       } else {
         dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() });
-        await withMenu(bot, response, [
-          TextMessage('Здраствуйте! Вы зарегистрированы в системе. Выберите одно из предложенных действий.'),
-          KeyboardMessage([keyboardMenu])
-        ])
+        await withMenu(bot, response,
+          'Здраствуйте! Вы зарегистрированы в системе. Выберите одно из предложенных действий.',
+          keyboardMenu)
       }
     });
 
@@ -85,54 +106,52 @@ export default class Viber {
       if (dialogState?.type === 'LOGGING_IN') {
         loginDialog(bot, response, message);
       } else if (dialogState?.type === 'GETTING_CURRENCY' || dialogState?.type === 'GETTING_SETTINGS') {
-        await withMenu(bot, response, [
-          TextMessage(
+        await withMenu(bot, response,
           `
           🤔 Ваша команда непонятна.
 
           Выберите одно из предложенных действий.
-          `),
-          KeyboardMessage([keyboardMenu])
-        ]);
+          `,
+          keyboardMenu);
       }
       else if (dialogState?.type === 'LOGGED_IN') {
-        if (message === 'организации') {
-          await withMenu(bot, response, [
-            TextMessage(Object.values(customers).map( c => c.name).join(', ')),
-            TextMessage(chatId),
-            TextMessage(response.userProfile.name)
-          ]);
+        if (message.text === 'организации') {
+            new TextMessage(Object.values(customers).map( c => c.name).join(', ')),
+            new TextMessage(chatId),
+            new TextMessage(response.userProfile.name);
           // ctx.reply(Object.values(customers).map( c => c.name).join(', '));
           // ctx.reply(ctx.chat.id.toString());
           // ctx.reply(ctx.from!.id.toString());
           // ctx.reply(ctx.from!.username!);
         } else {
-          await withMenu(bot, response, [
+          await withMenu(bot, response,
   `
   🤔 Ваша команда непонятна.
 
   Выберите одно из предложенных действий.
-  `, keyboardMenu]);
+  `, keyboardMenu);
         }
       }
-      else {
-        await withMenu(bot, response, [
+      else if (dialogState?.type !== 'INITIAL') {
+        await withMenu(bot, response,
           'Для получения информации о заработной плате необходимо зарегистрироваться в системе.',
-          keyboardLogin]);
+          keyboardLogin);
       }
-        //}
-  //   });
     });
 
     bot.onTextMessage(/login/, (message: any, response: any) => {
-      loginDialog(bot, response, message, true);
+      const chatId = response.userProfile.id.toString();
+      const dialogState = dialogStates.read(chatId);
+
+      if (dialogState?.type !== 'LOGGING_IN') {
+        loginDialog(bot, response, message, true);
+      }
     });
 
     bot.onTextMessage(/logout/, async (message: any, response: any) => {
-      await withMenu(bot, response, [
-        TextMessage('💔 До свидания!'),
-        keyboardLogin
-      ]);
+      await withMenu(bot, response,
+        '💔 До свидания!',
+        keyboardLogin);
       const chatId = response.userProfile.id.toString();
       accountLink.delete(chatId);
       dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() }, ['employee']);
@@ -145,9 +164,9 @@ export default class Viber {
       const db = new Date(2019, 4, 1);
       const de = new Date(2019, 5, 0);
       const cListok = getPaySlip(bot, response, 'CONCISE', db, de);
-      cListok && withMenu(bot, response, [
-        TextMessage(cListok),
-        keyboardMenu]);
+      cListok && withMenu(bot, response,
+        cListok,
+        keyboardMenu);
     });
 
     bot.onTextMessage(/detailPaySlip/, async (message: any, response: any) => {
@@ -155,9 +174,9 @@ export default class Viber {
       const db = new Date(2019, 4, 1);
       const de = new Date(2019, 5, 0);
       const cListok = getPaySlip(bot, response, 'DETAIL', db, de);
-      cListok && withMenu(bot, response, [
-        TextMessage(cListok),
-        keyboardMenu]);
+      cListok && withMenu(bot, response,
+        cListok,
+        keyboardMenu);
     });
 
     bot.onTextMessage(/paySlipCompare/, async (message: any, response: any) => {
@@ -170,16 +189,15 @@ export default class Viber {
 
     bot.onTextMessage(/settings/, async (message: any, response: any) => {
       dialogStates.merge(response.userProfile.id.toString(), { type: 'GETTING_SETTINGS', lastUpdated: new Date().getTime() });
-      withMenu(bot, response, [
-        TextMessage('Параметры'),
-        keyboardSettings]);
+      withMenu(bot, response,
+        'Параметры',
+        keyboardSettings);
     });
 
     bot.onTextMessage(/menu/, async (message: any, response: any) => {
-      withMenu(bot, response, [
-        TextMessage('Выберите одно из предложенных действий'),
-        keyboardMenu
-      ]);
+      withMenu(bot, response,
+        'Выберите одно из предложенных действий',
+        keyboardMenu);
     });
 
     bot.onTextMessage(/getCurrency/, async (message: any, response: any) => {
@@ -188,12 +206,16 @@ export default class Viber {
   }
 }
 
-export const withMenu = async (bot: any, response: any, menu?: any[]) => {
+export const withMenu = async (bot: any, response: any, msg: string, menu?: any) => {
   // if (!ctx.chat) {
   //   throw new Error('Invalid context');
   // }
   const chatId = response.userProfile.id.toString();
-  const m = bot.sendMessage(response.userProfile, menu);
+  if (menu) {
+    bot.sendMessage(response.userProfile, new TextMessage(msg, menu));
+  } else {
+    bot.sendMessage(response.userProfile, new TextMessage(msg));
+  }
   const dialogState = dialogStates.read(chatId);
 
   if (dialogState) {

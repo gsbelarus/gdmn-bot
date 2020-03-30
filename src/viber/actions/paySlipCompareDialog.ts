@@ -15,9 +15,9 @@ export const paySlipCompareDialog = async (bot: any, message: any, response: any
   const lng = getLanguage(bot.chat.language);
 
   if (start) {
-    await withMenu(bot, response, [
-      TextMessage('Укажите начало первого периода:'),
-      keyboardCalendar(lng, new Date().getFullYear())]);
+    await withMenu(bot, response,
+      'Укажите начало первого периода:',
+      keyboardCalendar(lng, new Date().getFullYear()));
     dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDb: undefined, fromDe: undefined, toDb: undefined, toDe: undefined });
   }
 
@@ -33,9 +33,8 @@ export const paySlipCompareDialog = async (bot: any, message: any, response: any
     if (db) {
       await bot.sendMessage(response.userProfile, TextMessage(db.toLocaleDateString()));
       dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDb: db });
-      await withMenu(bot, response, [
-        TextMessage('Укажите окончание первого периода:'), keyboardCalendar(lng, new Date().getFullYear())
-      ]);
+      await withMenu(bot, response,
+        'Укажите окончание первого периода:', keyboardCalendar(lng, new Date().getFullYear()));
     }
   } else if (!fromDe) {
     let de = calendarSelection(bot, message, response);
@@ -43,20 +42,18 @@ export const paySlipCompareDialog = async (bot: any, message: any, response: any
       de = new Date(de.getFullYear(), de.getMonth() + 1, 0);
       await bot.sendMessage(response.userProfile, TextMessage(de.toLocaleDateString()));
       dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDe: de });
-      await withMenu(bot, response, [
-        TextMessage('Укажите начало второго периода:'),
-        keyboardCalendar(lng, new Date().getFullYear())
-      ]);
+      await withMenu(bot, response,
+        'Укажите начало второго периода:',
+        keyboardCalendar(lng, new Date().getFullYear()));
     }
   } else if (!toDb) {
       let db = calendarSelection(bot, message, response);
       if (db) {
         await bot.sendMessage(response.userProfile, TextMessage(db.toLocaleDateString()));
         dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDb: db });
-        await withMenu(bot, response, [
-          TextMessage('Укажите окончание второго периода:'),
-          keyboardCalendar(lng, new Date().getFullYear())
-        ]);
+        await withMenu(bot, response,
+          'Укажите окончание второго периода:',
+          keyboardCalendar(lng, new Date().getFullYear()));
       }
   } else if (!toDe) {
       let de = calendarSelection(bot, message, response);
@@ -65,10 +62,9 @@ export const paySlipCompareDialog = async (bot: any, message: any, response: any
         await bot.sendMessage(response.userProfile, TextMessage(de.toLocaleDateString()));
         dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDe: de });
         const cListok = getPaySlip(bot, response, 'COMPARE', fromDb, fromDe, toDb, de);
-        cListok &&await withMenu(bot, response, [
-          TextMessage(cListok),
-          keyboardMenu
-        ]);
+        cListok &&await withMenu(bot, response,
+          cListok,
+          keyboardMenu);
       }
   }
 }

@@ -34,17 +34,6 @@ export const paySlips: { [employeeId: string]: FileDB<IPaySlip> } = {};
 let app = new Koa();
 let router = new Router();
 
-export const config = {
-  domain: 'gs.selfip.biz',
-  https: {
-    port: 8443,
-    options: {
-      key: fs.readFileSync(path.resolve(process.cwd(), 'cert/gsbot-key.pem'), 'utf8').toString(),
-      cert: fs.readFileSync(path.resolve(process.cwd(), 'cert/gsbot-cert.pem'), 'utf8').toString(),
-    },
-  },
-};
-
 router.get('/load', (ctx, next) => {
   // ctx.router available
   load(ctx);
@@ -86,7 +75,7 @@ if (typeof process.env.GDMN_BOT_TOKEN !== 'string') {
 }
 
 const telegram = TelegramBot.init();
-//const viber = Viber.init();
+const viber = Viber.init();
 
 /**
  * При завершении работы сервера скидываем на диск все данные.

@@ -111,22 +111,22 @@ export const loginDialog = async (ctx: ContextMessageUpdate, start = false) => {
     }
   } else {
     if (!employee.customerId) {
-      withMenu(ctx, 'Введите название предприятия:');
+      await withMenu(ctx, 'Введите название предприятия:');
     }
     else if (!employee.firstName) {
-      withMenu(ctx, 'Введите имя:');
+      await withMenu(ctx, 'Введите имя:');
     }
     else if (!employee.lastName) {
-      withMenu(ctx, 'Введите фамилию:');
+      await withMenu(ctx, 'Введите фамилию:');
     }
     else if (!employee.patrName) {
-      withMenu(ctx, 'Введите отчество:');
+      await withMenu(ctx, 'Введите отчество:');
     }
     else if (!employee.passportId) {
-      withMenu(ctx, 'Введите идентификационный номер из паспорта:');
+      await withMenu(ctx, 'Введите идентификационный номер из паспорта:');
     }
     else if (!employee.tabNumber) {
-      withMenu(ctx, 'Введите табельный номер из расчетного листка:');
+      await withMenu(ctx, 'Введите табельный номер из расчетного листка:');
     }
   }
 };

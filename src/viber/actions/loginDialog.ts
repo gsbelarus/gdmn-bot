@@ -15,11 +15,15 @@ export const loginDialog = async (bot: any, response: any, message: any, start =
   //   throw new Error('Invalid context');
   // }
 
+  // if (message.text === 'login' && !start) {
+  //   return;
+  // }
+
   const chatId = response.userProfile.id.toString();
 
   if (start) {
-    await withMenu(bot, response, [
-      TextMessage('Для регистрации в системе введите указанные данные.')])
+    await withMenu(bot, response,
+      'Для регистрации в системе введите указанные данные.')
     dialogStates.merge(chatId, { type: 'LOGGING_IN', lastUpdated: new Date().getTime(), employee: {} });
   }
 
@@ -29,7 +33,7 @@ export const loginDialog = async (bot: any, response: any, message: any, start =
     throw new Error('Invalid dialog state');
   }
 
-  const text = start ? '' : normalizeStr(message);
+  const text = start ? '' : normalizeStr(message.text);
   const { employee } = dialogState as IDialogStateLoggingIn;
 
   if (text) {
@@ -44,10 +48,9 @@ export const loginDialog = async (bot: any, response: any, message: any, start =
         employee.customerId = found[0];
       } else {
        // await withMenu(ctx, '😕 Такого предприятия нет в базе данных!', keyboardLogin);
-        await withMenu(bot, response, [
-          TextMessage('😕 Такого предприятия нет в базе данных!'),
-          KeyboardMessage([keyboardLogin])
-        ]);
+        await withMenu(bot, response,
+          '😕 Такого предприятия нет в базе данных!',
+          keyboardLogin);
         dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() }, ['employee']);
         return;
       }
@@ -98,13 +101,11 @@ export const loginDialog = async (bot: any, response: any, message: any, start =
       accountLink.flush();
       dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() }, ['employee']);
       //withMenu(ctx, '🏁 Регистрация прошла успешно.', keyboardMenu);
-      await withMenu(bot, response, [
-        TextMessage('🏁 Регистрация прошла успешно.'),
-        KeyboardMessage([keyboardMenu])
-      ]);
+      await withMenu(bot, response,
+        '🏁 Регистрация прошла успешно.',
+        keyboardMenu);
     } else {
-      await withMenu(bot, response, [
-        TextMessage(
+      await withMenu(bot, response,
 `
 Сотрудник не найден в базе данных.
 
@@ -117,35 +118,40 @@ export const loginDialog = async (bot: any, response: any, message: any, start =
 Отчество: ${employee.patrName}
 Идентификационный номер: ${employee.passportId}
 Табельный номер: ${employee.tabNumber}
-`),
-        KeyboardMessage([keyboardLogin])
-      ]);
+`,
+        keyboardLogin);
 
       dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() }, ['employee']);
     }
   } else {
-    if (!employee.customerId) {
-      await withMenu(bot, response, [TextMessage('Введите название предприятия:')]);
+    if (!employee?.customerId) {
+    //  await withMenu(bot, response, 'Введите название предприятия:');
+      response.send(new TextMessage('Введите название предприятия:'));
       //withMenu(ctx, 'Введите название предприятия:');
     }
     else if (!employee.firstName) {
-      await withMenu(bot, response, [TextMessage('Введите имя:')]);
+      //await withMenu(bot, response, 'Введите имя:');
+      response.send(new TextMessage('Введите имя:'));
       //withMenu(ctx, 'Введите имя:');
     }
     else if (!employee.lastName) {
-      await withMenu(bot, response, [TextMessage('Введите фамилию:')]);
+      response.send(new TextMessage('Введите фамилию:'));
+      //await withMenu(bot, response, 'Введите фамилию:');
      // withMenu(ctx, 'Введите фамилию:');
     }
     else if (!employee.patrName) {
-      await withMenu(bot, response, [TextMessage('Введите отчество:')]);
+      //await withMenu(bot, response, 'Введите отчество:');
+      response.send(new TextMessage('Введите отчество:'));
       //withMenu(ctx, 'Введите отчество:');
     }
     else if (!employee.passportId) {
-      await withMenu(bot, response, [TextMessage('Введите идентификационный номер из паспорта:')]);
+      //await withMenu(bot, response,'Введите идентификационный номер из паспорта:');
+      response.send(new TextMessage('Введите идентификационный номер из паспорта:'));
       //withMenu(ctx, 'Введите идентификационный номер из паспорта:');
     }
     else if (!employee.tabNumber) {
-      await withMenu(bot, response, [TextMessage('Введите табельный номер из расчетного листка:')]);
+      response.send(new TextMessage('Введите табельный номер из расчетного листка:'));
+      //await withMenu(bot, response, 'Введите табельный номер из расчетного листка:');
       //withMenu(ctx, 'Введите табельный номер из расчетного листка:');
     }
   }

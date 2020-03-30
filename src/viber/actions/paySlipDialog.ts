@@ -17,10 +17,8 @@ export const paySlipDialog = async (bot: any, message: any, response: any, start
   const lng = getLanguage(bot.chat.language);
 
   if (start) {
-    await withMenu(bot, response, [
-      TextMessage('Укажите начало периода:'),
-      keyboardCalendar(lng, new Date().getFullYear())
-    ]);
+    await withMenu(bot, response, 'Укажите начало периода:',
+      keyboardCalendar(lng, new Date().getFullYear()));
     dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db: undefined, de: undefined });
   }
 
@@ -36,9 +34,9 @@ export const paySlipDialog = async (bot: any, message: any, response: any, start
     if (db) {
       await bot.sendMessage(response.userProfile, TextMessage(db.toLocaleDateString()));
       dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db });
-      await withMenu(bot, response, [
-        TextMessage('Укажите окончание периода:'), keyboardCalendar(lng, new Date().getFullYear())
-      ]);
+      await withMenu(bot, response,
+        'Укажите окончание периода:',
+        keyboardCalendar(lng, new Date().getFullYear()));
     }
   } else if (!de) {
     let de = calendarSelection(bot, message, response);
@@ -47,9 +45,9 @@ export const paySlipDialog = async (bot: any, message: any, response: any, start
       await bot.sendMessage(response.userProfile, TextMessage(de.toLocaleDateString()));
       dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), de });
       const cListok = getPaySlip(bot, response, 'CONCISE', db, de);
-      cListok && withMenu(bot, response, [
-        TextMessage(cListok),
-        keyboardMenu]);
+      cListok && withMenu(bot, response,
+        cListok,
+        keyboardMenu);
     }
   }
 }

@@ -139,7 +139,7 @@ export const keyboardCalendar = (lng: Lang, year: number) => {
 
 export const calendarSelection = (bot: any, message: any, response: any): Date | undefined => {
   if (message) {
-    const [action, year, month] = separateCallBackData(message);
+    const [action, year, month] = separateCallBackData(message.text);
     const lng = getLanguage(bot.chat.language);
     switch (action) {
       case 'month': {
@@ -252,7 +252,7 @@ export const keyboardCurrency = (bot: any, response: any) => {
 
 export const currencySelection = (message: any) => {
   if (message) {
-    const [action, currencyId] = separateCallBackData(message);
+    const [action, currencyId] = separateCallBackData(message.text);
     switch (action) {
       case 'currency': {
         return parseInt(currencyId);

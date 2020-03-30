@@ -15,10 +15,9 @@ export const currencyDialog = async (bot: any, message: any, response: any, star
 
   if (start) {
     //ctx.deleteMessage();
-    await withMenu(bot, response, [
-      TextMessage('Выберите валюту:'),
-      keyboardCurrency(bot, response)
-    ]);
+    await withMenu(bot, response,
+      'Выберите валюту:',
+      keyboardCurrency(bot, response));
     dialogStates.merge(chatId, { type: 'GETTING_CURRENCY', lastUpdated: new Date().getTime() });
   }
 
@@ -30,16 +29,15 @@ export const currencyDialog = async (bot: any, message: any, response: any, star
   const { currencyId } = dialogState as IDialogStateGettingCurrency;
 
   if (!currencyId) {
-    const currencyId = currencySelection(message);
+    const currencyId = currencySelection(message.text);
     if (currencyId !== undefined ) {
       const link = accountLink.read(chatId);
       accountLink.merge(chatId, {...link, currencyId });
       const currencyName = getCurrencyNameById(lng, currencyId);
      // ctx.deleteMessage();
-     await withMenu(bot, response, [
-      TextMessage(`Валюта ${currencyName} сохранена`),
-      keyboardMenu
-     ]);
+     await withMenu(bot, response,
+      `Валюта ${currencyName} сохранена`,
+      keyboardMenu);
     }
   }
 }
