@@ -6,7 +6,7 @@ import path from 'path';
 import { IAccountLink, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip } from "./types";
 import { FileDB } from "./util/fileDB";
 import { upload } from "./util/upload";
-import { TelegramBot2 } from "./telegram";
+import { TelegramBot } from "./telegram";
 
 /**
  * Связь между ИД чата и человеком, сотрудником предприятия.
@@ -72,7 +72,7 @@ if (typeof process.env.GDMN_BOT_TOKEN !== 'string') {
 }
 
 //const telegram = TelegramBot.init();
-const telegram = new TelegramBot2(process.env.GDMN_BOT_TOKEN);
+const telegram = new TelegramBot(process.env.GDMN_BOT_TOKEN);
 
 /**
  * При завершении работы сервера скидываем на диск все данные.

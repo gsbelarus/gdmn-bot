@@ -1,13 +1,18 @@
 import { Bot, Menu } from "./bot";
 import Telegraf, { ContextMessageUpdate, Extra, Markup } from "telegraf";
 
-export class TelegramBot2 extends Bot {
+export class TelegramBot extends Bot {
   private _bot: Telegraf<ContextMessageUpdate>;
 
   constructor(token: string) {
     super('telegram');
 
     this._bot = new Telegraf(token);
+
+    this._bot.use( (ctx, next) => {
+      console.log(`Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
+      return next?.();
+    });
 
     this._bot.start(
       ctx => {
@@ -18,6 +23,8 @@ export class TelegramBot2 extends Bot {
         }
       }
     );
+
+    this._bot.launch();
   }
 
   get bot() {
