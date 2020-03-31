@@ -106,3 +106,5 @@ dist
 /data/*.json
 /**/*.pem
 /**/*.pfx
+
+data/telegram/dialogstates.json
