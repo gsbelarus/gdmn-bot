@@ -22,6 +22,19 @@ export class TelegramBot extends Bot {
           this.start(ctx.chat.id.toString());
         }
       }
+      );
+
+      this._bot.on('message',
+      ctx => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        }
+        else if (ctx.message?.text === undefined) {
+          console.error('Invalid chat message');
+        } else {
+          this.process(ctx.chat.id.toString(), ctx.message.text);
+        }
+      }
     );
 
     this._bot.launch();

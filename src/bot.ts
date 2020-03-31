@@ -76,7 +76,7 @@ export class Bot {
    * @param message
    */
   process(chatId: string, message: string) {
-
+    console.log(`Из чата ${chatId} нам пришел такой текст: ${message}`)
   }
 
   /**
