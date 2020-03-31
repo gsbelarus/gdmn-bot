@@ -67,16 +67,16 @@ export type DialogState = IDialogStateInitial
 
 export interface IAccDeds {
  [id: string]: IAccDed
-}
+};
 
 /**
- * Информация о начислении/ударжании.
+ * Информация о начислении/удержании.
  * Наименование и тип.
  */
 export interface IAccDed {
   name: LName;
   type: 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' | 'PRIVILAGE' | 'INCOME_TAX' | 'PENSION_TAX' | 'TRADE_UNION_TAX' | 'TAX' | 'REFERENCE';
-}
+};
 
 export interface IPaySlip {
   version: "1.0";
@@ -94,14 +94,14 @@ export interface IPaySlip {
     granularity?: 'DAY';
     s: number;
     adddata?: any;
-  }[]
-}
+  }[];
+};
 
 export interface IPaySlipItem {
   name: string;
   type: 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' | 'PRIVILAGE' | 'INCOME_TAX' | 'PENSION_TAX' | 'TRADE_UNION_TAX' | 'TAX' | 'REFERENCE';
   s: number;
- }
+};
 
  export type ITypePaySlip = 'DETAIL' | 'CONCISE' | 'COMPARE'
 /**
@@ -123,14 +123,14 @@ export type LName = {
 
 export interface IMonth {
   name: LName;
-}
+};
 
 export const monthList: IMonth[] = [
   {name: {'ru': {name: 'янв'}}}, {name: {'ru': {name: 'фев'}}},{name: {'ru': {name: 'март'}}},
   {name: {'ru': {name: 'апр'}}}, {name: {'ru': {name: 'май'}}},{name: {'ru': {name: 'июн'}}},
   {name: {'ru': {name: 'июл'}}}, {name: {'ru': {name: 'авг'}}},{name: {'ru': {name: 'сен'}}},
   {name: {'ru': {name: 'окт'}}}, {name: {'ru': {name: 'ноя'}}},{name: {'ru': {name: 'дек'}}},
-]
+];
 
 export interface INBRBCurrency  {
   Cur_ID: number;
@@ -164,4 +164,3 @@ export interface INBRBRate {
 };
 
 export type NBRBRates = INBRBRate[];
-

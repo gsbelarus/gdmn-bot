@@ -8,7 +8,6 @@ import { getPaySlip } from "./actions/getPaySlip";
 import { currencyDialog } from "./actions/currencyDialog";
 import { dialogStates, accountLink, customers } from "../server";
 
-
 export default class TelegramBot {
   public static bot: Telegraf<ContextMessageUpdate>
 
@@ -23,7 +22,7 @@ export default class TelegramBot {
 
     bot.use( (ctx, next) => {
       console.log(`Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
-      return next && next();
+      return next?.();
     });
 
     /**
@@ -190,11 +189,11 @@ export const withMenu = async (ctx: ContextMessageUpdate, msg: string, menu?: Ma
     throw new Error('Invalid context');
   }
 
-  const m = markdown
-    ? await ctx.reply(msg, menu && { parse_mode: 'MarkdownV2', ...Extra.markup(menu) })
-    : await ctx.reply(msg, menu && Extra.markup(menu));
-
   const chatId = ctx.chat.id.toString();
+  const m = markdown
+    ? await TelegramBot.bot.telegram.sendMessage(chatId, msg, menu && { parse_mode: 'MarkdownV2', ...Extra.markup(menu) })
+    : await TelegramBot.bot.telegram.sendMessage(chatId, msg, menu && Extra.markup(menu));
+
   const dialogState = dialogStates.read(chatId);
 
   if (dialogState) {
@@ -217,5 +216,3 @@ export const withMenu = async (ctx: ContextMessageUpdate, msg: string, menu?: Ma
     }
   }
 };
-
-

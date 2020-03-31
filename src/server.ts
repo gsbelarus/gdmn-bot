@@ -1,15 +1,12 @@
 import Koa from "koa";
 import bodyParser from 'koa-bodyparser';
 import Router from 'koa-router';
-import https from 'https';
 import http from 'http';
-import fs from 'fs';
 import path from 'path';
 import { IAccountLink, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip } from "./types";
 import { FileDB } from "./util/fileDB";
 import { upload } from "./util/upload";
-import Viber from "./viber/viber";
-import TelegramBot from "./telegram/telegram";
+import { TelegramBot2 } from "./telegram";
 
 /**
  * Связь между ИД чата и человеком, сотрудником предприятия.
@@ -74,8 +71,8 @@ if (typeof process.env.GDMN_BOT_TOKEN !== 'string') {
   throw new Error('GDMN_BOT_TOKEN env variable is not specified.');
 }
 
-const telegram = TelegramBot.init();
-const viber = Viber.init();
+//const telegram = TelegramBot.init();
+const telegram = new TelegramBot2(process.env.GDMN_BOT_TOKEN);
 
 /**
  * При завершении работы сервера скидываем на диск все данные.
@@ -88,6 +85,8 @@ process.on('exit', code => {
   for (const ec of Object.values(employeesByCustomer)) {
     ec.flush();
   }
+
+  telegram.finalize();
 
   console.log('Process exit event with code: ', code);
 });
@@ -102,4 +101,3 @@ process
     console.log({ err }, 'viber launch');
     process.exit(1);
   });
-
