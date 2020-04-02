@@ -1,5 +1,6 @@
 import { Bot, Menu } from "./bot";
 import Telegraf, { ContextMessageUpdate, Extra, Markup } from "telegraf";
+import { normalizeStr, getLanguage } from "./util/utils";
 
 export class TelegramBot extends Bot {
   private _bot: Telegraf<ContextMessageUpdate>;
@@ -24,7 +25,7 @@ export class TelegramBot extends Bot {
       }
       );
 
-      this._bot.on('message',
+    this._bot.on('message',
       ctx => {
         if (!ctx.chat) {
           console.error('Invalid chat context');
@@ -36,6 +37,89 @@ export class TelegramBot extends Bot {
         }
       }
     );
+
+    /**
+     * Регистрация в системе. Привязка ИД телеграма к учетной записи
+     * в системе расчета зарплаты.
+     */
+    this.bot.action('login', ctx => {
+      if (ctx.chat) {
+        this.loginDialog(ctx.chat.id.toString());
+      }
+    });
+
+    this.bot.action('logout', async (ctx) => {
+      if (ctx.chat) {
+        this.logout(ctx.chat.id.toString())
+      }
+    });
+
+    this.bot.action('paySlip', ctx => {
+      if (ctx.chat) {
+        const today = new Date();
+        const db = new Date(2019, 4, 1);
+        const de = new Date(2019, 5, 0);
+        this.paySlip(ctx.chat.id.toString(), 'CONCISE', getLanguage(ctx.from?.language_code), db, de);
+      }
+    });
+
+    this.bot.action('detailPaySlip', ctx => {
+      if (ctx.chat) {
+        const today = new Date();
+        const db = new Date(2019, 4, 1);
+        const de = new Date(2019, 5, 0);
+        this.paySlip(ctx.chat.id.toString(), 'DETAIL', getLanguage(ctx.from?.language_code), db, de);
+      }
+    });
+
+    // this.bot.action('paySlipByPeriod', ctx => {
+    //   if (ctx.chat) {
+    //     paySlipDialog(ctx, true);
+    //   }
+    // });
+
+    // this.bot.action('paySlipCompare', ctx => {
+    //   if (ctx.chat) {
+    //     paySlipCompareDialog(ctx, true);
+    //   }
+    // });
+
+    // this.bot.action('settings', ctx => {
+    //   if (ctx.chat) {
+    //     const chatId = ctx.chat.id.toString();
+    //     dialogStates.merge(chatId, { type: 'GETTING_SETTINGS', lastUpdated: new Date().getTime() });
+    //     withMenu(ctx, 'Параметры', keyboardSettings);
+    //   }
+    // });
+
+    // this.bot.action('menu', ctx => {
+    //   if (ctx.chat) {
+    //     withMenu(ctx, 'Выберите одно из предложенных действий', keyboardMenu, true);
+    //   }
+    // });
+
+    // bot.action('getCurrency', ctx => {
+    //   if (ctx.chat) {
+    //     currencyDialog(ctx, true);
+    //   }
+    // });
+
+    // bot.on('callback_query', async (ctx) => {
+    //   if (ctx.chat) {
+    //     const chatId = ctx.chat.id.toString();
+    //     const dialogState = dialogStates.read(chatId);
+    //     if (dialogState?.type === 'GETTING_CONCISE') {
+    //       paySlipDialog(ctx);
+    //     } else if (dialogState?.type === 'GETTING_COMPARE') {
+    //       paySlipCompareDialog(ctx)
+    //     } else if (dialogState?.type === 'GETTING_CURRENCY') {
+    //       currencyDialog(ctx);
+    //     }
+    //   }
+    // })
+
+    // bot.action('delete', ({ deleteMessage }) => deleteMessage());
+
 
     this._bot.launch();
   }
@@ -82,3 +166,4 @@ export class TelegramBot extends Bot {
     }
   }
 };
+

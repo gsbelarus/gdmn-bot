@@ -62,6 +62,10 @@ export function getLName(n: LName, langPref: Lang[] = [], getFullName: boolean =
   return (getFullName && n.en.fullName) ? n.en.fullName : n.en.name;
 };
 
+/**
+ * Формат кода языка
+ * @param lang_code
+ */
 export const getLanguage = (lang_code?: string): Lang => {
     if (!lang_code) {
       return 'ru'
@@ -78,6 +82,12 @@ export const getLanguage = (lang_code?: string): Lang => {
     }
 }
 
+/**
+ * Разделяем длинную строку на две
+ * @param prevStr
+ * @param name
+ * @param s
+ */
 export const getPaySlipString = (prevStr: string, name: string, s: number): string => {
   let name_1 = '';
   const len = 36;
