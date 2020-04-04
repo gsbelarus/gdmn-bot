@@ -180,4 +180,15 @@ export const getRateByCurrency = (date: Date, currencyId: number) => {
   }
 }
 
+export const getSumByRate = (s: number, rate: number) => {
+  return round(s/rate, 2)
+}
+
+function round(value: number, decimals: number) {
+  let r = 0.5 * Number.EPSILON * value;
+  let o = 1;
+  while(decimals-- > 0) o *= 10;
+  if(value < 0) o *= -1;
+  return Math.round((value + r) * o) / o;
+}
 

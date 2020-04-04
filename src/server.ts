@@ -3,16 +3,11 @@ import bodyParser from 'koa-bodyparser';
 import Router from 'koa-router';
 import http from 'http';
 import path from 'path';
-import { IAccountLink, DialogState, ICustomer, IEmployee, IAccDed, IPaySlip } from "./types";
-import { FileDB } from "./util/fileDB";
+import { ICustomer, IEmployee, IAccDed, IPaySlip, ICustomers, IEmploeeByCustomer } from "./types";
+import { FileDB, IData } from "./util/fileDB";
 import { upload } from "./util/upload";
 import { TelegramBot } from "./telegram";
 
-/**
- * Связь между ИД чата и человеком, сотрудником предприятия.
- */
-export const accountLink = new FileDB<IAccountLink>(path.resolve(process.cwd(), 'data/accountlink.json'), {});
-export const dialogStates = new FileDB<DialogState>(path.resolve(process.cwd(), 'data/dialogstates.json'), {});
 export const customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), {});
 export const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
 
@@ -58,7 +53,6 @@ app
 
 const serverCallback = app.callback();
 
-
 const server = http.createServer(serverCallback)
 
 server.listen(3000, async () => {
@@ -71,15 +65,49 @@ if (typeof process.env.GDMN_BOT_TOKEN !== 'string') {
   throw new Error('GDMN_BOT_TOKEN env variable is not specified.');
 }
 
+const getCustomers = (): ICustomers => {
+  return customers.getMutable(false);
+}
+
+const getEmployeesByCustomer = (customerId: string): IEmploeeByCustomer => {
+  let employees = employeesByCustomer[customerId];
+  if (!employees) {
+    employees = new FileDB<IEmployee>(path.resolve(process.cwd(), `data/employee.${customerId}.json`), {});
+    employeesByCustomer[customerId] = employees;
+  }
+  return employees.getMutable(false);
+}
+
+const getPaySlipByUser = (customerId: string, userID: string, year: number): IData<IPaySlip> => {
+  let paySlip = paySlips[userID + '_' + year];
+  if (!paySlip) {
+    paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip.${customerId}/${year}/payslip.${customerId}.${userID}.${year}.json`), {});
+    paySlips[userID + '_' + year] = paySlip;
+  };
+  return paySlip.getMutable(false);
+}
+
+const getAccDeds = (customerId: string): IData<IAccDed> => {
+  let accDed = customerAccDeds[customerId];
+  if (!accDed) {
+    accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip.${customerId}/accdedref.json`), {});
+    customerAccDeds[customerId] = accDed;
+  };
+  return accDed.getMutable(false);
+}
+
 //const telegram = TelegramBot.init();
-const telegram = new TelegramBot(process.env.GDMN_BOT_TOKEN);
+const telegram = new TelegramBot(
+  process.env.GDMN_BOT_TOKEN,
+  getCustomers,
+  getEmployeesByCustomer,
+  getAccDeds,
+  getPaySlipByUser);
 
 /**
  * При завершении работы сервера скидываем на диск все данные.
  */
 process.on('exit', code => {
-  accountLink.flush();
-  dialogStates.flush();
   customers.flush();
 
   for (const ec of Object.values(employeesByCustomer)) {
@@ -91,7 +119,7 @@ process.on('exit', code => {
   console.log('Process exit event with code: ', code);
 });
 
-process.on('SIGINT', () => process.exit() );
+process.on('SIGINT', () => process.exit());
 
 process
   .on('unhandledRejection', (reason, p) => {

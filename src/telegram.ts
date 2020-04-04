@@ -1,16 +1,23 @@
 import { Bot, Menu } from "./bot";
 import Telegraf, { ContextMessageUpdate, Extra, Markup } from "telegraf";
-import { normalizeStr, getLanguage } from "./util/utils";
+import { getLanguage } from "./util/utils";
+import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed, IEmployee, ICustomer } from "./types";
+import { IData } from "./util/fileDB";
 
 export class TelegramBot extends Bot {
   private _bot: Telegraf<ContextMessageUpdate>;
 
-  constructor(token: string) {
-    super('telegram');
+  constructor(token: string,
+    getCustomers: () => ICustomers,
+    getEmployeesByCustomer: (customerId: string) => IEmploeeByCustomer,
+    getAccDeds: (customerId: string) => IData<IAccDed>,
+    getPaySlipByUser: (customerId: string, userId: string, year: number) => IData<IPaySlip>) {
+
+    super('telegram', getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser);
 
     this._bot = new Telegraf(token);
 
-    this._bot.use( (ctx, next) => {
+    this._bot.use((ctx, next) => {
       console.log(`Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
       return next?.();
     });
@@ -23,7 +30,7 @@ export class TelegramBot extends Bot {
           this.start(ctx.chat.id.toString());
         }
       }
-      );
+    );
 
     this._bot.on('message',
       ctx => {
@@ -130,7 +137,7 @@ export class TelegramBot extends Bot {
 
   private menu2markup(menu: Menu) {
     return Markup.inlineKeyboard(
-      menu.map( r => r.map(
+      menu.map(r => r.map(
         c => c.type === 'BUTTON'
           ? Markup.callbackButton(c.caption, c.command) as any
           : Markup.urlButton(c.caption, c.url)

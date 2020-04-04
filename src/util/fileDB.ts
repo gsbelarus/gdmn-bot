@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-interface IData<T> {
+export interface IData<T> {
   [key: string]: T;
 };
 

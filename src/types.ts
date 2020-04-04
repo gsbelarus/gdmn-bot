@@ -1,3 +1,5 @@
+import { FileDB, IData } from "./util/fileDB";
+
 export interface ICustomer {
   id: string;
   name: string;
@@ -164,3 +166,6 @@ export interface INBRBRate {
 };
 
 export type NBRBRates = INBRBRate[];
+
+export type ICustomers = IData<Omit<ICustomer, 'id'>>
+export type IEmploeeByCustomer = IData<Omit<IEmployee, 'id'>>
