@@ -123,9 +123,9 @@ process.on('SIGINT', () => process.exit());
 
 process
   .on('unhandledRejection', (reason, p) => {
-    console.log({ err: reason }, `viber launch ${p}`);
+    console.log({ err: reason }, `bot launch ${p}`);
   })
   .on('uncaughtException', err => {
-    console.log({ err }, 'viber launch');
+    console.log({ err }, 'bot launch');
     process.exit(1);
   });

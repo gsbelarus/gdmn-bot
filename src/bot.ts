@@ -1,7 +1,8 @@
-import { DialogState, IAccountLink, IDialogStateLoggingIn, IAccDed, IPaySlip, LName, Lang, ITypePaySlip, ICustomers, IEmploeeByCustomer } from "./types";
+import { DialogState, IAccountLink, IDialogStateLoggingIn, IAccDed, IPaySlip, LName, Lang, ITypePaySlip,
+  ICustomers, IEmploeeByCustomer, IDialogStateGettingConcise, monthList, IDialogStateGettingCompare, IDialogStateGettingCurrency } from "./types";
 import { FileDB, IData } from "./util/fileDB";
 import path from 'path';
-import { normalizeStr, getYears, getLName, getPaySlipString, getSumByRate } from "./util/utils";
+import { normalizeStr, getYears, getLName, getPaySlipString, getSumByRate, getCurrencyAbbreviationById, getRateByCurrency, getCurrencies, getCurrencyNameById } from "./util/utils";
 
 export interface IMenuButton {
   type: 'BUTTON';
@@ -44,6 +45,69 @@ export const keyboardMenu: Menu = [
   ]
 ];
 
+export const keyboardSettings: Menu = [
+  [
+    { type: 'BUTTON', caption: 'Выбрать валюту', command: 'getCurrency' },
+    { type: 'BUTTON', caption: 'Еще что-нибудь', command: 'test' }
+  ],
+  [
+    { type: 'BUTTON', caption: 'Меню', command: 'menu' }
+  ]
+];
+
+export const keyboardCalendar = (lng: Lang, year: number): Menu => {
+  let keyboard: Menu = [];
+
+  for (let i = 0; i < 3; i++) {
+    let row: any[] = [];
+    monthList.forEach((m, idx) => {
+      if (idx >= i * 4 && idx < (i + 1) * 4) {
+        const name = getLName(m.name as LName, [lng, 'ru']);
+        row.push({ type: 'BUTTON', caption: name, command: ['month', year.toString(), idx.toString()].join(';') });
+      }
+    });
+    keyboard.push(row)
+  };
+
+  keyboard.push([
+    { type: 'BUTTON', caption: "<", command: ['prevYear', year.toString()].join(';') },
+    { type: 'BUTTON', caption: year.toString(), command: ['otherYear', year.toString()].join(';') },
+    { type: 'BUTTON', caption: ">", command: ['nextYear', year.toString()].join(';') }
+  ]);
+
+  return keyboard;
+};
+
+export const keyboardCurrency = (lng: Lang): Menu => {
+  let keyboard: Menu = [];
+
+  let row: MenuItem[] = [];
+
+  getCurrencies()?.filter(c => c.Cur_ID === 292 || c.Cur_ID === 145).forEach((m, idx) => {
+    const currencyName = getCurrencyNameById(lng, m.Cur_ID);
+    currencyName && row.push({ type: 'BUTTON', caption: currencyName, command: ['currency', m.Cur_ID.toString(), currencyName].join(';') });
+  });
+  keyboard.push(row);
+  row = [];
+  getCurrencies()?.filter(c => c.Cur_ID === 298).forEach((m, idx) => {
+    const currencyName = getCurrencyNameById(lng, m.Cur_ID);
+    currencyName && row.push({ type: 'BUTTON', caption: currencyName, command: ['currency', m.Cur_ID.toString(), currencyName].join(';') });
+  });
+  row.push({ type: 'BUTTON', caption: 'Белорусский рубль', command: ['currency', 0, 'Белорусский рубль'].join(';') });
+
+  keyboard.push(row);
+
+  keyboard.push([
+    { type: 'BUTTON', caption: 'Меню', command: 'menu' }
+  ]);
+
+  return keyboard;
+};
+
+export const separateCallBackData = (data: string) => {
+  return data.split(';');
+}
+
 export class Bot {
 
   private _accountLink: FileDB<IAccountLink>;
@@ -83,6 +147,10 @@ export class Bot {
 
   }
 
+  editMessage(chatId: string, menu: Menu) {
+
+  }
+
   /**
    * Диалог регистрации
    * @param chatId
@@ -104,7 +172,7 @@ export class Bot {
 
     if (text) {
       if (!employee.customerId) {
-        const found = Object.entries(this.getCustomers).find(([_, c]) =>
+        const found = Object.entries(this.getCustomers()).find(([_, c]) =>
           normalizeStr(c.name) === text || c.aliases.find(
             (a: any) => normalizeStr(a) === text
           )
@@ -200,22 +268,161 @@ export class Bot {
     }
   }
 
-  getRateByCurrency(db: Date, currencyId: number) {
-    return 123
+
+  calendarSelection(chatId: string, queryData: string, lng: Lang): Date | undefined {
+    const [action, year, month] = separateCallBackData(queryData);
+
+    switch (action) {
+      case 'month': {
+        const selectedDate = new Date(parseInt(year), parseInt(month), 1);
+        return selectedDate;
+      }
+      case 'prevYear': {
+        //this.editMessage(chatId, keyboardCalendar(lng, parseInt(year) - 1));
+        this.sendMessage(chatId, (parseInt(year) - 1).toString(), keyboardCalendar(lng, parseInt(year) - 1));
+        break;
+      }
+      case 'nextYear': {
+        //this.editMessage(chatId, keyboardCalendar(lng, parseInt(year) + 1));
+        this.sendMessage(chatId, (parseInt(year) + 1).toString(), keyboardCalendar(lng, parseInt(year) + 1));
+        break;
+      }
+      case 'otherYear': {
+        break;
+      }
+    }
+    return undefined;
   }
 
-  getCurrencyAbbreviationById(currencyId: number) {
-    return '123'
+  currencySelection(chatId: string, queryData: string, lng: Lang): number | undefined {
+    const [action, currencyId] = separateCallBackData(queryData);
+    switch (action) {
+      case 'currency': {
+        return parseInt(currencyId);
+      }
+    }
+    return undefined;
+  }
+
+  async paySlipDialog(chatId: string, lng: Lang, queryData?: string) {
+    if (!queryData) {
+      await this.sendMessage(chatId, 'Укажите начало периода:',
+        keyboardCalendar(lng, new Date().getFullYear()), true);
+      this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db: undefined, de: undefined });
+    }
+
+    const dialogState = this._dialogStates.getMutable(true)[chatId];
+
+    if (!dialogState || dialogState.type !== 'GETTING_CONCISE') {
+      throw new Error('Invalid dialog state');
+    }
+    if (queryData) {
+      const { db, de } = dialogState as IDialogStateGettingConcise;
+      if (!db) {
+        const db = this.calendarSelection(chatId, queryData, lng);
+        if (db) {
+          //await ctx.reply(db.toLocaleDateString());
+          await this.sendMessage(chatId, db.toLocaleDateString());
+          this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db });
+          await this.sendMessage(chatId, 'Укажите окончание периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
+        }
+      } else if (!de) {
+        let de = this.calendarSelection(chatId, queryData, lng);
+        if (de) {
+          de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
+          await this.sendMessage(chatId, de.toLocaleDateString());
+          this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), de });
+          const cListok = this.getPaySlip(chatId, 'CONCISE', lng, db, de);
+          cListok && this.sendMessage(chatId, cListok, keyboardMenu, true);
+        }
+      }
+    }
+  }
+
+  async paySlipCompareDialog(chatId: string, lng: Lang, queryData?: string) {
+
+    if (!queryData) {
+      await this.sendMessage(chatId, 'Укажите начало первого периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
+      this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDb: undefined, fromDe: undefined, toDb: undefined, toDe: undefined });
+    }
+
+    const dialogState = this._dialogStates.getMutable(true)[chatId];
+
+    if (!dialogState || dialogState.type !== 'GETTING_COMPARE') {
+      throw new Error('Invalid dialog state');
+    }
+
+    if (queryData) {
+      const { fromDb, fromDe, toDb, toDe } = dialogState as IDialogStateGettingCompare;
+      if (!fromDb) {
+        const db = this.calendarSelection(chatId, queryData, lng);
+        if (db) {
+          await this.sendMessage(chatId, db.toLocaleDateString());
+          this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDb: db });
+          await this.sendMessage(chatId, 'Укажите окончание первого периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
+        }
+      } else if (!fromDe) {
+        let de = this.calendarSelection(chatId, queryData, lng);
+        if (de) {
+          de = new Date(de.getFullYear(), de.getMonth() + 1, 0);
+          await this.sendMessage(chatId, de.toLocaleDateString());
+          this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDe: de });
+          await this.sendMessage(chatId, 'Укажите начало второго периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
+        }
+      } else if (!toDb) {
+        let db = this.calendarSelection(chatId, queryData, lng);
+        if (db) {
+          await this.sendMessage(chatId, db.toLocaleDateString());
+          this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDb: db });
+          await this.sendMessage(chatId, 'Укажите окончание второго периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
+        }
+      } else if (!toDe) {
+        let de = this.calendarSelection(chatId, queryData, lng);
+        if (de) {
+          de = new Date(de.getFullYear(), de.getMonth() + 1, 0);
+          await this.sendMessage(chatId, de.toLocaleDateString());
+          this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDe: de });
+          const cListok = this.getPaySlip(chatId, 'COMPARE', lng, fromDb, fromDe, toDb, de);
+          cListok && this.sendMessage(chatId, cListok, keyboardMenu, true);
+        }
+      }
+    }
+  }
+
+  async currencyDialog(chatId: string, lng: Lang, queryData?: string) {
+    if (!queryData) {
+      //ctx.deleteMessage();
+      await this.sendMessage(chatId, 'Выберите валюту:', keyboardCurrency(lng), true);
+      this._dialogStates.merge(chatId, { type: 'GETTING_CURRENCY', lastUpdated: new Date().getTime() });
+    }
+
+    const dialogState = this._dialogStates.getMutable(true)[chatId];
+
+    if (!dialogState || dialogState.type !== 'GETTING_CURRENCY') {
+      throw new Error('Invalid dialog state');
+    }
+
+    const { currencyId } = dialogState as IDialogStateGettingCurrency;
+
+    if (!currencyId && queryData) {
+      const currencyId = this.currencySelection(chatId, queryData, lng);
+      if (currencyId !== undefined) {
+        const link = this._accountLink.read(chatId);
+        this._accountLink.merge(chatId, { ...link, currencyId });
+        const currencyName = getCurrencyNameById(lng, currencyId);
+        //ctx.deleteMessage();
+        this.sendMessage(chatId, `Валюта ${currencyName} сохранена`, keyboardMenu, true);
+      }
+    }
   }
 
   getPaySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date): string | undefined {
     const link = this._accountLink.read(chatId);
 
     if (link?.customerId && link.employeeId) {
-
       const { customerId, employeeId, currencyId = 0 } = link;
-      const rate = this.getRateByCurrency(db, currencyId);
-      const currencyAbbreviation = this.getCurrencyAbbreviationById(currencyId);
+      const rate = getRateByCurrency(db, currencyId);
+      const currencyAbbreviation = getCurrencyAbbreviationById(currencyId);
 
       if (rate === -1) {
         return (`${'`'}${'`'}${'`'}ini
@@ -428,7 +635,6 @@ export class Bot {
    * @param message
    */
   process(chatId: string, message: string, fromId?: string, fromUserName?: string) {
-
     console.log(`Из чата ${chatId} нам пришел такой текст: ${message}`)
 
     const dialogState = this._dialogStates.read(chatId);
@@ -437,7 +643,7 @@ export class Bot {
       this.loginDialog(chatId, message);
     } else if (dialogState?.type === 'LOGGED_IN' && message === 'организации') {
       //Почему здесь было reply?
-      this.sendMessage(chatId, Object.values(this.getCustomers).map(c => c.name).join(', '));
+      this.sendMessage(chatId, Object.values(this.getCustomers()).map(c => c.name).join(', '));
       this.sendMessage(chatId, chatId);
       fromId && this.sendMessage(chatId, fromId);
       fromUserName && this.sendMessage(chatId, fromUserName);
@@ -452,6 +658,18 @@ export class Bot {
 
   Выберите одно из предложенных действий.
   `, keyboardMenu);
+    }
+  }
+
+  callback_query(chatId: string, lng: Lang, queryData: string) {
+    const dialogState = this._dialogStates.read(chatId);
+
+    if (dialogState?.type === 'GETTING_CONCISE') {
+      this.paySlipDialog(chatId, lng, queryData);
+    } else if (dialogState?.type === 'GETTING_COMPARE') {
+      this.paySlipCompareDialog(chatId, lng, queryData);
+    } else if (dialogState?.type === 'GETTING_CURRENCY') {
+      this.currencyDialog(chatId, lng, queryData);
     }
   }
 
@@ -475,6 +693,15 @@ export class Bot {
         'Здравствуйте! Вы зарегистрированы в системе. Выберите одно из предложенных действий.',
         keyboardMenu);
     }
+  }
+
+  menu(chatId: string) {
+    this.sendMessage(chatId, 'Выберите одно из предложенных действий', keyboardMenu, true);
+  }
+
+  settings(chatId: string) {
+    this._dialogStates.merge(chatId, { type: 'GETTING_SETTINGS', lastUpdated: new Date().getTime() });
+    this.sendMessage(chatId, 'Параметры', keyboardSettings);
   }
 
   async logout(chatId: string) {

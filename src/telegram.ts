@@ -1,7 +1,7 @@
 import { Bot, Menu } from "./bot";
 import Telegraf, { ContextMessageUpdate, Extra, Markup } from "telegraf";
 import { getLanguage } from "./util/utils";
-import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed, IEmployee, ICustomer } from "./types";
+import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "./types";
 import { IData } from "./util/fileDB";
 
 export class TelegramBot extends Bot {
@@ -49,84 +49,108 @@ export class TelegramBot extends Bot {
      * Регистрация в системе. Привязка ИД телеграма к учетной записи
      * в системе расчета зарплаты.
      */
-    this.bot.action('login', ctx => {
-      if (ctx.chat) {
-        this.loginDialog(ctx.chat.id.toString());
-      }
-    });
+    this._bot.action('login',
+      ctx => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        } else {
+          this.loginDialog(ctx.chat.id.toString());
+        }
+      });
 
-    this.bot.action('logout', async (ctx) => {
-      if (ctx.chat) {
-        this.logout(ctx.chat.id.toString())
-      }
-    });
+    this._bot.action('logout',
+      async (ctx) => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        } else {
+          this.logout(ctx.chat.id.toString())
+        }
+      });
 
-    this.bot.action('paySlip', ctx => {
-      if (ctx.chat) {
-        const today = new Date();
-        const db = new Date(2019, 4, 1);
-        const de = new Date(2019, 5, 0);
-        this.paySlip(ctx.chat.id.toString(), 'CONCISE', getLanguage(ctx.from?.language_code), db, de);
-      }
-    });
+    this._bot.action('paySlip',
+      ctx => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        } else {
+          const today = new Date();
+          //Для теста период апрель 2019, потом удалить, когда будут данные
+          const db = new Date(2019, 4, 1);
+          const de = new Date(2019, 5, 0);
+          this.paySlip(ctx.chat.id.toString(), 'CONCISE', getLanguage(ctx.from?.language_code), db, de);
+        }
+      });
 
-    this.bot.action('detailPaySlip', ctx => {
-      if (ctx.chat) {
-        const today = new Date();
-        const db = new Date(2019, 4, 1);
-        const de = new Date(2019, 5, 0);
-        this.paySlip(ctx.chat.id.toString(), 'DETAIL', getLanguage(ctx.from?.language_code), db, de);
-      }
-    });
+    this._bot.action('detailPaySlip',
+      ctx => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        } else {
+          const today = new Date();
+          //Для теста период апрель 2019, потом удалить, когда будут данные
+          const db = new Date(2019, 4, 1);
+          const de = new Date(2019, 5, 0);
+          this.paySlip(ctx.chat.id.toString(), 'DETAIL', getLanguage(ctx.from?.language_code), db, de);
+        }
+      });
 
-    // this.bot.action('paySlipByPeriod', ctx => {
-    //   if (ctx.chat) {
-    //     paySlipDialog(ctx, true);
-    //   }
-    // });
+    this._bot.action('paySlipByPeriod',
+      ctx => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        } else {
+          this.paySlipDialog(ctx.chat.id.toString(), getLanguage(ctx.from?.language_code));
+        }
+      });
 
-    // this.bot.action('paySlipCompare', ctx => {
-    //   if (ctx.chat) {
-    //     paySlipCompareDialog(ctx, true);
-    //   }
-    // });
+    this._bot.action('paySlipCompare',
+      ctx => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        } else {
+          this.paySlipCompareDialog(ctx.chat.id.toString(), getLanguage(ctx.from?.language_code));
+        }
+      });
 
-    // this.bot.action('settings', ctx => {
-    //   if (ctx.chat) {
-    //     const chatId = ctx.chat.id.toString();
-    //     dialogStates.merge(chatId, { type: 'GETTING_SETTINGS', lastUpdated: new Date().getTime() });
-    //     withMenu(ctx, 'Параметры', keyboardSettings);
-    //   }
-    // });
+    this._bot.action('settings',
+      ctx => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        } else {
+          this.settings(ctx.chat.id.toString())
+        }
+      });
 
-    // this.bot.action('menu', ctx => {
-    //   if (ctx.chat) {
-    //     withMenu(ctx, 'Выберите одно из предложенных действий', keyboardMenu, true);
-    //   }
-    // });
+    this._bot.action('menu',
+      ctx => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        } else {
+          this.menu(ctx.chat.id.toString())
+        }
+      });
 
-    // bot.action('getCurrency', ctx => {
-    //   if (ctx.chat) {
-    //     currencyDialog(ctx, true);
-    //   }
-    // });
+    this._bot.action('getCurrency',
+      ctx => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        } else {
+          this.currencyDialog(ctx.chat.id.toString(), getLanguage(ctx.from?.language_code));
+        }
+      });
 
-    // bot.on('callback_query', async (ctx) => {
-    //   if (ctx.chat) {
-    //     const chatId = ctx.chat.id.toString();
-    //     const dialogState = dialogStates.read(chatId);
-    //     if (dialogState?.type === 'GETTING_CONCISE') {
-    //       paySlipDialog(ctx);
-    //     } else if (dialogState?.type === 'GETTING_COMPARE') {
-    //       paySlipCompareDialog(ctx)
-    //     } else if (dialogState?.type === 'GETTING_CURRENCY') {
-    //       currencyDialog(ctx);
-    //     }
-    //   }
-    // })
+    this._bot.on('callback_query',
+      ctx => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        }
+        else if (ctx.callbackQuery?.data === undefined) {
+          console.error('Invalid chat callbackQuery');
+        } else {
+          this.callback_query(ctx.chat.id.toString(), getLanguage(ctx.from?.language_code), ctx.callbackQuery?.data);
+        }
+      });
 
-    // bot.action('delete', ({ deleteMessage }) => deleteMessage());
-
+    this._bot.action('delete', ({ deleteMessage }) => deleteMessage());
 
     this._bot.launch();
   }
@@ -143,6 +167,11 @@ export class TelegramBot extends Bot {
           : Markup.urlButton(c.caption, c.url)
       ))
     );
+  }
+
+  editMessage(chatId: string, menu: Menu) {
+    //редактировать меню периода не получилось
+    //this.bot.telegram.editMessageReplyMarkup(chatId, undefined, undefined, menu);
   }
 
   async sendMessage(chatId: string, message: string, menu?: Menu, markdown?: boolean) {
@@ -173,4 +202,3 @@ export class TelegramBot extends Bot {
     }
   }
 };
-

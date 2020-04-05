@@ -46,7 +46,7 @@ export const keyboardCalendar = (lng: Lang, year: number) => {
   return Markup.inlineKeyboard(keyboard);
 };
 
-const createCallBackData = (action: string, year: number, month?: number) => {
+export const createCallBackData = (action: string, year: number, month?: number) => {
   return ([action, year.toString(), month?.toString()]).join(';');
 }
 
@@ -54,7 +54,7 @@ export const separateCallBackData = (data: string) => {
   return data.split(';');
 }
 
-const createCallBackCurrency = (action: string, currencyId: number, currencyName?: string) => {
+export const createCallBackCurrency = (action: string, currencyId: number, currencyName?: string) => {
   return ([action, currencyId, currencyName]).join(';');
 }
 
