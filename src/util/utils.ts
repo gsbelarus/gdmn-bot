@@ -1,9 +1,7 @@
-import { promises } from 'fs';
-//import log4js from 'log4js';
-import path from "path";
 import { Lang, LName, NBRBCurrencies, NBRBRates } from '../types';
 import { PATH_NB_RB_CUR, getUpdatedCurrencies, PATH_NB_RB_RATES, BEGIN_DATE_RATES, getUpdatedRates } from './downLoadCurrencyRates';
 import fs from 'fs';
+
 /**
  * Удаляет из строки кавычки, двойные пробелы и т.п.
  * Приводит к нижнему регистру.
@@ -18,36 +16,6 @@ export const normalizeStr = (s?: string) => s && s.trim()
   .filter( ss => ss.trim() )
   .filter( ss => ss !== 'ооо' && ss !== 'оао' )
   .join(' ');
-
-  export const readFile = async (filename: string) => {
-    try {
-      const result = await promises.readFile(filename, { encoding: 'utf8', flag: 'r' });
-      const data = JSON.parse(result);
-     // logger.info(`Successful reading: ${filename}`);
-      if(Array.isArray(data) && data.length) {
-        return data;
-      } else {
-        return data;
-      }
-    }
-    catch (e) {
-     // logger.trace(`Error reading data to file ${filename} - ${e}`);
-      console.log(`Error reading data to file ${filename} - ${e}`);
-      return undefined;
-    }
-  }
-
-  export const writeFile = async (filename: string, data: string) => {
-    try {
-      await promises.mkdir(path.dirname(filename), { recursive: true });
-      await promises.writeFile(filename, data, { encoding: 'utf8', flag: 'w' });
-     // logger.info(`Successful writing: ${filename}`);
-    }
-    catch (e) {
-     // logger.trace(`Error writing data to file ${filename} - ${e}`);
-      console.log(`Error writing data to file ${filename} - ${e}`);
-    }
-  }
 
 export function getLName(n: LName, langPref: Lang[] = [], getFullName: boolean = false): string {
   for (let i = 0; i < langPref.length; i++) {
@@ -135,7 +103,7 @@ export const getCurrencies = (): NBRBCurrencies | undefined =>  {
   if (!fs.existsSync(PATH_NB_RB_CUR)) {
     return getUpdatedCurrencies();
   } else {
-    return JSON.parse(fs.readFileSync(PATH_NB_RB_CUR, { encoding: 'utf8' }).toString());
+    return JSON.parse(fs.readFileSync(PATH_NB_RB_CUR, { encoding: 'utf8' }));
   }
 }
 
@@ -191,4 +159,3 @@ function round(value: number, decimals: number) {
   if(value < 0) o *= -1;
   return Math.round((value + r) * o) / o;
 }
-
