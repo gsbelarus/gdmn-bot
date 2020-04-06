@@ -1,6 +1,6 @@
-import { Lang, LName, NBRBCurrencies, NBRBRates } from '../types';
-import { PATH_NB_RB_CUR, getUpdatedCurrencies, PATH_NB_RB_RATES, BEGIN_DATE_RATES, getUpdatedRates } from './downLoadCurrencyRates';
+import { Lang, LName } from '../types';
 import fs from 'fs';
+import { NBRBCurrencies, NBRBRates, PATH_NB_RB_CUR, getUpdatedCurrencies, PATH_NB_RB_RATES, BEGIN_DATE_RATES, getUpdatedRates } from '../currency';
 
 /**
  * Удаляет из строки кавычки, двойные пробелы и т.п.

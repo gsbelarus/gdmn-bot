@@ -126,38 +126,5 @@ export type LName = {
 export const monthList: LName[] = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
   .map( name => ({ ru: { name }}) );
 
-export interface INBRBCurrency  {
-  Cur_ID: number;
-  Cur_ParentID: number;
-  Cur_Code: string;
-  Cur_Abbreviation: string;
-  Cur_Name: string;
-  Cur_Name_Bel: string;
-  Cur_Name_Eng: string;
-  Cur_QuotName: string;
-  Cur_QuotName_Bel: string;
-  Cur_QuotName_Eng: string;
-  Cur_NameMulti: string;
-  Cur_Name_BelMulti: string;
-  Cur_Name_EngMulti: string;
-  Cur_Scale: number;
-  Cur_Periodicity: number;
-  Cur_DateStart: Date;
-  Cur_DateEnd: Date;
-};
-
-export type NBRBCurrencies = INBRBCurrency[];
-
-export interface INBRBRate {
-  Cur_ID: number;
-  Date: Date;
-  Cur_Abbreviation: string;
-  Cur_Scale: number;
-  Cur_Name: string;
-  Cur_OfficialRate: number;
-};
-
-export type NBRBRates = INBRBRate[];
-
 export type ICustomers = IData<Omit<ICustomer, 'id'>>
 export type IEmploeeByCustomer = IData<Omit<IEmployee, 'id'>>
