@@ -123,16 +123,8 @@ export type LName = {
   [lang in Lang]?: ITName;
 };
 
-export interface IMonth {
-  name: LName;
-};
-
-export const monthList: IMonth[] = [
-  {name: {'ru': {name: 'янв'}}}, {name: {'ru': {name: 'фев'}}},{name: {'ru': {name: 'март'}}},
-  {name: {'ru': {name: 'апр'}}}, {name: {'ru': {name: 'май'}}},{name: {'ru': {name: 'июн'}}},
-  {name: {'ru': {name: 'июл'}}}, {name: {'ru': {name: 'авг'}}},{name: {'ru': {name: 'сен'}}},
-  {name: {'ru': {name: 'окт'}}}, {name: {'ru': {name: 'ноя'}}},{name: {'ru': {name: 'дек'}}},
-];
+export const monthList: LName[] = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
+  .map( name => ({ ru: { name }}) );
 
 export interface INBRBCurrency  {
   Cur_ID: number;

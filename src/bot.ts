@@ -56,26 +56,19 @@ export const keyboardSettings: Menu = [
 ];
 
 export const keyboardCalendar = (lng: Lang, year: number): Menu => {
-  let keyboard: Menu = [];
+  const mm = [
+    [0,  1,  2],
+    [3,  4,  5],
+    [6,  7,  8],
+    [9, 10, 11],
+  ];
 
-  for (let i = 0; i < 3; i++) {
-    let row: any[] = [];
-    monthList.forEach((m, idx) => {
-      if (idx >= i * 4 && idx < (i + 1) * 4) {
-        const name = getLName(m.name as LName, [lng, 'ru']);
-        row.push({ type: 'BUTTON', caption: name, command: ['month', year.toString(), idx.toString()].join(';') });
-      }
-    });
-    keyboard.push(row)
-  };
-
-  keyboard.push([
-    { type: 'BUTTON', caption: "<", command: ['prevYear', year.toString()].join(';') },
-    { type: 'BUTTON', caption: year.toString(), command: ['otherYear', year.toString()].join(';') },
-    { type: 'BUTTON', caption: ">", command: ['nextYear', year.toString()].join(';') }
-  ]);
-
-  return keyboard;
+  return mm.map( mr => mr.map( m => ({ type: 'BUTTON', caption: getLName(monthList[m], ['ru']), command: `month;${year};${m}` } as IMenuButton) ) )
+    .concat([
+      { type: 'BUTTON', caption: '<', command: `prevYear;${year}` },
+      { type: 'BUTTON', caption: `${year}`, command: `otherYear;${year}` },
+      { type: 'BUTTON', caption: '>', command: `nextYear;${year}` }
+    ]);
 };
 
 export const keyboardCurrency = (lng: Lang): Menu => {
