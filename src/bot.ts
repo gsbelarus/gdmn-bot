@@ -2,7 +2,8 @@ import { DialogState, IAccountLink, IDialogStateLoggingIn, IAccDed, IPaySlip, LN
   ICustomers, IEmploeeByCustomer, IDialogStateGettingConcise, monthList, IDialogStateGettingCompare, IDialogStateGettingCurrency } from "./types";
 import { FileDB, IData } from "./util/fileDB";
 import path from 'path';
-import { normalizeStr, getYears, getLName, getPaySlipString, getSumByRate, getCurrencyAbbreviationById, getRateByCurrency, getCurrencies, getCurrencyNameById } from "./util/utils";
+import { normalizeStr, getYears, getLName, getPaySlipString, getSumByRate } from "./util/utils";
+import { getCurrencyNameById, getRateByCurrency, getCurrencyAbbreviationById } from "./currency";
 
 export interface IMenuButton {
   type: 'BUTTON';
@@ -72,29 +73,13 @@ export const keyboardCalendar = (lng: Lang, year: number): Menu => {
 };
 
 export const keyboardCurrency = (lng: Lang): Menu => {
-  let keyboard: Menu = [];
+  const f = (currId: string) => ({ type: 'BUTTON', caption: getCurrencyNameById(lng, currId), command: `currency;${currId};${getCurrencyNameById(lng, currId)}` } as IMenuButton);
 
-  let row: MenuItem[] = [];
-
-  getCurrencies()?.filter(c => c.Cur_ID === 292 || c.Cur_ID === 145).forEach((m, idx) => {
-    const currencyName = getCurrencyNameById(lng, m.Cur_ID);
-    currencyName && row.push({ type: 'BUTTON', caption: currencyName, command: ['currency', m.Cur_ID.toString(), currencyName].join(';') });
-  });
-  keyboard.push(row);
-  row = [];
-  getCurrencies()?.filter(c => c.Cur_ID === 298).forEach((m, idx) => {
-    const currencyName = getCurrencyNameById(lng, m.Cur_ID);
-    currencyName && row.push({ type: 'BUTTON', caption: currencyName, command: ['currency', m.Cur_ID.toString(), currencyName].join(';') });
-  });
-  row.push({ type: 'BUTTON', caption: 'Белорусский рубль', command: ['currency', 0, 'Белорусский рубль'].join(';') });
-
-  keyboard.push(row);
-
-  keyboard.push([
-    { type: 'BUTTON', caption: 'Меню', command: 'menu' }
-  ]);
-
-  return keyboard;
+  return [
+    [f('292'), f('145')],
+    [f('298'), { type: 'BUTTON', caption: 'Белорусский рубль', command: `currency;0;Белорусский рубль` }],
+    [{ type: 'BUTTON', caption: 'Меню', command: 'menu' }]
+  ];
 };
 
 export const separateCallBackData = (data: string) => {
@@ -287,11 +272,11 @@ export class Bot {
     return undefined;
   }
 
-  currencySelection(chatId: string, queryData: string, lng: Lang): number | undefined {
+  currencySelection(chatId: string, queryData: string, lng: Lang): string | undefined {
     const [action, currencyId] = separateCallBackData(queryData);
     switch (action) {
       case 'currency': {
-        return parseInt(currencyId);
+        return currencyId;
       }
     }
     return undefined;
@@ -413,7 +398,7 @@ export class Bot {
     const link = this._accountLink.read(chatId);
 
     if (link?.customerId && link.employeeId) {
-      const { customerId, employeeId, currencyId = 0 } = link;
+      const { customerId, employeeId, currencyId = '' } = link;
       const rate = getRateByCurrency(db, currencyId);
       const currencyAbbreviation = getCurrencyAbbreviationById(currencyId);
 

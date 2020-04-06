@@ -7,6 +7,7 @@ import { ICustomer, IEmployee, IAccDed, IPaySlip, ICustomers, IEmploeeByCustomer
 import { FileDB, IData } from "./util/fileDB";
 import { upload } from "./util/upload";
 import { TelegramBot } from "./telegram";
+import { initCurrencies } from "./currency";
 
 export const customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), {});
 export const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
@@ -53,7 +54,7 @@ app
 
 const serverCallback = app.callback();
 
-const server = http.createServer(serverCallback)
+const server = http.createServer(serverCallback);
 
 server.listen(3000, async () => {
   console.log(`>>> SERVER: Сервер запущен: https://localhost:3000`)
@@ -72,7 +73,7 @@ const getCustomers = (): ICustomers => {
 const getEmployeesByCustomer = (customerId: string): IEmploeeByCustomer => {
   let employees = employeesByCustomer[customerId];
   if (!employees) {
-    employees = new FileDB<IEmployee>(path.resolve(process.cwd(), `data/employee.${customerId}.json`), {});
+    employees = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/employee.${customerId}.json`), {});
     employeesByCustomer[customerId] = employees;
   }
   return employees.getMutable(false);
@@ -94,30 +95,34 @@ const getAccDeds = (customerId: string): IData<IAccDed> => {
     customerAccDeds[customerId] = accDed;
   };
   return accDed.getMutable(false);
-}
+};
 
-//const telegram = TelegramBot.init();
-const telegram = new TelegramBot(
-  process.env.GDMN_BOT_TOKEN,
-  getCustomers,
-  getEmployeesByCustomer,
-  getAccDeds,
-  getPaySlipByUser);
+const botToken = process.env.GDMN_BOT_TOKEN;
 
-/**
- * При завершении работы сервера скидываем на диск все данные.
- */
-process.on('exit', code => {
-  customers.flush();
+initCurrencies()
+  .then( () => {
+    const telegram = new TelegramBot(
+      botToken,
+      getCustomers,
+      getEmployeesByCustomer,
+      getAccDeds,
+      getPaySlipByUser);
 
-  for (const ec of Object.values(employeesByCustomer)) {
-    ec.flush();
-  }
+    /**
+     * При завершении работы сервера скидываем на диск все данные.
+     */
+    process.on('exit', code => {
+      customers.flush();
 
-  telegram.finalize();
+      for (const ec of Object.values(employeesByCustomer)) {
+        ec.flush();
+      }
 
-  console.log('Process exit event with code: ', code);
-});
+      telegram.finalize();
+
+      console.log('Process exit event with code: ', code);
+    });
+  });
 
 process.on('SIGINT', () => process.exit());
 

@@ -18,7 +18,7 @@ export interface IEmployee {
 export interface IAccountLink {
   customerId: string;
   employeeId: string;
-  currencyId?: number;
+  currencyId?: string;
   language?: string;
 };
 

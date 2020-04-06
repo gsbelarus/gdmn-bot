@@ -15,28 +15,56 @@ export class FileDB<T extends Object> {
   private _fn: string;
   private _modified: boolean = false;
   private _initData: IData<T>;
+  private _check?: (data: IData<T>) => boolean;
+  private _ignore?: boolean;
 
-  constructor (fn: string, initData: IData<T>) {
+  /**
+   * Конструктор.
+   * @param fn Имя файла с данными.
+   * @param initData Начальные данные, если файла нет или в нем данные неверного формата.
+   * @param check Функция для проверки считанных из файла данных на корректность.
+   * @param ignore Если true, то при наличии в файле некорректных данных не будет выдаваться сообщение об ошибке.
+   */
+  constructor (fn: string, initData: IData<T> = {}, check?: (data: IData<T>) => boolean, ignore?: boolean) {
     this._fn = fn;
     this._initData = initData;
+    this._check = check;
+    this._ignore = ignore;
   }
 
   private _load(): IData<T> {
     if (!this._data) {
       if (fs.existsSync(this._fn)) {
-        const parsed = JSON.parse(fs.readFileSync(this._fn, { encoding: 'utf8' }).toString());
-        if (parsed.version === '1.0' && typeof parsed.data === 'object') {
-          this._data = parsed.data;
+        let parsed;
+
+        try {
+          parsed = JSON.parse(fs.readFileSync(this._fn, { encoding: 'utf8' }));
+          if (parsed.version === '1.0' && typeof parsed.data === 'object' && (!this._check || this._check(parsed.data))) {
+            console.log(`Data has been loaded from ${this._fn}. Keys: ${Object.keys(parsed.data).length}...`);
+            this._data = parsed.data;
+          }
         }
-        if (!this._data) {
-          throw new Error(`Invalid data in file ${this._fn}`);
+        catch (e) {
+          if (!this._ignore) {
+            throw e;
+          }
         }
-      } else {
+
+        if (!this._data && !this._ignore) {
+          throw new Error(`Invalid data in file: ${this._fn}`);
+        }
+      }
+
+      if (!this._data) {
         this._data = this._initData;
       }
     }
 
     return this._data;
+  }
+
+  public isEmpty() {
+    return !Object.keys(this.getMutable(false)).length;
   }
 
   public getMutable(forWrite: boolean) {
