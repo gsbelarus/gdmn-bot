@@ -129,82 +129,174 @@ export const getCurrencyAbbreviationById = (currencyId?: string) => {
   return 'BYN';
 };
 
-export interface INBRBRate {
-  Cur_ID: number;
-  Date: Date;
-  Cur_Abbreviation: string;
-  Cur_Scale: number;
-  Cur_Name: string;
-  Cur_OfficialRate: number;
+/*
+
+Курсы валют к белорусскому рублю будем хранить в файле в таком формате:
+
+{
+  "2020-03-20T00:00:00": {
+    "999": 2.001,
+    "645": 4.000,
+    ...
+  },
+  ...
+}
+
+*/
+
+export interface ICurrencyRates {
+  [currId: string]: number;
 };
 
-export type NBRBRates = INBRBRate[];
+/**
+ * Преобразует дату в строку вида YYYY.MM.DD.
+ * @param date Дата.
+ */
+const date2str = (date: Date) => `${date.getFullYear()}.${(date.getMonth() + 1).toString().padStart(2)}.${date.getDate().toString().padStart(2)}`;
 
-const PATH_NB_RB_RATES = path.resolve(process.cwd(), `data/nbrbrates.json`);
+let ratesDB: FileDB<ICurrencyRates> | undefined = undefined;
 
-const urlNBRBRates = "http://www.nbrb.by/API/ExRates/Rates";
-
-export const BEGIN_DATE_RATES = new Date(2018, 0, 1);
-
-async function downloadRates(d: Date, endDate: Date, rates: NBRBRates): Promise<NBRBRates>  {
-  if (d < endDate) {
-    const result = await fetch(`${urlNBRBRates}?Periodicity=0&onDate=${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`, {});
-    const text = await result.json();
-    return await downloadRates(new Date(d.setDate(d.getDate() + 1)), endDate, rates.concat(text));
+/**
+ * Возвращает курс заданной валюты на заданную дату. Если курса нет, то пытаемся
+ * загрузить с сайта. Если на сайте нет, то берем на максимальную предыдущую дату.
+ * Если все равно нет курса валюты, то возвращаем ЧТО?
+ * @param date Дата.
+ * @param currId ИД валюты.
+ */
+export const getCurrRate = async (date: Date, currId: string) => {
+  if (!ratesDB) {
+    // загружаем курсы с диска
+    ratesDB = new FileDB<ICurrencyRates>(
+      path.resolve(process.cwd(), `data/nbrbrates.json`),
+      {},
+      (data: IData<ICurrencyRates>) => !Object.keys(data).length || typeof Object.values(data)[0] === 'object',
+      true
+    );
   }
-  return rates;
-}
 
-export const getUpdatedRates = (startDate: Date, endDate: Date, rates: NBRBRates = []): NBRBRates | undefined => {
-  downloadRates(startDate, endDate, rates)
-    .then((res: NBRBRates) => {
-      fs.writeFileSync(PATH_NB_RB_RATES, JSON.stringify(res, undefined, 2));
-      return res;
-    })
-    .catch((error: any) => {
-      console.error(error);
-      process.exit(1);
-    });
-  return undefined;
-}
+  let d = date;
+  let rate: number | undefined = undefined;
 
-/**Получить курс валюты на дату по ID валюты */
-export const getRateByCurrency = (date: Date, currencyId: string) => {
-  //Если currencyId = 0 (белорусский рубль), курс = 1
-  if (!currencyId) {
-    return 1
-  }
-  let currencyRates: NBRBRates | undefined;
-  if (!fs.existsSync(PATH_NB_RB_RATES)) {
-    currencyRates = undefined;
-  } else {
-    currencyRates = JSON.parse(fs.readFileSync(PATH_NB_RB_RATES, { encoding: 'utf8' }).toString());
-  }
-  //Находим курс валюты на заданную дату
-  //если нет файла или нет курса на заданную дату, то вызовем функцию загрузки файла из нацбанка
-  //если есть курс, вернем его (российский курс разделим на 100)
-  const currencyRate = currencyRates?.find(r => r.Cur_ID.toString() === currencyId && new Date(r.Date).getTime() === new Date(date).getTime());
-  if (currencyRate) {
-    const rate = currencyRate.Cur_OfficialRate;
-    return currencyId === '298' ? rate/100 : rate;
-  } else {
-    //Вычисляем дату, от которой будем грузить курсы из нацбанка
-    //это максимальная дата от даты из файла и константы BEGIN_DATE_RATES
-    let lastDate = currencyRates?.sort((a, b) => new Date(b.Date).getTime()  - new Date(a.Date).getTime())[0]?.Date;
-    if (lastDate) {
-      lastDate = new Date(Math.max(new Date(BEGIN_DATE_RATES).getTime(), new Date(lastDate).getTime()));
-    } else {
-      lastDate = BEGIN_DATE_RATES
+  while (true) {
+    const strDate = date2str(d);
+    const ratesForDate = ratesDB.read(strDate);
+    rate = ratesForDate?.[currId];
+
+    if (rate !== undefined) {
+      break;
     }
-    //Вызываем загрузку файла из нацбанка
-    const updatedRates = getUpdatedRates(lastDate, new Date(), currencyRates);
-    if (updatedRates) {
-      const rate = updatedRates.filter(r => r.Cur_ID.toString() === currencyId && new Date(r.Date).getTime() < new Date(date).getTime())
-        .sort((a, b) => new Date(b.Date).getTime()  - new Date(a.Date).getTime())[0]?.Cur_OfficialRate;
-      return currencyId === '298' ? rate/100 : rate;
-    } else {
-      console.log('Rates are not updated!')
-      return -1;
+
+    // курса на дату нет
+    // попробуем загрузить из интернета
+    const urlNBRBRates = "http://www.nbrb.by/API/ExRates/Rates";
+
+    interface INBRBRate {
+      Cur_ID: number;
+      Date: Date;
+      Cur_Abbreviation: string;
+      Cur_Scale: number;
+      Cur_Name: string;
+      Cur_OfficialRate: number;
+    };
+
+    try {
+      const fetched = await fetch(`${urlNBRBRates}?Periodicity=0&onDate=${strDate}`, {});
+      const parsed: INBRBRate[] = await fetched.json();
+
+      if (Array.isArray(parsed)) {
+        const c = parsed.find( p => p['Cur_ID'].toString() === currId );
+        const scale = c?.['Cur_Scale'];
+        const officialRate = c?.['Cur_OfficialRate'];
+
+        if (scale && scale > 0 && officialRate && officialRate > 0) {
+          rate = officialRate / scale;
+
+          if (ratesForDate) {
+            ratesDB.write(strDate, { ...ratesForDate, [currId]: rate });
+          } else {
+            ratesDB.write(strDate, { [currId]: rate });
+          }
+
+          ratesDB.flush();
+          break;
+        }
+      }
+    }
+    catch (e) {
+      console.error(`Error fetching currencyRate list: ${e}`);
+    }
+
+    d.setDate(d.getDate() - 1);
+
+    if (d.getTime() < new Date(2018, 0, 1).getTime()) {
+      break;
     }
   }
-}
+
+  return rate;
+};
+
+
+
+// async function downloadRates(d: Date, endDate: Date, rates: NBRBRates): Promise<NBRBRates>  {
+//   if (d < endDate) {
+//     const result = await fetch(`${urlNBRBRates}?Periodicity=0&onDate=${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`, {});
+//     const text = await result.json();
+//     return await downloadRates(new Date(d.setDate(d.getDate() + 1)), endDate, rates.concat(text));
+//   }
+//   return rates;
+// }
+
+// export const getUpdatedRates = (startDate: Date, endDate: Date, rates: NBRBRates = []): NBRBRates | undefined => {
+//   downloadRates(startDate, endDate, rates)
+//     .then((res: NBRBRates) => {
+//       fs.writeFileSync(PATH_NB_RB_RATES, JSON.stringify(res, undefined, 2));
+//       return res;
+//     })
+//     .catch((error: any) => {
+//       console.error(error);
+//       process.exit(1);
+//     });
+//   return undefined;
+// }
+
+// /**Получить курс валюты на дату по ID валюты */
+// export const getRateByCurrency = (date: Date, currencyId: string) => {
+//   //Если currencyId = 0 (белорусский рубль), курс = 1
+//   if (!currencyId) {
+//     return 1
+//   }
+//   let currencyRates: NBRBRates | undefined;
+//   if (!fs.existsSync(PATH_NB_RB_RATES)) {
+//     currencyRates = undefined;
+//   } else {
+//     currencyRates = JSON.parse(fs.readFileSync(PATH_NB_RB_RATES, { encoding: 'utf8' }).toString());
+//   }
+//   //Находим курс валюты на заданную дату
+//   //если нет файла или нет курса на заданную дату, то вызовем функцию загрузки файла из нацбанка
+//   //если есть курс, вернем его (российский курс разделим на 100)
+//   const currencyRate = currencyRates?.find(r => r.Cur_ID.toString() === currencyId && new Date(r.Date).getTime() === new Date(date).getTime());
+//   if (currencyRate) {
+//     const rate = currencyRate.Cur_OfficialRate;
+//     return currencyId === '298' ? rate/100 : rate;
+//   } else {
+//     //Вычисляем дату, от которой будем грузить курсы из нацбанка
+//     //это максимальная дата от даты из файла и константы BEGIN_DATE_RATES
+//     let lastDate = currencyRates?.sort((a, b) => new Date(b.Date).getTime()  - new Date(a.Date).getTime())[0]?.Date;
+//     if (lastDate) {
+//       lastDate = new Date(Math.max(new Date(BEGIN_DATE_RATES).getTime(), new Date(lastDate).getTime()));
+//     } else {
+//       lastDate = BEGIN_DATE_RATES
+//     }
+//     //Вызываем загрузку файла из нацбанка
+//     const updatedRates = getUpdatedRates(lastDate, new Date(), currencyRates);
+//     if (updatedRates) {
+//       const rate = updatedRates.filter(r => r.Cur_ID.toString() === currencyId && new Date(r.Date).getTime() < new Date(date).getTime())
+//         .sort((a, b) => new Date(b.Date).getTime()  - new Date(a.Date).getTime())[0]?.Cur_OfficialRate;
+//       return currencyId === '298' ? rate/100 : rate;
+//     } else {
+//       console.log('Rates are not updated!')
+//       return -1;
+//     }
+//   }
+// }

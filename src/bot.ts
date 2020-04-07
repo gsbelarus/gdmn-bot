@@ -1,9 +1,11 @@
-import { DialogState, IAccountLink, IDialogStateLoggingIn, IAccDed, IPaySlip, LName, Lang, ITypePaySlip,
-  ICustomers, IEmploeeByCustomer, IDialogStateGettingConcise, monthList, IDialogStateGettingCompare, IDialogStateGettingCurrency } from "./types";
+import {
+  DialogState, IAccountLink, IDialogStateLoggingIn, IAccDed, IPaySlip, LName, Lang, ITypePaySlip,
+  ICustomers, IEmploeeByCustomer, IDialogStateGettingConcise, monthList, IDialogStateGettingCompare, IDialogStateGettingCurrency
+} from "./types";
 import { FileDB, IData } from "./util/fileDB";
 import path from 'path';
 import { normalizeStr, getYears, getLName, getPaySlipString, getSumByRate } from "./util/utils";
-import { getCurrencyNameById, getRateByCurrency, getCurrencyAbbreviationById } from "./currency";
+import { getCurrencyNameById, getCurrencyAbbreviationById, getCurrRate } from "./currency";
 
 export interface IMenuButton {
   type: 'BUTTON';
@@ -58,18 +60,18 @@ export const keyboardSettings: Menu = [
 
 export const keyboardCalendar = (lng: Lang, year: number): Menu => {
   const mm = [
-    [0,  1,  2],
-    [3,  4,  5],
-    [6,  7,  8],
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
     [9, 10, 11],
   ];
 
-  return mm.map( mr => mr.map( m => ({ type: 'BUTTON', caption: getLName(monthList[m], ['ru']), command: `month;${year};${m}` } as IMenuButton) ) )
-    .concat([
+  return mm.map(mr => mr.map(m => ({ type: 'BUTTON', caption: getLName(monthList[m], ['ru']), command: `month;${year};${m}` } as IMenuButton)))
+    .concat([[
       { type: 'BUTTON', caption: '<', command: `prevYear;${year}` },
       { type: 'BUTTON', caption: `${year}`, command: `otherYear;${year}` },
       { type: 'BUTTON', caption: '>', command: `nextYear;${year}` }
-    ]);
+    ]]);
 };
 
 export const keyboardCurrency = (lng: Lang): Menu => {
@@ -310,7 +312,7 @@ export class Bot {
           de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
           await this.sendMessage(chatId, de.toLocaleDateString());
           this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), de });
-          const cListok = this.getPaySlip(chatId, 'CONCISE', lng, db, de);
+          const cListok = await this.getPaySlip(chatId, 'CONCISE', lng, db, de);
           cListok && this.sendMessage(chatId, cListok, keyboardMenu, true);
         }
       }
@@ -360,7 +362,7 @@ export class Bot {
           de = new Date(de.getFullYear(), de.getMonth() + 1, 0);
           await this.sendMessage(chatId, de.toLocaleDateString());
           this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDe: de });
-          const cListok = this.getPaySlip(chatId, 'COMPARE', lng, fromDb, fromDe, toDb, de);
+          const cListok = await this.getPaySlip(chatId, 'COMPARE', lng, fromDb, fromDe, toDb, de);
           cListok && this.sendMessage(chatId, cListok, keyboardMenu, true);
         }
       }
@@ -394,15 +396,15 @@ export class Bot {
     }
   }
 
-  getPaySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date): string | undefined {
+  async getPaySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date) {
     const link = this._accountLink.read(chatId);
 
     if (link?.customerId && link.employeeId) {
-      const { customerId, employeeId, currencyId = '' } = link;
-      const rate = getRateByCurrency(db, currencyId);
-      const currencyAbbreviation = getCurrencyAbbreviationById(currencyId);
+      const { customerId, employeeId, currencyId } = link;
+      const rate = currencyId ? await getCurrRate(db, currencyId) : 1;
+      const currencyAbbreviation = currencyId ? getCurrencyAbbreviationById(currencyId) : 'BYN';
 
-      if (rate === -1) {
+      if (!rate) {
         return (`${'`'}${'`'}${'`'}ini
   Повторите действие через несколько минут.
   Выполняется загрузка курсов валют...
@@ -688,8 +690,8 @@ export class Bot {
     this.dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() }, ['employee']);
   }
 
-  paySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date) {
-    const cListok = this.getPaySlip(chatId, typePaySlip, lng, db, de);
+  async paySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date) {
+    const cListok = await this.getPaySlip(chatId, typePaySlip, lng, db, de);
     cListok && this.sendMessage(chatId, cListok, keyboardMenu, true);
   }
 

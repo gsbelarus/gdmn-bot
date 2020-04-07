@@ -1,4 +1,4 @@
-import { FileDB, IData } from "./util/fileDB";
+import { IData } from "./util/fileDB";
 
 export interface ICustomer {
   id: string;
