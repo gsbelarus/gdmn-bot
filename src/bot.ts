@@ -60,10 +60,9 @@ export const keyboardSettings: Menu = [
 
 export const keyboardCalendar = (lng: Lang, year: number): Menu => {
   const mm = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [9, 10, 11],
+    [0, 1, 2, 3],
+    [4, 5, 6, 7],
+    [8, 9, 10, 11]
   ];
 
   return mm.map(mr => mr.map(m => ({ type: 'BUTTON', caption: getLName(monthList[m], ['ru']), command: `month;${year};${m}` } as IMenuButton)))
@@ -127,7 +126,11 @@ export class Bot {
 
   }
 
-  editMessage(chatId: string, menu: Menu) {
+  editMessageReplyMarkup(chatId: string, menu: Menu) {
+
+  }
+
+  deleteMessage(chatId: string) {
 
   }
 
@@ -258,13 +261,11 @@ export class Bot {
         return selectedDate;
       }
       case 'prevYear': {
-        //this.editMessage(chatId, keyboardCalendar(lng, parseInt(year) - 1));
-        this.sendMessage(chatId, (parseInt(year) - 1).toString(), keyboardCalendar(lng, parseInt(year) - 1));
+        this.editMessageReplyMarkup(chatId, keyboardCalendar(lng, parseInt(year) - 1));
         break;
       }
       case 'nextYear': {
-        //this.editMessage(chatId, keyboardCalendar(lng, parseInt(year) + 1));
-        this.sendMessage(chatId, (parseInt(year) + 1).toString(), keyboardCalendar(lng, parseInt(year) + 1));
+        this.editMessageReplyMarkup(chatId, keyboardCalendar(lng, parseInt(year) + 1));
         break;
       }
       case 'otherYear': {
@@ -371,7 +372,7 @@ export class Bot {
 
   async currencyDialog(chatId: string, lng: Lang, queryData?: string) {
     if (!queryData) {
-      //ctx.deleteMessage();
+      this.deleteMessage(chatId);
       await this.sendMessage(chatId, 'Выберите валюту:', keyboardCurrency(lng), true);
       this._dialogStates.merge(chatId, { type: 'GETTING_CURRENCY', lastUpdated: new Date().getTime() });
     }
@@ -390,7 +391,7 @@ export class Bot {
         const link = this._accountLink.read(chatId);
         this._accountLink.merge(chatId, { ...link, currencyId });
         const currencyName = getCurrencyNameById(lng, currencyId);
-        //ctx.deleteMessage();
+        this.deleteMessage(chatId);
         this.sendMessage(chatId, `Валюта ${currencyName} сохранена`, keyboardMenu, true);
       }
     }

@@ -169,9 +169,40 @@ export class TelegramBot extends Bot {
     );
   }
 
-  editMessage(chatId: string, menu: Menu) {
-    //редактировать меню периода не получилось
-    //this.bot.telegram.editMessageReplyMarkup(chatId, undefined, undefined, menu);
+  async editMessageReplyMarkup(chatId: string, menu: Menu) {
+    const dialogState = this.dialogStates.read(chatId);
+    let m: any;
+    if (dialogState) {
+      if (dialogState.menuMessageId) {
+        try {
+          this.bot.telegram.editMessageReplyMarkup(chatId, dialogState.menuMessageId, undefined, JSON.stringify(this.menu2markup(menu)));
+        }
+        catch (e) {
+          // TODO: если сообщение уже было удалено из чата, то
+          // будет ошибка, которую мы подавляем.
+          // В будущем надо ловить события удаления сообщения
+          // и убирать его ИД из сохраненных данных
+        }
+      }
+    }
+  }
+
+  async deleteMessage(chatId: string) {
+    const dialogState = this.dialogStates.read(chatId);
+    let m: any;
+    if (dialogState) {
+      if (dialogState.menuMessageId) {
+        try {
+          await this.bot.telegram.deleteMessage(chatId, dialogState.menuMessageId);
+        }
+        catch (e) {
+          // TODO: если сообщение уже было удалено из чата, то
+          // будет ошибка, которую мы подавляем.
+          // В будущем надо ловить события удаления сообщения
+          // и убирать его ИД из сохраненных данных
+        }
+      }
+    }
   }
 
   async sendMessage(chatId: string, message: string, menu?: Menu, markdown?: boolean) {
