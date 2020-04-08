@@ -1,3 +1,229 @@
+import { Bot, Menu } from "../bot";
+import { getLanguage } from "../util/utils";
+import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "../types";
+import { IData } from "../util/fileDB";
+
+const ViberBot = require('viber-bot').Bot
+const BotEvents = require('viber-bot').Events
+const TextMessage = require('viber-bot').Message.Text;
+const KeyboardMessage = require('viber-bot').Message.Keyboard;
+
+export class Viber extends Bot {
+  private _bot: any;
+
+  constructor(token: string,
+    getCustomers: () => ICustomers,
+    getEmployeesByCustomer: (customerId: string) => IEmploeeByCustomer,
+    getAccDeds: (customerId: string) => IData<IAccDed>,
+    getPaySlipByUser: (customerId: string, userId: string, year: number) => IData<IPaySlip>) {
+
+    super('telegram', getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser);
+
+    this._bot = new ViberBot({
+      authToken: token,
+      name: 'GDMN Bot',
+      avatar: ''
+    });
+
+    const ngrok = require('./get_public_url');
+    const http = require('http');
+    const port = process.env.PORT || 8080;
+    ngrok.getPublicUrl().then((publicUrl: string) => {
+      console.log('Set the new webhook to"', publicUrl);
+      http.createServer(this._bot.middleware()).listen(port, () => this._bot.setWebhook(publicUrl));
+    }).catch((error: any) => {
+      console.log('Can not connect to ngrok server. Is it running?');
+      console.error(error);
+    });
+
+    this._bot.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
+      if (isSubscribed) {
+        return;
+      }
+
+      if (!response.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.start(response.userProfile.id.toString());
+      }
+    });
+
+    this._bot.on(BotEvents.MESSAGE_RECEIVED, async (message: any, response: any) => {
+      if (!response.userProfile) {
+        console.error('Invalid chat context');
+      }
+      else if (message === undefined) {
+        console.error('Invalid chat message');
+      } else {
+        this.process(response.userProfile.id.toString(), message);
+      }
+    });
+
+    this._bot.onTextMessage(/login/, async (message: any, response: any) => {
+      if (!response.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.loginDialog(response.userProfile.id.toString());
+      }
+    });
+
+    this._bot.onTextMessage(/logout/, async (message: any, response: any) => {
+      if (!response.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.logout(response.userProfile.id.toString())
+      }
+    });
+
+    this._bot.onTextMessage(/paySlip/, (message: any, response: any) => {
+      if (!response.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        const today = new Date();
+        //Для теста период апрель 2019, потом удалить, когда будут данные
+        const db = new Date(2019, 4, 1);
+        const de = new Date(2019, 5, 0);
+        this.paySlip(response.userProfile.id.toString(), 'CONCISE', getLanguage(this._bot.chat.language), db, de);
+      }
+    });
+
+    this._bot.onTextMessage(/detailPaySlip/, (message: any, response: any) => {
+      if (!response.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        const today = new Date();
+        //Для теста период апрель 2019, потом удалить, когда будут данные
+        const db = new Date(2019, 4, 1);
+        const de = new Date(2019, 5, 0);
+        this.paySlip(response.userProfile.id.toString(), 'DETAIL', getLanguage(this._bot.chat.language), db, de);
+      }
+    });
+
+    this._bot.onTextMessage(/paySlipByPeriod/, (message: any, response: any) => {
+      if (!response.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.paySlipDialog(response.userProfile.id.toString(), getLanguage(this._bot.chat.language));
+      }
+    });
+
+    this._bot.onTextMessage(/paySlipCompare/, (message: any, response: any) => {
+      if (!response.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.paySlipCompareDialog(response.userProfile.id.toString(), getLanguage(this._bot.chat.language));
+      }
+    });
+
+    this._bot.onTextMessage(/settings/, (message: any, response: any) => {
+      if (!response.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.settings(response.userProfile.id.toString())
+      }
+    });
+
+    this._bot.onTextMessage(/menu/, (message: any, response: any) => {
+      if (!response.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.menu(response.userProfile.id.toString())
+      }
+    });
+
+    this._bot.onTextMessage(/getCurrency/, (message: any, response: any) => {
+      if (!response.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.currencyDialog(response.userProfile.toString(), getLanguage(this._bot.chat.language));
+      }
+    });
+
+    // this._bot.on('callback_query',
+    //   ctx => {
+    //     if (!ctx.chat) {
+    //       console.error('Invalid chat context');
+    //     }
+    //     else if (ctx.callbackQuery?.data === undefined) {
+    //       console.error('Invalid chat callbackQuery');
+    //     } else {
+    //       this.callback_query(ctx.chat.id.toString(), getLanguage(ctx.from?.language_code), ctx.callbackQuery?.data);
+    //     }
+    //   });
+
+   // this._bot.action('delete', ({ deleteMessage }) => deleteMessage());
+
+    this._bot.launch();
+  }
+
+  get bot() {
+    return this._bot;
+  }
+
+
+
+  async editMessageReplyMarkup(chatId: string, menu: Menu) {
+    const dialogState = this.dialogStates.read(chatId);
+    let m: any;
+    if (dialogState) {
+      if (dialogState.menuMessageId) {
+        try {
+          //this.bot.telegram.editMessageReplyMarkup(chatId, dialogState.menuMessageId, undefined, JSON.stringify(this.menu2markup(menu)));
+        }
+        catch (e) {
+          // TODO: если сообщение уже было удалено из чата, то
+          // будет ошибка, которую мы подавляем.
+          // В будущем надо ловить события удаления сообщения
+          // и убирать его ИД из сохраненных данных
+        }
+      }
+    }
+  }
+
+  async deleteMessage(chatId: string) {
+    const dialogState = this.dialogStates.read(chatId);
+    let m: any;
+    if (dialogState) {
+      if (dialogState.menuMessageId) {
+        try {
+          await this.bot.telegram.deleteMessage(chatId, dialogState.menuMessageId);
+        }
+        catch (e) {
+          // TODO: если сообщение уже было удалено из чата, то
+          // будет ошибка, которую мы подавляем.
+          // В будущем надо ловить события удаления сообщения
+          // и убирать его ИД из сохраненных данных
+        }
+      }
+    }
+  }
+
+  async sendMessage(chatId: string, message: string, menu?: Menu, markdown?: boolean) {
+    this._bot.sendMessage(chatId, new TextMessage(message, menu));
+
+    // const dialogState = this.dialogStates.read(chatId);
+
+    // if (dialogState) {
+    //   if (dialogState.menuMessageId) {
+    //     try {
+    //       await this.bot.telegram.editMessageReplyMarkup(chatId, dialogState.menuMessageId);
+    //     }
+    //     catch (e) {
+    //       // TODO: если сообщение уже было удалено из чата, то
+    //       // будет ошибка, которую мы подавляем.
+    //       // В будущем надо ловить события удаления сообщения
+    //       // и убирать его ИД из сохраненных данных
+    //     }
+    //   }
+
+    //   if (menu) {
+    //     this.dialogStates.merge(chatId, { menuMessageId: m.message_id });
+    //   } else {
+    //     this.dialogStates.merge(chatId, { menuMessageId: undefined });
+    //   }
+    // }
+  }
+};
 // const ViberBot  = require('viber-bot').Bot
 // const BotEvents = require('viber-bot').Events
 // const TextMessage = require('viber-bot').Message.Text;

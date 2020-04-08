@@ -8,6 +8,7 @@ import { FileDB, IData } from "./util/fileDB";
 import { upload } from "./util/upload";
 import { TelegramBot } from "./telegram";
 import { initCurrencies } from "./currency";
+import { Viber } from "./viber/viber";
 
 export const customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), {});
 export const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
@@ -98,6 +99,34 @@ const getAccDeds = (customerId: string): IData<IAccDed> => {
 };
 
 const botToken = process.env.GDMN_BOT_TOKEN;
+
+const viberToken = '4b3e05a56367d074-9b93ed160b5ebc92-c3aeed25f53c282'
+
+initCurrencies()
+  .then( () => {
+    const viber = new Viber(
+      viberToken,
+      getCustomers,
+      getEmployeesByCustomer,
+      getAccDeds,
+      getPaySlipByUser);
+
+    /**
+     * При завершении работы сервера скидываем на диск все данные.
+     */
+    process.on('exit', code => {
+      customers.flush();
+
+      for (const ec of Object.values(employeesByCustomer)) {
+        ec.flush();
+      }
+
+      telegram.finalize();
+
+      console.log('Process exit event with code: ', code);
+    });
+  });
+
 
 initCurrencies()
   .then( () => {
