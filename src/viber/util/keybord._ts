@@ -32,12 +32,12 @@ export const keyboardMenu = {
     },
     {
       ActionType: 'reply',
-      ActionBody: 'paySlipByPeriod',
+      ActionBody: 'concisePaySlip',
       Text: '💰 Листок за период',
     },
     {
       ActionType: 'reply',
-      ActionBody: 'paySlipCompare',
+      ActionBody: 'comparePaySlip',
       Text: '💰 Сравнить..',
     },
     {

@@ -13,8 +13,8 @@ export const keyboardMenu = Markup.inlineKeyboard([
     Markup.callbackButton('💰 Подробный листок', 'detailPaySlip') as any
   ],
   [
-    Markup.callbackButton('💰 Листок за период', 'paySlipByPeriod') as any,
-    Markup.callbackButton('💰 Сравнить..', 'paySlipCompare') as any
+    Markup.callbackButton('💰 Листок за период', 'concisePaySlip') as any,
+    Markup.callbackButton('💰 Сравнить..', 'comparePaySlip') as any
   ],
   [
     Markup.callbackButton('🔧 Параметры', 'settings') as any,

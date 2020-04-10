@@ -4,7 +4,7 @@ import {
 } from "./types";
 import { FileDB, IData } from "./util/fileDB";
 import path from 'path';
-import { normalizeStr, getYears, getLName, getPaySlipString, getSumByRate } from "./util/utils";
+import { normalizeStr, getYears, getLName, getSumByRate } from "./util/utils";
 import { getCurrencyNameById, getCurrencyAbbreviationById, getCurrRate } from "./currency";
 
 export interface IMenuButton {
@@ -36,8 +36,8 @@ export const keyboardMenu: Menu = [
     { type: 'BUTTON', caption: '💰 Подробный листок', command: 'detailPaySlip' }
   ],
   [
-    { type: 'BUTTON', caption: '💰 Листок за период', command: 'paySlipByPeriod' },
-    { type: 'BUTTON', caption: '💰 Сравнить..', command: 'paySlipCompare' }
+    { type: 'BUTTON', caption: '💰 Листок за период', command: 'concisePaySlip' },
+    { type: 'BUTTON', caption: '💰 Сравнить..', command: 'comparePaySlip' }
   ],
   [
     { type: 'BUTTON', caption: '🔧 Параметры', command: 'settings' },
@@ -256,7 +256,6 @@ export class Bot {
     }
   }
 
-
   calendarSelection(chatId: string, queryData: string, lng: Lang): Date | undefined {
     const [action, year, month] = separateCallBackData(queryData);
 
@@ -290,8 +289,8 @@ export class Bot {
     return undefined;
   }
 
-  async paySlipDialog(chatId: string, lng: Lang, queryData?: string) {
-    if (!queryData) {
+  async paySlipDialog(chatId: string, lng: Lang, queryData?: string, start = false) {
+    if (start) {
       await this.sendMessage(chatId, 'Укажите начало периода:',
         keyboardCalendar(lng, new Date().getFullYear()), true);
       this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db: undefined, de: undefined });
@@ -325,9 +324,8 @@ export class Bot {
     }
   }
 
-  async paySlipCompareDialog(chatId: string, lng: Lang, queryData?: string) {
-
-    if (!queryData) {
+  async paySlipCompareDialog(chatId: string, lng: Lang, queryData?: string, start = false) {
+    if (start) {
       await this.sendMessage(chatId, 'Укажите начало первого периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
       this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDb: undefined, fromDe: undefined, toDb: undefined, toDe: undefined });
     }
@@ -409,6 +407,10 @@ export class Bot {
 
   }
 
+  getPaySlipString(prevStr: string, name: string, s: number) {
+    return `${prevStr}${prevStr !== '' ? '\r\n' : ''}${name}\r\n=${s}`
+  }
+
   async getPaySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date) {
     const link = this._accountLink.read(chatId);
 
@@ -472,27 +474,27 @@ export class Bot {
                     switch (accDedObj[value.typeId].type) {
                       case 'INCOME_TAX': {
                         incomeTax[i] = incomeTax[i] + value.s;
-                        strTaxes = typePaySlip === 'DETAIL' ? getPaySlipString(strTaxes, accDedName, value.s) : ''
+                        strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, value.s) : ''
                         break;
                       }
                       case 'PENSION_TAX': {
                         pensionTax[i] = pensionTax[i] + value.s;
-                        strTaxes = typePaySlip === 'DETAIL' ? getPaySlipString(strTaxes, accDedName, value.s) : ''
+                        strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, value.s) : ''
                         break;
                       }
                       case 'TRADE_UNION_TAX': {
                         tradeUnionTax[i] = tradeUnionTax[i] + value.s;
-                        strTaxes = typePaySlip === 'DETAIL' ? getPaySlipString(strTaxes, accDedName, value.s) : ''
+                        strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, value.s) : ''
                         break;
                       }
                       case 'ADVANCE': {
                         advance[i] = advance[i] + value.s;
-                        strAdvances = typePaySlip === 'DETAIL' ? getPaySlipString(strAdvances, accDedName, value.s) : ''
+                        strAdvances = typePaySlip === 'DETAIL' ? this.getPaySlipString(strAdvances, accDedName, value.s) : ''
                         break;
                       }
                       case 'DEDUCTION': {
                         ded[i] = ded[i] + value.s;
-                        strDeductions = typePaySlip === 'DETAIL' ? getPaySlipString(strDeductions, accDedName, value.s) : ''
+                        strDeductions = typePaySlip === 'DETAIL' ? this.getPaySlipString(strDeductions, accDedName, value.s) : ''
                         break;
                       }
                       case 'TAX': {
@@ -501,17 +503,17 @@ export class Bot {
                       }
                       case 'ACCRUAL': {
                         accrual[i] = accrual[i] + value.s;
-                        strAccruals = typePaySlip === 'DETAIL' ? getPaySlipString(strAccruals, accDedName, value.s) : ''
+                        strAccruals = typePaySlip === 'DETAIL' ? this.getPaySlipString(strAccruals, accDedName, value.s) : ''
                         break;
                       }
                       case 'TAX_DEDUCTION': {
                         tax_ded[i] = tax_ded[i] + value.s;
-                        strTaxDeds = typePaySlip === 'DETAIL' ? getPaySlipString(strTaxDeds, accDedName, value.s) : ''
+                        strTaxDeds = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxDeds, accDedName, value.s) : ''
                         break;
                       }
                       case 'PRIVILAGE': {
                         privilage[i] = privilage[i] + value.s;
-                        strPrivilages = typePaySlip === 'DETAIL' ? getPaySlipString(strPrivilages, accDedName, value.s) : ''
+                        strPrivilages = typePaySlip === 'DETAIL' ? this.getPaySlipString(strPrivilages, accDedName, value.s) : ''
                         break;
                       }
                     }
@@ -613,8 +615,8 @@ export class Bot {
 
     const dialogState = this._dialogStates.read(chatId);
 
-    if (message === 'login' || message === 'settings' || message === 'getCurrency'
-      || message === 'detailPaySlip' || message === 'paySlipByPeriod' || message === 'paySlipCompare' || message === 'menu') {
+    if (message === 'login' || message === 'settings' || message === 'getCurrency' || message === 'paySlip'
+      || message === 'detailPaySlip' || message === 'concisePaySlip' || message === 'comparePaySlip' || message === 'menu') {
       return
     }
 
@@ -630,7 +632,7 @@ export class Bot {
       this.sendMessage(chatId,
         'Для получения информации о заработной плате необходимо зарегистрироваться в системе.',
         keyboardLogin);
-    } else {
+    } else if (dialogState?.type !== 'GETTING_CURRENCY' && dialogState?.type !== 'GETTING_CONCISE' && dialogState?.type !== 'GETTING_COMPARE')  {
       this.sendMessage(chatId,
         `
   🤔 Ваша команда непонятна.
@@ -652,7 +654,7 @@ export class Bot {
       this.paySlipCompareDialog(chatId, lng, queryData);
     } else if (dialogState?.type === 'GETTING_CURRENCY') {
       this.currencyDialog(chatId, lng, queryData);
-      this.dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() });
+      ///this.dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() });
     }
   }
 

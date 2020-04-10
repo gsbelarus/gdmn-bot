@@ -1,6 +1,6 @@
 import { Bot, Menu } from "../bot";
-import { getLanguage } from "../util/utils";
-import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "../types";
+import { getLanguage, getSumByRate } from "../util/utils";
+import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed, ITypePaySlip } from "../types";
 import { IData } from "../util/fileDB";
 
 const vb = require('viber-bot');
@@ -26,6 +26,7 @@ export class Viber extends Bot {
       name: 'GDMN Bot',
       avatar: ''
     });
+
 
     const ngrok = require('./get_public_url');
     const http = require('http');
@@ -74,14 +75,14 @@ export class Viber extends Bot {
     this._bot.on(BotEvents.MESSAGE_RECEIVED, async (message: any, response: any) => {
       console.log('callback_query: ', message);
       if (!response?.userProfile) {
-          console.error('Invalid chat context');
-        }
-        else if (message?.text === undefined) {
-          console.error('Invalid chat callbackQuery');
-        } else {
-          this.callback_query(response.userProfile.id.toString(), getLanguage(response.userProfile.language), message.text);
-        }
-      });
+        console.error('Invalid chat context');
+      }
+      else if (message?.text === undefined) {
+        console.error('Invalid chat callbackQuery');
+      } else {
+        this.callback_query(response.userProfile.id.toString(), getLanguage(response.userProfile.language), message.text);
+      }
+    });
 
     this._bot.onTextMessage(/login/, async (message: any, response: any) => {
       console.log('login: ', message);
@@ -124,19 +125,19 @@ export class Viber extends Bot {
       }
     });
 
-    this._bot.onTextMessage(/paySlipByPeriod/, (message: any, response: any) => {
+    this._bot.onTextMessage(/concisePaySlip/, (message: any, response: any) => {
       if (!response?.userProfile) {
         console.error('Invalid chat context');
       } else {
-        this.paySlipDialog(response.userProfile.id.toString(), getLanguage(response.userProfile.language));
+        this.paySlipDialog(response.userProfile.id.toString(), getLanguage(response.userProfile.language), undefined, true);
       }
     });
 
-    this._bot.onTextMessage(/paySlipCompare/, (message: any, response: any) => {
+    this._bot.onTextMessage(/comparePaySlip/, (message: any, response: any) => {
       if (!response?.userProfile) {
         console.error('Invalid chat context');
       } else {
-        this.paySlipCompareDialog(response.userProfile.id.toString(), getLanguage(response.userProfile.language));
+        this.paySlipCompareDialog(response.userProfile.id.toString(), getLanguage(response.userProfile.language), undefined, true);
       }
     });
 
@@ -164,7 +165,7 @@ export class Viber extends Bot {
       }
     });
 
-   // this._bot.action('delete', ({ deleteMessage }) => deleteMessage());
+    // this._bot.action('delete', ({ deleteMessage }) => deleteMessage());
 
     //this._bot.launch();
   }
@@ -190,14 +191,14 @@ export class Viber extends Bot {
             BgColor: '#7e72ff' //'#836eff'
           });
         } else {
-            res.push({
-              Columns: buttonWidth,
-              Rows: 1,
-              ActionType: 'reply',
-              ActionBody: col.url,
-              Text: `<font color=\"#ffffff\">${col.caption}</font>`,
-              BgColor: '#7e72ff'//'#836eff'
-            });
+          res.push({
+            Columns: buttonWidth,
+            Rows: 1,
+            ActionType: 'open-url',
+            ActionBody: col.url,
+            Text: `<font color=\"#ffffff\">${col.caption}</font>`,
+            BgColor: '#7e72ff'//'#836eff'
+          });
         }
       }
     }
@@ -214,40 +215,10 @@ export class Viber extends Bot {
 
   async editMessageReplyMarkup(chatId: string, menu: Menu) {
     await this._bot.sendMessage({ id: chatId }, [new KeyboardMessage(this._menu2ViberMenu(menu))]);
-
-    // const dialogState = this.dialogStates.read(chatId);
-    // let m: any;
-    // if (dialogState) {
-    //   if (dialogState.menuMessageId) {
-    //     try {
-    //       //this.bot.telegram.editMessageReplyMarkup(chatId, dialogState.menuMessageId, undefined, JSON.stringify(this.menu2markup(menu)));
-    //     }
-    //     catch (e) {
-    //       // TODO: если сообщение уже было удалено из чата, то
-    //       // будет ошибка, которую мы подавляем.
-    //       // В будущем надо ловить события удаления сообщения
-    //       // и убирать его ИД из сохраненных данных
-    //     }
-    //   }
-    //}
   }
 
   async deleteMessage(chatId: string) {
-    // const dialogState = this.dialogStates.read(chatId);
-    // let m: any;
-    // if (dialogState) {
-    //   if (dialogState.menuMessageId) {
-    //     try {
-    //       await this.bot.telegram.deleteMessage(chatId, dialogState.menuMessageId);
-    //     }
-    //     catch (e) {
-    //       // TODO: если сообщение уже было удалено из чата, то
-    //       // будет ошибка, которую мы подавляем.
-    //       // В будущем надо ловить события удаления сообщения
-    //       // и убирать его ИД из сохраненных данных
-    //     }
-    //   }
-    // }
+
   }
 
   async sendMessage(chatId: string, message: string, menu?: Menu, markdown?: boolean) {
@@ -257,31 +228,144 @@ export class Viber extends Bot {
     } else {
       await this._bot.sendMessage({ id: chatId }, [new TextMessage(message)]);
     }
+  }
 
-
-    // const dialogState = this.dialogStates.read(chatId);
-
-    // if (dialogState) {
-    //   if (dialogState.menuMessageId) {
-    //     try {
-    //       await this.bot.telegram.editMessageReplyMarkup(chatId, dialogState.menuMessageId);
-    //     }
-    //     catch (e) {
-    //       // TODO: если сообщение уже было удалено из чата, то
-    //       // будет ошибка, которую мы подавляем.
-    //       // В будущем надо ловить события удаления сообщения
-    //       // и убирать его ИД из сохраненных данных
-    //     }
-    //   }
-
-    //   if (menu) {
-    //     this.dialogStates.merge(chatId, { menuMessageId: m.message_id });
-    //   } else {
-    //     this.dialogStates.merge(chatId, { menuMessageId: undefined });
-    //   }
+  getPaySlipString(prevStr: string, name: string, s: number) {
+    return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name}\r\n  =${s}`
+    // let name_1 = '';
+    // const len = 27;
+    // if (name.length > len) {
+    //   name_1 = name.length > len ? name.slice(0, len) : name;
+    //   name = name.slice(len).padEnd(len);
+    //   return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name_1}\r\n  ${name} ${s.toFixed(2).padStart(7)}`;
+    // } else {
+    //   return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name.padEnd(len)} ${s.toFixed(2).padStart(7)}`;
     // }
   }
+
+  paySlipView(typePaySlip: ITypePaySlip, db: Date, de: Date, dbMonthName: string, rate: number, deptName: string, posName: string, currencyAbbreviation: string,
+    accrual: number[], advance: number[], ded: number[], allTaxes: number[], tax_ded: number[], privilage: number[], salary: number[], saldo: number[], incomeTax: number[], pensionTax: number[], tradeUnionTax: number[],
+    strAccruals: string, strAdvances: string, strDeductions: string, strTaxes: string, strTaxDeds: string, strPrivilages: string, toDb?: Date, toDe?: Date) {
+    const lenS = 7;
+    switch (typePaySlip) {
+      case 'DETAIL': {
+        const len = 18;
+        return (`
+Расчетник за ${dbMonthName}
+Начисления: ${getSumByRate(accrual[0], rate).toFixed(2)}
+===========================
+${strAccruals}
+===========================
+Аванс: ${getSumByRate(advance[0], rate).toFixed(2)}
+===========================
+${strAdvances}
+===========================
+Удержания: ${getSumByRate(ded[0], rate).toFixed(2)}
+===========================
+${strDeductions}
+===========================
+Налоги: ${allTaxes[0].toFixed(2)}
+===========================
+${strTaxes}
+===========================
+Вычеты: ${getSumByRate(tax_ded[0], rate).toFixed(2)}
+===========================
+${strTaxDeds}
+===========================
+Льготы: ${getSumByRate(privilage[0], rate).toFixed(2)}
+===========================
+${strPrivilages}
+Подразделение:
+${deptName}
+Должность:
+${posName}
+Оклад: ${getSumByRate(salary[0], rate).toFixed(2)}
+Валюта: ${currencyAbbreviation}
+`)
+      }
+      case 'CONCISE': {
+        const len = 30;
+        const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `с ${db.toLocaleDateString()} по ${de.toLocaleDateString()}` : `${dbMonthName}`;
+        return (`
+Расчетник ${m}
+Начислено: ${getSumByRate(accrual[0], rate).toFixed(2)}
+===========================
+Зарплата чистыми: ${(getSumByRate(accrual[0], rate) - allTaxes[0]).toFixed(2)}
+Аванс: ${getSumByRate(advance[0], rate).toFixed(2)}
+К выдаче: ${getSumByRate(saldo[0], rate).toFixed(2)}
+Удержания: ${getSumByRate(ded[0], rate).toFixed(2)}
+===========================
+Налоги: ${allTaxes[0].toFixed(2)}
+Подоходный: ${getSumByRate(incomeTax[0], rate).toFixed(2)}
+Пенсионный: ${getSumByRate(pensionTax[0], rate).toFixed(2)}
+Профсоюзный: ${getSumByRate(tradeUnionTax[0], rate).toFixed(2)}
+===========================
+Подразделение:
+${deptName}
+Должность:
+${posName}
+Оклад: ${getSumByRate(salary[0], rate).toFixed(2)}
+Валюта: ${currencyAbbreviation}
+  `);
+      }
+      case 'COMPARE': {
+        if (toDb && toDe) {
+          const len = 23;
+          return (`
+Сравнение расчетных листков
+Период I: ${db.toLocaleDateString()} - ${de.toLocaleDateString()}
+Период II: ${toDb.toLocaleDateString()} - ${toDe.toLocaleDateString()}
+
+Начислено I: ${getSumByRate(accrual[0], rate).toFixed(2)}
+Начислено II:${getSumByRate(accrual[1], rate).toFixed(2)}
+Разница: ${(getSumByRate(accrual[1], rate) - getSumByRate(accrual[0], rate)).toFixed(2)}
+===========================
+Зарплата чистыми I: ${(getSumByRate(accrual[0], rate) - allTaxes[0]).toFixed(2)}
+Зарплата чистыми II: ${(getSumByRate(accrual[1], rate) - allTaxes[1]).toFixed(2)}
+Разница: ${(getSumByRate(accrual[1], rate) - allTaxes[1] - (getSumByRate(accrual[0], rate) - allTaxes[0])).toFixed(2)}
+Аванс I: ${getSumByRate(advance[0], rate).toFixed(2)}
+Аванс II: ${getSumByRate(advance[1], rate).toFixed(2)}
+Разница: ${(getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)).toFixed(2)}
+К выдаче I: ${getSumByRate(saldo[0], rate).toFixed(2)}
+К выдаче II:${getSumByRate(saldo[1], rate).toFixed(2)}
+Разница: ${(getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)).toFixed(2)}
+Удержания I: ${getSumByRate(ded[0], rate).toFixed(2)}
+Удержания II:${getSumByRate(ded[1], rate).toFixed(2)}
+Разница: ${(getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate)).toFixed(2)}
+===========================
+Налоги I: ${allTaxes[0].toFixed(2)}
+Налоги II: ${allTaxes[1].toFixed(2)}
+Разница: ${(allTaxes[1] - allTaxes[0]).toFixed(2)}
+Подоходный I: ${getSumByRate(incomeTax[0], rate).toFixed(2)}
+Подоходный II:.${getSumByRate(incomeTax[1], rate).toFixed(2)}
+Разница: ${(getSumByRate(incomeTax[1], rate) - getSumByRate(incomeTax[0], rate)).toFixed(2)}
+Пенсионный I: ${getSumByRate(pensionTax[0], rate).toFixed(2)}
+Пенсионный II: ${getSumByRate(pensionTax[1], rate).toFixed(2)}
+Разница: ${(getSumByRate(pensionTax[1], rate) - getSumByRate(pensionTax[0], rate)).toFixed(2)}
+Профсоюзный I: ${getSumByRate(tradeUnionTax[0], rate).toFixed(2)}
+Профсоюзный II:${getSumByRate(getSumByRate(tradeUnionTax[1], rate), rate).toFixed(2)}
+Разница: ${(getSumByRate(getSumByRate(tradeUnionTax[1], rate), rate) - getSumByRate(tradeUnionTax[0], rate)).toFixed(2)}
+===========================
+Подразделение:
+${deptName}
+Должность:
+${posName}
+Оклад I: ${getSumByRate(salary[0], rate).toFixed(2)}
+Оклад II: ${getSumByRate(salary[1], rate).toFixed(2)}
+Разница: ${(getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)).toFixed(2)}
+Валюта: ${currencyAbbreviation}
+`);
+        }
+      }
+    }
+    return;
+  }
 };
+
+
+
+
+
 // const ViberBot  = require('viber-bot').Bot
 // const BotEvents = require('viber-bot').Events
 // const TextMessage = require('viber-bot').Message.Text;
@@ -463,11 +547,11 @@ export class Viber extends Bot {
 //         keyboardMenu);
 //     });
 
-//     bot.onTextMessage(/paySlipCompare/, async (message: any, response: any) => {
+//     bot.onTextMessage(/comparePaySlip/, async (message: any, response: any) => {
 //       paySlipCompareDialog(bot, message, response, true);
 //     });
 
-//     bot.onTextMessage(/paySlipByPeriod/, async (message: any, response: any) => {
+//     bot.onTextMessage(/concisePaySlip/, async (message: any, response: any) => {
 //       paySlipDialog(bot, message, response, true);
 //     });
 

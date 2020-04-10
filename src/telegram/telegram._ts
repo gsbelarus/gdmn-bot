@@ -131,13 +131,13 @@ export default class TelegramBot {
       cListok && withMenu(ctx, cListok, keyboardMenu, true);
     });
 
-    bot.action('paySlipByPeriod', ctx => {
+    bot.action('concisePaySlip', ctx => {
       if (ctx.chat) {
         paySlipDialog(ctx, true);
       }
     });
 
-    bot.action('paySlipCompare', ctx => {
+    bot.action('comparePaySlip', ctx => {
       if (ctx.chat) {
         paySlipCompareDialog(ctx, true);
       }

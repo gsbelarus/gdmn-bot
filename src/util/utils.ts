@@ -54,17 +54,17 @@ export const getLanguage = (lang_code?: string): Lang => {
  * @param name
  * @param s
  */
-export const getPaySlipString = (prevStr: string, name: string, s: number): string => {
-  let name_1 = '';
-  const len = 27;
-  if (name.length > len) {
-    name_1 = name.length > len ? name.slice(0, len) : name;
-    name = name.slice(len).padEnd(len);
-    return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name_1}\r\n  ${name} ${s.toFixed(2).padStart(7)}`;
-  } else {
-    return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name.padEnd(len)} ${s.toFixed(2).padStart(7)}`;
-  }
-}
+// export const getPaySlipString = (prevStr: string, name: string, s: number): string => {
+//   let name_1 = '';
+//   const len = 27;
+//   if (name.length > len) {
+//     name_1 = name.length > len ? name.slice(0, len) : name;
+//     name = name.slice(len).padEnd(len);
+//     return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name_1}\r\n  ${name} ${s.toFixed(2).padStart(7)}`;
+//   } else {
+//     return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name.padEnd(len)} ${s.toFixed(2).padStart(7)}`;
+//   }
+// }
 
 /** Возвращает массив лет за период*/
 export function getYears(fromDate: Date, toDate: Date): number[] {

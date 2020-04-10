@@ -93,7 +93,7 @@ export class TelegramBot extends Bot {
         }
       });
 
-    this._bot.action('paySlipByPeriod',
+    this._bot.action('concisePaySlip',
       ctx => {
         if (!ctx.chat) {
           console.error('Invalid chat context');
@@ -102,7 +102,7 @@ export class TelegramBot extends Bot {
         }
       });
 
-    this._bot.action('paySlipCompare',
+    this._bot.action('comparePaySlip',
       ctx => {
         if (!ctx.chat) {
           console.error('Invalid chat context');
@@ -167,6 +167,18 @@ export class TelegramBot extends Bot {
           : Markup.urlButton(c.caption, c.url)
       ))
     );
+  }
+
+  getPaySlipString(prevStr: string, name: string, s: number) {
+    let name_1 = '';
+    const len = 27;
+    if (name.length > len) {
+      name_1 = name.length > len ? name.slice(0, len) : name;
+      name = name.slice(len).padEnd(len);
+      return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name_1}\r\n  ${name} ${s.toFixed(2).padStart(7)}`;
+    } else {
+      return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name.padEnd(len)} ${s.toFixed(2).padStart(7)}`;
+    }
   }
 
   paySlipView(typePaySlip: ITypePaySlip, db: Date, de: Date, dbMonthName: string, rate: number, deptName: string, posName: string, currencyAbbreviation: string,
