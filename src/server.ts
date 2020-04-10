@@ -104,6 +104,13 @@ const viberToken = '4b3e05a56367d074-9b93ed160b5ebc92-c3aeed25f53c282'
 
 initCurrencies()
   .then( () => {
+    const telegram = new TelegramBot(
+      botToken,
+      getCustomers,
+      getEmployeesByCustomer,
+      getAccDeds,
+      getPaySlipByUser);
+
     const viber = new Viber(
       viberToken,
       getCustomers,
@@ -123,31 +130,7 @@ initCurrencies()
 
       telegram.finalize();
 
-      console.log('Process exit event with code: ', code);
-    });
-  });
-
-
-initCurrencies()
-  .then( () => {
-    const telegram = new TelegramBot(
-      botToken,
-      getCustomers,
-      getEmployeesByCustomer,
-      getAccDeds,
-      getPaySlipByUser);
-
-    /**
-     * При завершении работы сервера скидываем на диск все данные.
-     */
-    process.on('exit', code => {
-      customers.flush();
-
-      for (const ec of Object.values(employeesByCustomer)) {
-        ec.flush();
-      }
-
-      telegram.finalize();
+      viber.finalize();
 
       console.log('Process exit event with code: ', code);
     });
