@@ -57,7 +57,7 @@ export class Viber extends Bot {
       if (!response?.userProfile) {
         console.error('Invalid chat context');
       } else {
-        this.start(response.userProfile.id.toString());
+        this.start(response.userProfile.id.toString(), 'Для подписки введите любое сообщение.');
       }
     });
 
@@ -117,8 +117,8 @@ export class Viber extends Bot {
       } else {
         const today = new Date();
         //Для теста период апрель 2019, потом удалить, когда будут данные
-        const db = new Date(2019, 4, 1);
-        const de = new Date(2019, 5, 0);
+        const db = new Date(2019, 1, 1);
+        const de = new Date(2019, 2, 0);
         this.paySlip(response.userProfile.id.toString(), 'DETAIL', getLanguage(response.userProfile.language), db, de);
       }
     });
@@ -237,7 +237,8 @@ export class Viber extends Bot {
     switch (typePaySlip) {
       case 'DETAIL': {
         return (
-`Расчетник за ${dbMonthName}
+`Расчетный листок
+Период: ${dbMonthName}
 Начисления: ${getSumByRate(accrual[0], rate).toFixed(2)}
 ===========================
 ${strAccruals}
@@ -262,17 +263,17 @@ ${strTaxDeds}
 ===========================
 ${strPrivilages}
 Подразделение:
-${deptName}
+${deptName.toUpperCase()}
 Должность:
-${posName}
+${posName.toUpperCase()}
 Оклад: ${getSumByRate(salary[0], rate).toFixed(2)}
 Валюта: ${currencyAbbreviation}`)
       }
       case 'CONCISE': {
-        const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `с ${db.toLocaleDateString()} по ${de.toLocaleDateString()}` : `${dbMonthName}`;
+        const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `${db.toLocaleDateString()}-${de.toLocaleDateString()}` : `${dbMonthName}`;
         return (
-`Расчетник
-${m}
+`Расчетный листок
+Период: ${m}
 Начислено: ${getSumByRate(accrual[0], rate).toFixed(2)}
 ===========================
 Зарплата чистыми: ${(getSumByRate(accrual[0], rate) - allTaxes[0]).toFixed(2)}
@@ -296,8 +297,8 @@ ${posName}
         if (toDb && toDe) {
           return (
 `Сравнение расчетных листков
-Период I: ${db.toLocaleDateString()} - ${de.toLocaleDateString()}
-Период II: ${toDb.toLocaleDateString()} - ${toDe.toLocaleDateString()}
+Период I: ${db.toLocaleDateString()}-${de.toLocaleDateString()}
+Период II: ${toDb.toLocaleDateString()}-${toDe.toLocaleDateString()}
 
 Начислено I: ${getSumByRate(accrual[0], rate).toFixed(2)}
 Начислено II:${getSumByRate(accrual[1], rate).toFixed(2)}

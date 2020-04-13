@@ -1,6 +1,6 @@
 import {
   DialogState, IAccountLink, IDialogStateLoggingIn, IAccDed, IPaySlip, LName, Lang, ITypePaySlip,
-  ICustomers, IEmploeeByCustomer, IDialogStateGettingConcise, monthList, IDialogStateGettingCompare, IDialogStateGettingCurrency
+  ICustomers, IEmploeeByCustomer, IDialogStateGettingConcise, monthList, IDialogStateGettingCompare, IDialogStateGettingCurrency, addName
 } from "./types";
 import { FileDB, IData } from "./util/fileDB";
 import path from 'path';
@@ -396,7 +396,7 @@ export class Bot {
         this._accountLink.merge(chatId, { ...link, currencyId });
         const currencyName = getCurrencyNameById(lng, currencyId);
         this.deleteMessage(chatId);
-        this.sendMessage(chatId, `Валюта ${currencyName} сохранена`, keyboardMenu);
+        this.sendMessage(chatId, `Валюта ${currencyName} сохранена. Выберите одно из предложенных действий.`, keyboardMenu);
       }
     }
   }
@@ -467,31 +467,45 @@ export class Bot {
                   } else if (accDedObj[value.typeId]) {
 
                     let accDedName = getLName(accDedObj[value.typeId].name, [lng, 'ru']);
+                    let addInfo = '';
+
+                    addInfo = value?.adddata?.days ? `${value.adddata.days}${getLName(addName['days'], [lng, 'ru'])}` : ''
+                    if (value?.adddata?.hours) {
+                      addInfo = `${addInfo}${addInfo ?  ', ' : ''}`;
+                      addInfo = `${value.adddata.hours}${getLName(addName['hours'], [lng, 'ru'])}`;
+                    }
+                    if (value?.adddata?.incMonth || value?.adddata?.incYear) {
+                      addInfo = `${addInfo}${addInfo ?  ', ' : ''}`;
+                      addInfo = `${value.adddata.incMonth}.${value.adddata.incYear}`;
+                    }
+                    if (addInfo) {
+                      accDedName = `${accDedName} (${addInfo})`
+                    }
 
                     switch (accDedObj[value.typeId].type) {
                       case 'INCOME_TAX': {
                         incomeTax[i] = incomeTax[i] + value.s;
-                        strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, value.s) : ''
+                        strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, getSumByRate(value.s, rate)) : ''
                         break;
                       }
                       case 'PENSION_TAX': {
                         pensionTax[i] = pensionTax[i] + value.s;
-                        strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, value.s) : ''
+                        strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, getSumByRate(value.s, rate)) : ''
                         break;
                       }
                       case 'TRADE_UNION_TAX': {
                         tradeUnionTax[i] = tradeUnionTax[i] + value.s;
-                        strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, value.s) : ''
+                        strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, getSumByRate(value.s, rate)) : ''
                         break;
                       }
                       case 'ADVANCE': {
                         advance[i] = advance[i] + value.s;
-                        strAdvances = typePaySlip === 'DETAIL' ? this.getPaySlipString(strAdvances, accDedName, value.s) : ''
+                        strAdvances = typePaySlip === 'DETAIL' ? this.getPaySlipString(strAdvances, accDedName, getSumByRate(value.s, rate)) : ''
                         break;
                       }
                       case 'DEDUCTION': {
                         ded[i] = ded[i] + value.s;
-                        strDeductions = typePaySlip === 'DETAIL' ? this.getPaySlipString(strDeductions, accDedName, value.s) : ''
+                        strDeductions = typePaySlip === 'DETAIL' ? this.getPaySlipString(strDeductions, accDedName, getSumByRate(value.s, rate)) : ''
                         break;
                       }
                       case 'TAX': {
@@ -500,17 +514,17 @@ export class Bot {
                       }
                       case 'ACCRUAL': {
                         accrual[i] = accrual[i] + value.s;
-                        strAccruals = typePaySlip === 'DETAIL' ? this.getPaySlipString(strAccruals, accDedName, value.s) : ''
+                        strAccruals = typePaySlip === 'DETAIL' ? this.getPaySlipString(strAccruals, accDedName, getSumByRate(value.s, rate)) : ''
                         break;
                       }
                       case 'TAX_DEDUCTION': {
                         tax_ded[i] = tax_ded[i] + value.s;
-                        strTaxDeds = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxDeds, accDedName, value.s) : ''
+                        strTaxDeds = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxDeds, accDedName, getSumByRate(value.s, rate)) : ''
                         break;
                       }
                       case 'PRIVILAGE': {
                         privilage[i] = privilage[i] + value.s;
-                        strPrivilages = typePaySlip === 'DETAIL' ? this.getPaySlipString(strPrivilages, accDedName, value.s) : ''
+                        strPrivilages = typePaySlip === 'DETAIL' ? this.getPaySlipString(strPrivilages, accDedName, getSumByRate(value.s, rate)) : ''
                         break;
                       }
                     }
@@ -520,7 +534,7 @@ export class Bot {
 
               allTaxes[i] = getSumByRate(incomeTax[i], rate) + getSumByRate(pensionTax[i], rate) + getSumByRate(tradeUnionTax[i], rate);
             }
-          }//for
+          }
         };
 
         //Данные по листку заносятся в массивы с индектом = 0
@@ -536,68 +550,6 @@ export class Bot {
           accrual, advance, ded, allTaxes, tax_ded, privilage, salary, saldo, incomeTax, pensionTax, tradeUnionTax,
           strAccruals, strAdvances, strDeductions, strTaxes, strTaxDeds, strPrivilages, toDb, toDe)
       }
-
-  //       switch (typePaySlip) {
-  //         case 'DETAIL': {
-  //           return this.paySlipView(typePaySlip, dbMonthName, rate, deptName, posName, currencyAbbreviation,
-  //             accrual, advance, ded, allTaxes, tax_ded, privilage, salary,
-  //             strAccruals, strAdvances, strDeductions, strTaxes, strTaxDeds, strPrivilages)
-  //         }
-  //         case 'CONCISE': {
-  //           const len = 30;
-  //           const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `с ${db.toLocaleDateString()} по ${de.toLocaleDateString()}` : `${dbMonthName}`;
-  //           return (`${'`'}${'`'}${'`'}ini
-  //   Расчетный листок ${m}
-  //   ${'Начислено:'.padEnd(len + 2)}  ${getSumByRate(accrual[0], rate).toFixed(2).padStart(lenS)}
-  //   ==========================================
-  //   ${'Зарплата (чистыми):'.padEnd(len + 2)}  ${(getSumByRate(accrual[0], rate) - allTaxes[0]).toFixed(2).padStart(lenS)}
-  //     ${'Аванс:'.padEnd(len)}  ${getSumByRate(advance[0], rate).toFixed(2).padStart(lenS)}
-  //     ${'К выдаче:'.padEnd(len)}  ${getSumByRate(saldo[0], rate).toFixed(2).padStart(lenS)}
-  //     ${'Удержания:'.padEnd(len)}  ${getSumByRate(ded[0], rate).toFixed(2).padStart(lenS)}
-  //   ==========================================
-  //   ${'Налоги:'.padEnd(len + 2)}  ${allTaxes[0].toFixed(2).padStart(lenS)}
-  //     ${'Подоходный:'.padEnd(len)}  ${getSumByRate(incomeTax[0], rate).toFixed(2).padStart(lenS)}
-  //     ${'Пенсионный:'.padEnd(len)}  ${getSumByRate(pensionTax[0], rate).toFixed(2).padStart(lenS)}
-  //     ${'Профсоюзный:'.padEnd(len)}  ${getSumByRate(tradeUnionTax[0], rate).toFixed(2).padStart(lenS)}
-  //   ==========================================
-  //   ${'Информация:'.padEnd(len)}
-  //     ${deptName}
-  //     ${posName}
-  //   ${'Оклад:'.padEnd(len + 2)}  ${getSumByRate(salary[0], rate).toFixed(2).padStart(lenS)}
-  //   ${'Валюта:'.padEnd(len + 2)}  ${currencyAbbreviation.padStart(lenS)}
-  // ${'`'}${'`'}${'`'}`);
-  //         }
-  //         case 'COMPARE': {
-  //           if (toDb && toDe) {
-  //             const len = 23;
-  //             //Данные по листку за второй период заносятся в массивы с индектом = 1
-  //             getAccDedsByPeriod(toDb, toDe, 1);
-
-  //             return (`${'`'}${'`'}${'`'}ini
-  //   ${'Сравнение расчетных листков'.padEnd(len + 2)}
-  //   Период I:  ${db.toLocaleDateString()} - ${de.toLocaleDateString()}
-  //   Период II: ${toDb.toLocaleDateString()} - ${toDe.toLocaleDateString()}
-  //                                     I       II
-  //   ${'Начислено:'.padEnd(len + 2)}  ${getSumByRate(accrual[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(accrual[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(accrual[1], rate) - getSumByRate(accrual[0], rate)).toFixed(2).padStart(lenS)}
-  //   =====================================================
-  //   ${'Зарплата (чистыми):'.padEnd(len + 2)}  ${(getSumByRate(accrual[0], rate) - allTaxes[0]).toFixed(2).padStart(lenS)} ${(getSumByRate(accrual[1], rate) - allTaxes[1]).toFixed(2).padStart(lenS)} ${(getSumByRate(accrual[1], rate) - allTaxes[1] - (getSumByRate(accrual[0], rate) - allTaxes[0])).toFixed(2).padStart(lenS)}
-  //     ${'Аванс:'.padEnd(len)}  ${getSumByRate(advance[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(advance[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)).toFixed(2).padStart(lenS)}
-  //     ${'К выдаче:'.padEnd(len)}  ${getSumByRate(saldo[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(saldo[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)).toFixed(2).padStart(lenS)}
-  //     ${'Удержания:'.padEnd(len)}  ${getSumByRate(ded[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(ded[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate)).toFixed(2).padStart(lenS)}
-  //   =====================================================
-  //   ${'Налоги:'.padEnd(len + 2)}  ${allTaxes[0].toFixed(2).padStart(lenS)} ${allTaxes[1].toFixed(2).padStart(lenS)} ${(allTaxes[1] - allTaxes[0]).toFixed(2).padStart(lenS)}
-  //     ${'Подоходный:'.padEnd(len)}  ${getSumByRate(incomeTax[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(incomeTax[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(incomeTax[1], rate) - getSumByRate(incomeTax[0], rate)).toFixed(2).padStart(lenS)}
-  //     ${'Пенсионный:'.padEnd(len)}  ${getSumByRate(pensionTax[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(pensionTax[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(pensionTax[1], rate) - getSumByRate(pensionTax[0], rate)).toFixed(2).padStart(lenS)}
-  //     ${'Профсоюзный:'.padEnd(len)}  ${getSumByRate(tradeUnionTax[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(getSumByRate(tradeUnionTax[1], rate), rate).toFixed(2).padStart(lenS)} ${(getSumByRate(getSumByRate(tradeUnionTax[1], rate), rate) - getSumByRate(tradeUnionTax[0], rate)).toFixed(2).padStart(lenS)}
-  //   =====================================================
-  //   ${'Информация:'.padEnd(len)}
-  //     ${'Оклад:'.padEnd(len)}  ${getSumByRate(salary[0], rate).toFixed(2).padStart(lenS)} ${getSumByRate(salary[1], rate).toFixed(2).padStart(lenS)} ${(getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)).toFixed(2).padStart(lenS)}
-  //     ${'Валюта:'.padEnd(len + 2)}${currencyAbbreviation.padStart(lenS)}
-  //   ${'`'}${'`'}${'`'}`);
-  //           }
-  //         }
-  //       }
-  //     }
      }
     return undefined
   }
@@ -613,7 +565,7 @@ export class Bot {
     const dialogState = this._dialogStates.read(chatId);
 
     if (message === 'login' || message === 'logout' || message === 'settings' || message === 'getCurrency' || message === 'paySlip'
-      || message === 'detailPaySlip' || message === 'concisePaySlip' || message === 'comparePaySlip' || message === 'menu') {
+      || message === 'detailPaySlip' || message === 'concisePaySlip' || message === 'comparePaySlip' || message === 'menu' || message === 'http://gsbelarus.com') {
       return
     }
 
@@ -640,9 +592,6 @@ export class Bot {
   }
 
   callback_query(chatId: string, lng: Lang, queryData: string) {
-    // if (queryData === 'login' || queryData === 'settings' || queryData === 'getCurrency') {
-    //   return
-    // }
     const dialogState = this._dialogStates.read(chatId);
 
     if (dialogState?.type === 'GETTING_CONCISE') {
@@ -651,7 +600,6 @@ export class Bot {
       this.paySlipCompareDialog(chatId, lng, queryData);
     } else if (dialogState?.type === 'GETTING_CURRENCY') {
       this.currencyDialog(chatId, lng, queryData);
-      ///this.dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() });
     }
   }
 
@@ -659,7 +607,7 @@ export class Bot {
    * Вызывается при запуске чат бота клиентом.
    * @param chatId
    */
-  start(chatId: string) {
+  start(chatId: string, startMessage?: string) {
     const link = this.accountLink.read(chatId);
 
     console.log('start');
@@ -668,7 +616,7 @@ export class Bot {
       const dialogState = this._dialogStates.read(chatId);
       this.dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() });
       this.sendMessage(chatId,
-        'Приветствуем! Для получения информации о заработной плате необходимо зарегистрироваться в системе.',
+        'Приветствуем! ' + startMessage,
         keyboardLogin);
     } else {
       this.dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() });
@@ -679,12 +627,12 @@ export class Bot {
   }
 
   menu(chatId: string) {
-    this.sendMessage(chatId, 'Выберите одно из предложенных действий', keyboardMenu, true);
+    this.sendMessage(chatId, 'Выберите одно из предложенных действий.', keyboardMenu, true);
   }
 
   settings(chatId: string) {
     this._dialogStates.merge(chatId, { type: 'GETTING_SETTINGS', lastUpdated: new Date().getTime() });
-    this.sendMessage(chatId, 'Параметры', keyboardSettings);
+    this.sendMessage(chatId, 'Параметры.', keyboardSettings);
   }
 
   async logout(chatId: string) {

@@ -128,3 +128,10 @@ export const monthList: LName[] = ['янв', 'фев', 'мар', 'апр', 'ма
 
 export type ICustomers = IData<Omit<ICustomer, 'id'>>
 export type IEmploeeByCustomer = IData<Omit<IEmployee, 'id'>>
+
+
+
+export const addName = {
+  'days': { ru: { name: 'дн' }},
+  'hours': { ru: { name: 'ч' }}
+}

@@ -2,318 +2,16 @@
 --- 
 StructureVersion: "1.0"
 Properties: 
-  RUID: 1193786287_1320926323
-  Name: "БОТ.Экспорт файлов.Бройлеры"
-  Caption: "БОТ.Экспорт файлов.Бройлеры"
-  Version: "1.0.0.1"
+  RUID: 1193786357_1320926323
+  Name: "БОТ.Бройлеры"
+  Caption: "БОТ.Бройлеры"
+  Version: "1.0.0.3"
   Optional: False
   Internal: True
-  MD5: 1E6BE2763B432C56DE9AC873B3CDA259
+  MD5: 4E9E5C317856C705D4380C6F8948696E
+Uses: 
+  - "1193786287_1320926323 БОТ.Экспорт файлов"
 Objects: 
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 1193785048_1320926323
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-      HeadObject: 1193785045_1320926323
-    Fields: 
-      NAME: "bot_SendFile"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: ~
-      MODULE: "UNKNOWN"
-      MODULECODE: "1010001_17 APPLICATION"
-      OBJECTNAME: "APPLICATION"
-      OWNERNAME: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: 0
-      EDITIONDATE: 2020-03-26T09:13:58+03:00
-      DISPLAYSCRIPT: | 
-        BOT_SENDFILE
-        
-      ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QEAAAASlNPTgQAAABKU09OAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RQUlNU
-        AwAAAFVSTAMAAABVUkwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARk5TVEZMUFI=
-      SCRIPT: | 
-        Option Explicit
-        
-        ' Функция принимает на вход:
-        '   Json файл.
-        '   URL скрипта на сервере.
-        '
-        ' Данные передаются POST запросом.
-        ' Возвращает True, если файл успешно передан.
-        
-        Function bot_SendFile(JSON, URL)
-        
-         On Error Resume Next
-          dim oXMLHTTP
-          Set oXMLHTTP = CreateObject("MSXML2.XMLHTTP")
-          call oXMLHTTP.Open("POST", url, false)
-          call oXMLHTTP.setRequestHeader("Content-Type", "application/json")
-          on error resume next
-          call oXMLHTTP.Send(JSON)
-          on error goto 0
-        
-          If Err.Number <> 0 Then
-            MsgBox "Ошибка передачи файла " & Err.Message
-            bot_SendFile = False
-          Else
-            bot_SendFile = True
-          End If
-        
-        End Function
-        
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 1193785027_1320926323
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-      HeadObject: 1193785045_1320926323
-    Fields: 
-      NAME: "bot_PrepareAccDed"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: ~
-      MODULE: "UNKNOWN"
-      MODULECODE: "1010001_17 APPLICATION"
-      OBJECTNAME: "APPLICATION"
-      OWNERNAME: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: 0
-      EDITIONDATE: 2020-03-26T09:11:26+03:00
-      DISPLAYSCRIPT: | 
-        BOT_PREPAREACCDED
-        BOT_PREPAREACCDED_ROLLBACK
-        
-      ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        AAAAAEZOU1RQUlNUBAAAAEpTT04EAAAASlNPTgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
-        RkxQUg==
-      SCRIPT: | 
-        Option Explicit
-        Function bot_PrepareAccDed(customerId, ByRef JSON)
-        
-          dim qSel, Creator, Transaction
-          set Creator = new TCreator
-          set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
-          Transaction.Defaultdatabase = IBLogin.Database
-          if not Transaction.InTransaction then
-            Transaction.StartTransaction
-          end if
-          
-          except bot_PrepareAccDed_RollBack(Transaction)
-          
-          set qSel = Creator.GetObject(nil, "TIBSQL", "")
-          qSel.Transaction = Transaction
-          qSel.SQL.Text = _
-            "SELECT  " & _
-            "  CASE " & _
-            "    WHEN ft.ID = <RUID XID = 147653395 DBID = 119619099/> THEN 'PENSION_TAX' " & _
-            "    WHEN ft.ID = <RUID XID = 147567139 DBID = 119619099/> THEN 'INCOME_TAX' " & _
-            "    WHEN ft.ID = <RUID XID = 147653396 DBID = 119619099/> THEN 'TRADE_UNION_TAX'  /*налог*/ " & _
-            "    WHEN NOT gr_adv.FEETYPE IS NULL THEN 'ADVANCE'                        /*аванс*/ " & _
-            "    WHEN COALESCE(ft.USR$DEDUCTION, 0) = 1 THEN 'DEDUCTION'               /*удержание*/ " & _
-            "    ELSE 'ACCRUAL'                                                        /*начисление*/ " & _
-            "  END  AS category, " & _
-            "  ft.USR$NAME                                                       AS name, " & _
-            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12))  AS typeId " & _
-            "FROM USR$WG_FEETYPE ft " & _
-            "  LEFT JOIN USR$WG_P_GETFEETYPEBYGROUP(<RUID XID = 184134911 DBID = 1194748640/>) gr_adv ON gr_adv.FEETYPE = ft.ID " & _
-            "  LEFT JOIN GD_P_GETRUID(ft.ID) r ON 1 = 1 " & _
-            "   " & _
-            "UNION ALL " & _
-            "SELECT " & _
-            "  'PRIVILAGE'    AS category, " & _
-            "  pt.USR$NAME    AS name, " & _
-            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12)) AS typeId " & _
-            "FROM  USR$WG_PRIVILEGETYPE pt " & _
-            "LEFT JOIN GD_P_GETRUID(pt.ID) r ON 1 = 1 " & _
-            " " & _
-            "UNION ALL " & _
-            "SELECT " & _
-            "  'TAX_DEDUCTION'    AS category, " & _
-            "  d.USR$NAME    AS name, " & _
-            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12)) AS typeId " & _
-            "FROM USR$WG_TAXINCOMDEDEDUCTTYPE d " & _
-            "LEFT JOIN GD_P_GETRUID(d.ID) r ON 1 = 1 " & _
-            " " & _
-            "ORDER BY 1, 2 "
-        
-          qSel.ExecQuery
-          
-          dim oRoot, oBody, qArr, oLng, oData, oLngName
-          set oRoot = new JSonObject
-          set oBody = new JSonObject
-        
-          call oRoot.AddProperty_Simple("customerId", customerId)
-          call oRoot.AddProperty_Simple("dataType", "accDedRef")
-        
-          while not qSel.eof
-            set oData = new JsonObject
-            set oLng = new JSonObject
-            set oLngName = new JSonObject
-            call oLngName.AddProperty_Simple("name", qSel.FieldByName("name").AsString)
-            call oLng.AddProperty_Object("ru", oLngName)
-            call oData.AddProperty_Simple("type", Trim(qSel.FieldByName("category").AsString))
-            call oData.AddProperty_Object("name", oLng)
-            call oBody.AddProperty_Object(qSel.FieldByName("typeId").AsString, oData)
-            qSel.Next
-          wend
-          call oRoot.AddProperty_Object("objData", oBody)
-          
-          if Transaction.InTransaction then
-            Transaction.Commit
-          end if
-        
-          JSON = oRoot.Json
-        
-        End Function
-        
-        sub bot_PrepareAccDed_RollBack(Transaction)
-          if Transaction.InTransaction then
-            Transaction.Rollback
-          end if
-        end sub
-        
-  - 
-    Properties: 
-      Class: "TgdcReportGroup"
-      RUID: 147023060_918566284
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-      HeadObject: 1193785045_1320926323
-    Fields: 
-      PARENT: ~
-      NAME: "Отчеты(gdc_frmExplorer)11"
-      DESCRIPTION: ~
-      USERGROUPNAME: "147023060_781234916"
-      EDITIONDATE: 2000-01-01T00:00:00+03:00
-  - 
-    Properties: 
-      Class: "TgdcMacrosGroup"
-      RUID: 147023059_918566284
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-      HeadObject: 1193785045_1320926323
-    Fields: 
-      PARENT: ~
-      NAME: "Локальные макросы"
-      CLASSNAME: ""
-      ISGLOBAL: 0
-      OBJECTNAME: "gdc_frmExplorer"
-      OBJECTPARENT: ~
-      SUBTYPE: ""
-      EDITIONDATE: 2007-11-19T18:34:29+03:00
-      DESCRIPTION: ~
-  - 
-    Properties: 
-      Class: "TgdcDelphiObject"
-      RUID: 147002113_781234916
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-      HeadObject: 1193785045_1320926323
-    Fields: 
-      PARENT: ~
-      NAME: "gdc_frmExplorer"
-      CLASSNAME: ""
-      DESCRIPTION: ~
-      MACROSGROUPKEY: "147023059_918566284 Локальные макросы"
-      OBJECTNAME: "gdc_frmExplorer"
-      OBJECTTYPE: 0
-      REPORTGROUPKEY: "147023060_918566284 Отчеты(gdc_frmExplorer)11"
-      SUBTYPE: ""
-      EDITIONDATE: 2007-03-28T11:31:02+03:00
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 1193785047_1320926323
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-      HeadObject: 1193785045_1320926323
-    Fields: 
-      NAME: "Macros1193785047_1320926323"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: ~
-      MODULE: "MACROS"
-      MODULECODE: "147002113_781234916 gdc_frmExplorer"
-      OBJECTNAME: "gdc_frmExplorer"
-      OWNERNAME: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: 0
-      EDITIONDATE: 2020-03-06T12:42:17+03:00
-      DISPLAYSCRIPT: | 
-        MACROS1193785047_1320926323
-        
-      ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QJAAAAT1dORVJGT1JNCQAAAE9XTkVSRk9STQAAAAAAAAAAAAAAAAsAAAAAAAAAAAAA
-        AABGTlNURkxQUg==
-      SCRIPT: | 
-        '#include BOT_SENDFILE
-        '#include BOT_PREPAREACCDED
-        Option Explicit
-        Sub Macros1193785047_1320926323(OwnerForm)
-          const URL = "http://localhost:3000/upload"
-        
-          dim JSON
-          call bot_PrepareAccDed ("brl", JSON)
-          bot_SendFile JSON, URL
-        End Sub
-        
-    Set: 
-      - 
-        Table: "RP_ADDITIONALFUNCTION"
-        Items: 
-          - 
-            ADDFUNCTIONKEY: "1193785048_1320926323 bot_SendFile"
-          - 
-            ADDFUNCTIONKEY: "1193785027_1320926323 bot_PrepareAccDed"
-  - 
-    Properties: 
-      Class: "TgdcMacros"
-      RUID: 1193785045_1320926323
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      NAME: "Бот. Экспорт видов начислений"
-      DISPLAYINMENU: 1
-      EXECUTEDATE: ~
-      FUNCTIONKEY: "1193785047_1320926323 Macros1193785047_1320926323"
-      ISLOCALEXECUTE: 0
-      ISREBUILD: 0
-      MACROSGROUPKEY: "147023059_918566284 Локальные макросы"
-      OBJECTNAME: "gdc_frmExplorer"
-      SERVERKEY: ~
-      SHORTCUT: 0
-      EDITIONDATE: 2020-03-06T12:42:17+03:00
   - 
     Properties: 
       Class: "TgdcFunction"
@@ -321,7 +19,6 @@ Objects:
       AlwaysOverwrite: False
       DontRemove: False
       IncludeSiblings: False
-      HeadObject: 1193785775_1320926323
     Fields: 
       NAME: "bot_PreparePaySlip"
       COMMENT: ~
@@ -339,7 +36,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-03-26T11:19:35+03:00
+      EDITIONDATE: 2020-04-13T14:56:24+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREPAYSLIP
         BOT_PREPAREPAYSLIP_ROLLBACK
@@ -385,9 +82,9 @@ Objects:
             "BEGIN " & _
             "  FOR " & _
             "    SELECT  " & _
+            "      p.PERSONALNUMBER            AS PersonalNumber, " & _
             "      t.DOCUMENTKEY               AS TotalDocKey, " & _
             "      tline.USR$EMPLKEY           AS EmployeeKey, " & _
-            "      p.PERSONALNUMBER            AS PersonalNumber, " & _
             "      t.USR$DATEBEGIN             AS OnDateBegin, " & _
             "      t.USR$DATEEND               AS OnDateEnd, " & _
             "      dep.NAME                    AS DepartmentName, " & _
@@ -405,8 +102,10 @@ Objects:
             "      LEFT JOIN WG_POSITION pos ON pos.ID = ml.USR$POSITIONKEY " & _
             "      LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = tline.USR$EMPLKEY " & _
             "      LEFT JOIN usr$wg_emplworkterm workterm ON workterm.USR$FIRSTMOVEKEY = ml.USR$FIRSTMOVE " & _
-            "    WHERE COALESCE(p.PERSONALNUMBER, '') <> '' /*AND p.PERSONALNUMBER = ' 3011078E049PB1'*/ AND " & _
+            "    WHERE COALESCE(p.PERSONALNUMBER, '') <> '' AND " & _
             "      t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
+            "      AND (ml.USR$MOVEMENTTYPE <> 3 OR tline.USR$CREDIT <> 0 OR tline.USR$DEBIT <> 0) " & _
+            "    ORDER BY p.PERSONALNUMBER, t.USR$DATEBEGIN " & _
             "    INTO :TotalDocKey, :EmployeeKey, :PersonalNumber, :OnDateBegin, :OnDateEnd, :DepartmentName, :PositionName, " & _
             "      :Salary, :HiringDate, :DismissalDate, :EndSaldo, :HourRate " & _
             "    DO " & _
@@ -552,16 +251,6 @@ Objects:
           j = -1
           PersonalNumber = ""
           while not qSel.eof
-          'if qSel.FieldByName("PersonalNumber").AsString <> PersonalNumber then
-        '    set oRoot = new JSonObject
-        '
-        '    call oRoot.AddProperty_Simple("customerId", customerId)
-        '    call oRoot.AddProperty_Simple("dataType", "paySlip")
-        '    set oBody = new JSonArray
-        '  end if
-        
-        
-          'while not qSel.eof
             isDataNull = true
             set oData = new JsonObject
             if qSel.FieldByName("How").AsCurrency > 0 then
@@ -586,7 +275,6 @@ Objects:
             call oItem.AddProperty_Simple("typeId", qSel.FieldByName("typeId").AsString)
             call oItem.AddProperty_Simple("dateBegin", bot_TransformDate(qSel.FieldByName("OnDateBegin").AsDateTime))
             call oItem.AddProperty_Simple("dateEnd", bot_TransformDate(qSel.FieldByName("OnDateEnd").AsDateTime))
-           ' call oItem.AddProperty_Simple("date", bot_TransformDate(qSel.FieldByName("OnDateBegin").AsDateTime))
             call oItem.AddProperty_Simple("s", qSel.FieldByName("S").AsCurrency)
         
             if not isDataNull then
@@ -631,9 +319,6 @@ Objects:
               call oRoot.AddProperty_Object("objData", oBody)
               j = j + 1
               redim preserve Jsons(j)
-        
-        
-              
             end if
             'добавим объект начисления\удержания в массив
             call oDataArr.AddValue(oItem)
@@ -641,12 +326,11 @@ Objects:
             PersonalNumber = qSel.FieldByName("PersonalNumber").AsString
           wend
         
-        
           if Transaction.InTransaction then
             Transaction.Commit
           end if
         
-          JSON = Jsons'oRoot.Json
+          JSON = Jsons
         
         End Function
         
@@ -655,6 +339,7 @@ Objects:
             Transaction.Rollback
           end if
         end sub
+        
         function bot_TransformDate(pDate)
           bot_TransformDate = Year(pDate) & "." & Month(pDate) & "." & Day(pDate)
         end function
@@ -662,13 +347,12 @@ Objects:
   - 
     Properties: 
       Class: "TgdcFunction"
-      RUID: 1193785777_1320926323
+      RUID: 1193785027_1320926323
       AlwaysOverwrite: False
       DontRemove: False
       IncludeSiblings: False
-      HeadObject: 1193785775_1320926323
     Fields: 
-      NAME: "Macros1193785047_13209263231193785777_1320926323"
+      NAME: "bot_PrepareAccDed"
       COMMENT: ~
       EVENT: ~
       FUNCTIONTYPE: ~
@@ -677,59 +361,105 @@ Objects:
       LANGUAGE: "VBScript"
       LOCALNAME: ~
       MODIFYDATE: ~
-      MODULE: "MACROS"
-      MODULECODE: "147002113_781234916 gdc_frmExplorer"
-      OBJECTNAME: "gdc_frmExplorer"
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-03-26T11:09:16+03:00
+      EDITIONDATE: 2020-03-26T09:11:26+03:00
       DISPLAYSCRIPT: | 
-        MACROS1193785047_13209263231193785777_1320926323
+        BOT_PREPAREACCDED
+        BOT_PREPAREACCDED_ROLLBACK
         
       ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAM/l8Oju5AAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
+        U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAEZOU1RQUlNUBAAAAEpTT04EAAAASlNPTgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
         RkxQUg==
       SCRIPT: | 
-        '#include BOT_PREPAREPAYSLIP
-        '#include BOT_SENDFILE
         Option Explicit
-        Sub Macros1193785047_13209263231193785777_1320926323(Period)
-          const URL = "http://localhost:3000/upload"
+        Function bot_PrepareAccDed(customerId, ByRef JSON)
         
-          dim JSON, i
-          call bot_PreparePaySlip ("brl", Period, JSON)
-          for i = 0 to UBound(JSON) - 1
-            bot_SendFile JSON(i), URL
-          next
+          dim qSel, Creator, Transaction
+          set Creator = new TCreator
+          set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
+          Transaction.Defaultdatabase = IBLogin.Database
+          if not Transaction.InTransaction then
+            Transaction.StartTransaction
+          end if
+          
+          except bot_PrepareAccDed_RollBack(Transaction)
+          
+          set qSel = Creator.GetObject(nil, "TIBSQL", "")
+          qSel.Transaction = Transaction
+          qSel.SQL.Text = _
+            "SELECT  " & _
+            "  CASE " & _
+            "    WHEN ft.ID = <RUID XID = 147653395 DBID = 119619099/> THEN 'PENSION_TAX' " & _
+            "    WHEN ft.ID = <RUID XID = 147567139 DBID = 119619099/> THEN 'INCOME_TAX' " & _
+            "    WHEN ft.ID = <RUID XID = 147653396 DBID = 119619099/> THEN 'TRADE_UNION_TAX'  /*налог*/ " & _
+            "    WHEN NOT gr_adv.FEETYPE IS NULL THEN 'ADVANCE'                        /*аванс*/ " & _
+            "    WHEN COALESCE(ft.USR$DEDUCTION, 0) = 1 THEN 'DEDUCTION'               /*удержание*/ " & _
+            "    ELSE 'ACCRUAL'                                                        /*начисление*/ " & _
+            "  END  AS category, " & _
+            "  ft.USR$NAME                                                       AS name, " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12))  AS typeId " & _
+            "FROM USR$WG_FEETYPE ft " & _
+            "  LEFT JOIN USR$WG_P_GETFEETYPEBYGROUP(<RUID XID = 184134911 DBID = 1194748640/>) gr_adv ON gr_adv.FEETYPE = ft.ID " & _
+            "  LEFT JOIN GD_P_GETRUID(ft.ID) r ON 1 = 1 " & _
+            "   " & _
+            "UNION ALL " & _
+            "SELECT " & _
+            "  'PRIVILAGE'    AS category, " & _
+            "  pt.USR$NAME    AS name, " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12)) AS typeId " & _
+            "FROM  USR$WG_PRIVILEGETYPE pt " & _
+            "LEFT JOIN GD_P_GETRUID(pt.ID) r ON 1 = 1 " & _
+            " " & _
+            "UNION ALL " & _
+            "SELECT " & _
+            "  'TAX_DEDUCTION'    AS category, " & _
+            "  d.USR$NAME    AS name, " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12)) AS typeId " & _
+            "FROM USR$WG_TAXINCOMDEDEDUCTTYPE d " & _
+            "LEFT JOIN GD_P_GETRUID(d.ID) r ON 1 = 1 " & _
+            " " & _
+            "ORDER BY 1, 2 "
         
-        End Sub
+          qSel.ExecQuery
+          
+          dim oRoot, oBody, qArr, oLng, oData, oLngName
+          set oRoot = new JSonObject
+          set oBody = new JSonObject
         
-    Set: 
-      - 
-        Table: "RP_ADDITIONALFUNCTION"
-        Items: 
-          - 
-            ADDFUNCTIONKEY: "1193785764_1320926323 bot_PreparePaySlip"
-          - 
-            ADDFUNCTIONKEY: "1193785048_1320926323 bot_SendFile"
-  - 
-    Properties: 
-      Class: "TgdcMacros"
-      RUID: 1193785775_1320926323
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      NAME: "Бот. Экспорт расчетных листов"
-      DISPLAYINMENU: 1
-      EXECUTEDATE: ~
-      FUNCTIONKEY: "1193785777_1320926323 Macros1193785047_13209263231193785777_1320926323"
-      ISLOCALEXECUTE: 0
-      ISREBUILD: 0
-      MACROSGROUPKEY: "147023059_918566284 Локальные макросы"
-      OBJECTNAME: "gdc_frmExplorer"
-      SERVERKEY: ~
-      SHORTCUT: 0
-      EDITIONDATE: 2020-03-26T11:09:17+03:00
+          call oRoot.AddProperty_Simple("customerId", customerId)
+          call oRoot.AddProperty_Simple("dataType", "accDedRef")
+        
+          while not qSel.eof
+            set oData = new JsonObject
+            set oLng = new JSonObject
+            set oLngName = new JSonObject
+            call oLngName.AddProperty_Simple("name", qSel.FieldByName("name").AsString)
+            call oLng.AddProperty_Object("ru", oLngName)
+            call oData.AddProperty_Simple("type", Trim(qSel.FieldByName("category").AsString))
+            call oData.AddProperty_Object("name", oLng)
+            call oBody.AddProperty_Object(qSel.FieldByName("typeId").AsString, oData)
+            qSel.Next
+          wend
+          call oRoot.AddProperty_Object("objData", oBody)
+          
+          if Transaction.InTransaction then
+            Transaction.Commit
+          end if
+        
+          JSON = oRoot.Json
+        
+        End Function
+        
+        sub bot_PrepareAccDed_RollBack(Transaction)
+          if Transaction.InTransaction then
+            Transaction.Rollback
+          end if
+        end sub
+        

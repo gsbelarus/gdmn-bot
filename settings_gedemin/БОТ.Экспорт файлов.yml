@@ -1,0 +1,268 @@
+%YAML 1.1
+--- 
+StructureVersion: "1.0"
+Properties: 
+  RUID: 1193786287_1320926323
+  Name: "БОТ.Экспорт файлов"
+  Caption: "БОТ.Экспорт файлов"
+  Version: "1.0.0.3"
+  Optional: False
+  Internal: True
+  MD5: 54CB34D875DF3FFA7A65DAB120876301
+Uses: 
+  - "147029090_1220419898 GS.Общие.Функции работы с json"
+Objects: 
+  - 
+    Properties: 
+      Class: "TgdcConst"
+      RUID: 1193786343_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "БОТ. Адрес сервера "
+      COMMENT: ~
+      CONSTTYPE: 0
+      DATATYPE: "S"
+      EDITIONDATE: 2020-03-31T12:16:25+03:00
+  - 
+    Properties: 
+      Class: "TgdcConst"
+      RUID: 1193786349_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "БОТ. ИД клиента"
+      COMMENT: ~
+      CONSTTYPE: 0
+      DATATYPE: "S"
+      EDITIONDATE: 2020-03-31T13:31:45+03:00
+  - 
+    Properties: 
+      Class: "TgdcExplorer"
+      RUID: 1193786363_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1193786365_1320926323
+    Fields: 
+      PARENT: "710000_17 Исследователь"
+      NAME: "Бот"
+      CLASSNAME: ~
+      CMD: "1193786363_1320926323"
+      CMDTYPE: 0
+      HOTKEY: ~
+      IMGINDEX: 138
+      ORDR: ~
+      SUBTYPE: ~
+      EDITIONDATE: 2020-03-31T13:54:25+03:00
+      DISABLED: 0
+  - 
+    Properties: 
+      Class: "TgdcExplorer"
+      RUID: 1193786365_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      PARENT: "1193786363_1320926323 Исследователь\\Бот"
+      NAME: "Экспорт видов начислений"
+      CLASSNAME: ~
+      CMD: "1193786366_1320926323"
+      CMDTYPE: 1
+      HOTKEY: ~
+      IMGINDEX: 174
+      ORDR: ~
+      SUBTYPE: ~
+      EDITIONDATE: 2020-03-31T14:33:55+03:00
+      DISABLED: 0
+  - 
+    Properties: 
+      Class: "TgdcExplorer"
+      RUID: 1193786368_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      PARENT: "1193786363_1320926323 Исследователь\\Бот"
+      NAME: "Экспорт расчетных листов"
+      CLASSNAME: ~
+      CMD: "1193786369_1320926323"
+      CMDTYPE: 1
+      HOTKEY: ~
+      IMGINDEX: 174
+      ORDR: ~
+      SUBTYPE: ~
+      EDITIONDATE: 2020-03-31T14:33:45+03:00
+      DISABLED: 0
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1193785048_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_SendFile"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: ~
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2020-03-26T09:13:58+03:00
+      DISPLAYSCRIPT: | 
+        BOT_SENDFILE
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QEAAAASlNPTgQAAABKU09OAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RQUlNU
+        AwAAAFVSTAMAAABVUkwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARk5TVEZMUFI=
+      SCRIPT: | 
+        Option Explicit
+        
+        ' Функция принимает на вход:
+        '   Json файл.
+        '   URL скрипта на сервере.
+        '
+        ' Данные передаются POST запросом.
+        ' Возвращает True, если файл успешно передан.
+        
+        Function bot_SendFile(JSON, URL)
+        
+         On Error Resume Next
+          dim oXMLHTTP
+          Set oXMLHTTP = CreateObject("MSXML2.XMLHTTP")
+          call oXMLHTTP.Open("POST", url, false)
+          call oXMLHTTP.setRequestHeader("Content-Type", "application/json")
+          on error resume next
+          call oXMLHTTP.Send(JSON)
+          on error goto 0
+        
+          If Err.Number <> 0 Then
+            MsgBox "Ошибка передачи файла " & Err.Message
+            bot_SendFile = False
+          Else
+            bot_SendFile = True
+          End If
+        
+        End Function
+        
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1193786369_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_exportPaySlips"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: ~
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2020-03-31T14:34:50+03:00
+      DISPLAYSCRIPT: | 
+        BOT_EXPORTPAYSLIPS
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAM/l8Oju5AAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
+        RkxQUg==
+      SCRIPT: | 
+        '#include BOT_SENDFILE
+        '#include BOT_PREPAREPAYSLIP
+        Option Explicit
+        Function bot_exportPaySlips(Period)
+          dim gdcConst, URL, idBase, Creator
+          set Creator = new TCreator
+          set gdcConst = Creator.GetObject(NULL, "TgdcConst", "")
+          URL = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786343_1320926323"))
+          idBase = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786349_1320926323"))
+        
+          dim JSON, i
+          call bot_PreparePaySlip (idBase, Period, JSON)
+          for i = 0 to UBound(JSON) - 1
+            bot_SendFile JSON(i), URL & "/upload"
+          next
+        End Function
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1193785048_1320926323 bot_SendFile"
+          - 
+            ADDFUNCTIONKEY: "1193785764_1320926323 bot_PreparePaySlip"
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1193786366_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_exportAccDeds"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: ~
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2020-03-31T14:37:36+03:00
+      DISPLAYSCRIPT: | 
+        BOT_EXPORTACCDEDS
+        
+      ENTEREDPARAMS: ~
+      SCRIPT: | 
+        '#include BOT_SENDFILE
+        '#include BOT_PREPAREACCDED
+        Function bot_exportAccDeds
+          dim gdcConst, URL, idBase, Creator
+          set Creator = new TCreator
+          set gdcConst = Creator.GetObject(NULL, "TgdcConst", "")
+          URL = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786343_1320926323"))
+          idBase = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786349_1320926323"))
+        
+          dim JSON
+          call bot_PrepareAccDed (idBase, JSON)
+          bot_SendFile JSON, URL & "/upload"
+        End Function
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1193785027_1320926323 bot_PrepareAccDed"
+          - 
+            ADDFUNCTIONKEY: "1193785048_1320926323 bot_SendFile"
