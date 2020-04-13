@@ -51,11 +51,11 @@ export const keyboardMenu: Menu = [
 export const keyboardSettings: Menu = [
   [
     { type: 'BUTTON', caption: 'Выбрать валюту', command: 'getCurrency' },
-    { type: 'BUTTON', caption: 'Еще что-нибудь', command: 'test' }
-  ],
-  [
     { type: 'BUTTON', caption: 'Меню', command: 'menu' }
-  ]
+   ],
+  // [
+  //   { type: 'BUTTON', caption: 'Меню', command: 'menu' }
+  // ]
 ];
 
 export const keyboardCalendar = (lng: Lang, year: number): Menu => {
@@ -416,14 +416,11 @@ export class Bot {
 
     if (link?.customerId && link.employeeId) {
       const { customerId, employeeId, currencyId } = link;
-      const rate = currencyId ? await getCurrRate(db, currencyId) : 1;
-      const currencyAbbreviation = currencyId ? getCurrencyAbbreviationById(currencyId) : 'BYN';
+      const rate = currencyId && currencyId !== '0' ? await getCurrRate(db, currencyId) : 1;
+      const currencyAbbreviation = currencyId && currencyId !== '0' ? getCurrencyAbbreviationById(currencyId) : 'BYN';
 
       if (!rate) {
-        return (`${'`'}${'`'}${'`'}ini
-  Повторите действие через несколько минут.
-  Выполняется загрузка курсов валют...
-          ${'`'}${'`'}${'`'}`)
+        return ('Курс валюты не был загружен')
       }
 
       let empls = this.getEmployeesByCustomer(customerId);
@@ -615,7 +612,7 @@ export class Bot {
 
     const dialogState = this._dialogStates.read(chatId);
 
-    if (message === 'login' || message === 'settings' || message === 'getCurrency' || message === 'paySlip'
+    if (message === 'login' || message === 'logout' || message === 'settings' || message === 'getCurrency' || message === 'paySlip'
       || message === 'detailPaySlip' || message === 'concisePaySlip' || message === 'comparePaySlip' || message === 'menu') {
       return
     }
@@ -669,13 +666,10 @@ export class Bot {
 
     if (!link) {
       const dialogState = this._dialogStates.read(chatId);
-
-      if (dialogState?.type !== 'INITIAL') {
-        this.dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() });
-        this.sendMessage(chatId,
-          'Приветствуем! Для получения информации о заработной плате необходимо зарегистрироваться в системе.',
-          keyboardLogin);
-      }
+      this.dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() });
+      this.sendMessage(chatId,
+        'Приветствуем! Для получения информации о заработной плате необходимо зарегистрироваться в системе.',
+        keyboardLogin);
     } else {
       this.dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() });
       this.sendMessage(chatId,
