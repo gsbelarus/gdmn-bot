@@ -5,10 +5,10 @@ Properties:
   RUID: 1193786287_1320926323
   Name: "БОТ.Экспорт файлов"
   Caption: "БОТ.Экспорт файлов"
-  Version: "1.0.0.3"
+  Version: "1.0.0.6"
   Optional: False
   Internal: True
-  MD5: 54CB34D875DF3FFA7A65DAB120876301
+  MD5: 26016F2AA948451B3056CEF162411A19
 Uses: 
   - "147029090_1220419898 GS.Общие.Функции работы с json"
 Objects: 
@@ -266,3 +266,218 @@ Objects:
             ADDFUNCTIONKEY: "1193785027_1320926323 bot_PrepareAccDed"
           - 
             ADDFUNCTIONKEY: "1193785048_1320926323 bot_SendFile"
+  - 
+    Properties: 
+      Class: "TgdcReportGroup"
+      RUID: 147023060_918566284
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1193785045_1320926323
+    Fields: 
+      PARENT: ~
+      NAME: "Отчеты(gdc_frmExplorer)11"
+      DESCRIPTION: ~
+      USERGROUPNAME: "147023060_781234916"
+      EDITIONDATE: 2000-01-01T00:00:00+03:00
+  - 
+    Properties: 
+      Class: "TgdcMacrosGroup"
+      RUID: 147023059_918566284
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1193785045_1320926323
+    Fields: 
+      PARENT: ~
+      NAME: "Локальные макросы"
+      CLASSNAME: ""
+      ISGLOBAL: 0
+      OBJECTNAME: "gdc_frmExplorer"
+      OBJECTPARENT: ~
+      SUBTYPE: ""
+      EDITIONDATE: 2007-11-19T18:34:29+03:00
+      DESCRIPTION: ~
+  - 
+    Properties: 
+      Class: "TgdcDelphiObject"
+      RUID: 147002113_781234916
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1193785045_1320926323
+    Fields: 
+      PARENT: ~
+      NAME: "gdc_frmExplorer"
+      CLASSNAME: ""
+      DESCRIPTION: ~
+      MACROSGROUPKEY: "147023059_918566284 Локальные макросы"
+      OBJECTNAME: "gdc_frmExplorer"
+      OBJECTTYPE: 0
+      REPORTGROUPKEY: "147023060_918566284 Отчеты(gdc_frmExplorer)11"
+      SUBTYPE: ""
+      EDITIONDATE: 2007-03-28T11:31:02+03:00
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1193785047_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1193785045_1320926323
+    Fields: 
+      NAME: "Macros1193785047_1320926323"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: ~
+      MODULE: "MACROS"
+      MODULECODE: "147002113_781234916 gdc_frmExplorer"
+      OBJECTNAME: "gdc_frmExplorer"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2020-04-14T11:31:54+03:00
+      DISPLAYSCRIPT: | 
+        MACROS1193785047_1320926323
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QJAAAAT1dORVJGT1JNCQAAAE9XTkVSRk9STQAAAAAAAAAAAAAAAAsAAAAAAAAAAAAA
+        AABGTlNURkxQUg==
+      SCRIPT: | 
+        '#include BOT_SENDFILE
+        '#include BOT_PREPAREACCDED
+        Option Explicit
+        Sub Macros1193785047_1320926323(OwnerForm)
+          dim gdcConst, URL, idBase, Creator
+          set Creator = new TCreator
+          set gdcConst = Creator.GetObject(NULL, "TgdcConst", "")
+          URL = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786343_1320926323"))
+          if URL = "" then
+            call Exception.Raise("Exception", "Не указана константа 'БОТ. Адрес сервера'. Экспорт не будет выполнен!")
+          end if
+          idBase = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786349_1320926323"))
+          if idBase = "" then
+            call Exception.Raise("Exception", "Не указана константа 'БОТ. ИД клиента'. Экспорт не будет выполнен!")
+          end if
+        
+          dim JSON
+          call bot_PrepareAccDed (idBase, JSON)
+          bot_SendFile JSON, URL & "/upload"
+        End Sub
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1193785048_1320926323 bot_SendFile"
+          - 
+            ADDFUNCTIONKEY: "1193785027_1320926323 bot_PrepareAccDed"
+  - 
+    Properties: 
+      Class: "TgdcMacros"
+      RUID: 1193785045_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "Бот. Экспорт видов начислений"
+      DISPLAYINMENU: 1
+      EXECUTEDATE: ~
+      FUNCTIONKEY: "1193785047_1320926323 Macros1193785047_1320926323"
+      ISLOCALEXECUTE: 0
+      ISREBUILD: 0
+      MACROSGROUPKEY: "147023059_918566284 Локальные макросы"
+      OBJECTNAME: "gdc_frmExplorer"
+      SERVERKEY: ~
+      SHORTCUT: 0
+      EDITIONDATE: 2020-04-14T11:31:55+03:00
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1193785777_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1193785775_1320926323
+    Fields: 
+      NAME: "Macros1193785047_13209263231193785777_1320926323"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: ~
+      MODULE: "MACROS"
+      MODULECODE: "147002113_781234916 gdc_frmExplorer"
+      OBJECTNAME: "gdc_frmExplorer"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2020-04-14T11:32:06+03:00
+      DISPLAYSCRIPT: | 
+        MACROS1193785047_13209263231193785777_1320926323
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAM/l8Oju5AAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
+        RkxQUg==
+      SCRIPT: | 
+        '#include BOT_PREPAREPAYSLIP
+        '#include BOT_SENDFILE
+        Option Explicit
+        Sub Macros1193785047_13209263231193785777_1320926323(Period)
+          dim gdcConst, URL, idBase, Creator
+          set Creator = new TCreator
+          set gdcConst = Creator.GetObject(NULL, "TgdcConst", "")
+          URL = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786343_1320926323"))
+          if URL = "" then
+            call Exception.Raise("Exception", "Не указана константа 'БОТ. Адрес сервера'. Экспорт не будет выполнен!")
+          end if
+          idBase = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786349_1320926323"))
+          if idBase = "" then
+            call Exception.Raise("Exception", "Не указана константа 'БОТ. ИД клиента'. Экспорт не будет выполнен!")
+          end if
+        
+          dim JSON, i
+          call bot_PreparePaySlip (idBase, Period, JSON)
+          for i = 0 to UBound(JSON) - 1
+            bot_SendFile JSON(i), URL & "/upload"
+          next
+        End Sub
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1193785764_1320926323 bot_PreparePaySlip"
+          - 
+            ADDFUNCTIONKEY: "1193785048_1320926323 bot_SendFile"
+  - 
+    Properties: 
+      Class: "TgdcMacros"
+      RUID: 1193785775_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "Бот. Экспорт расчетных листов"
+      DISPLAYINMENU: 1
+      EXECUTEDATE: ~
+      FUNCTIONKEY: "1193785777_1320926323 Macros1193785047_13209263231193785777_1320926323"
+      ISLOCALEXECUTE: 0
+      ISREBUILD: 0
+      MACROSGROUPKEY: "147023059_918566284 Локальные макросы"
+      OBJECTNAME: "gdc_frmExplorer"
+      SERVERKEY: ~
+      SHORTCUT: 0
+      EDITIONDATE: 2020-04-14T11:32:06+03:00

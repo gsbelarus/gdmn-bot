@@ -62,10 +62,17 @@ server.listen(3000, async () => {
 })
 
 //https.createServer(config.https.options, serverCallback).listen(config.https.port);
+const telegramBotToken = process.env.GDMN_TELEGRAM_BOT_TOKEN;
+const viberBotToken = process.env.GDMN_VIBER_BOT_TOKEN;
 
-if (typeof process.env.GDMN_BOT_TOKEN !== 'string') {
-  throw new Error('GDMN_BOT_TOKEN env variable is not specified.');
+if (typeof telegramBotToken !== 'string') {
+  throw new Error('GDMN_TELEGRAM_BOT_TOKEN env variable is not specified.');
 }
+
+if (typeof viberBotToken !== 'string') {
+  throw new Error('GDMN_VIBER_BOT_TOKEN env variable is not specified.');
+}
+
 
 const getCustomers = (): ICustomers => {
   return customers.getMutable(false);
@@ -98,21 +105,17 @@ const getAccDeds = (customerId: string): IData<IAccDed> => {
   return accDed.getMutable(false);
 };
 
-const botToken = process.env.GDMN_BOT_TOKEN;
-
-const viberToken = '4b3e05a56367d074-9b93ed160b5ebc92-c3aeed25f53c282'
-
 initCurrencies()
   .then( () => {
     const telegram = new TelegramBot(
-      botToken,
+      telegramBotToken,
       getCustomers,
       getEmployeesByCustomer,
       getAccDeds,
       getPaySlipByUser);
 
     const viber = new Viber(
-      viberToken,
+      viberBotToken,
       getCustomers,
       getEmployeesByCustomer,
       getAccDeds,

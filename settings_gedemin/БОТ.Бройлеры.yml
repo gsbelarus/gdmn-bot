@@ -5,10 +5,10 @@ Properties:
   RUID: 1193786357_1320926323
   Name: "БОТ.Бройлеры"
   Caption: "БОТ.Бройлеры"
-  Version: "1.0.0.3"
+  Version: "1.0.0.5"
   Optional: False
   Internal: True
-  MD5: 4E9E5C317856C705D4380C6F8948696E
+  MD5: 1F8078903541DF094EEDBC5A65CCB1F6
 Uses: 
   - "1193786287_1320926323 БОТ.Экспорт файлов"
 Objects: 
@@ -463,3 +463,22 @@ Objects:
           end if
         end sub
         
+  - 
+    Properties: 
+      Class: "TgdcConstValue"
+      RUID: 1193786350_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      COMPANYKEY: ~
+      COMPANYNAME: ~
+      CONSTDATE: ~
+      CONSTKEY: "1193786349_1320926323 БОТ. ИД клиента"
+      CONSTNAME: "БОТ. ИД клиента"
+      CONSTTYPE: 0
+      CONSTVALUE: "brl"
+      DATATYPE: "S"
+      USERKEY: ~
+      USERNAME: ~
+      EDITIONDATE: 2020-03-31T12:41:45+03:00

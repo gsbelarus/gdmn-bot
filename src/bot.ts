@@ -573,10 +573,10 @@ export class Bot {
       this.loginDialog(chatId, message);
     } else if (dialogState?.type === 'LOGGED_IN' && message === 'организации') {
       //Почему здесь было reply?
-      this.sendMessage(chatId, Object.values(this.getCustomers()).map(c => c.name).join(', '));
-      this.sendMessage(chatId, chatId);
-      fromId && this.sendMessage(chatId, fromId);
-      fromUserName && this.sendMessage(chatId, fromUserName);
+      this.sendMessage(chatId, Object.values(this.getCustomers()).map(c => c.name).join(', '), keyboardMenu);
+      //this.sendMessage(chatId, chatId);
+      //fromId && this.sendMessage(chatId, fromId);
+      //fromUserName && this.sendMessage(chatId, fromUserName);
     } else if (dialogState?.type === 'INITIAL') {
       this.sendMessage(chatId,
         'Для получения информации о заработной плате необходимо зарегистрироваться в системе.',

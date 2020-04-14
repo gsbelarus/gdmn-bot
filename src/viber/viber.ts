@@ -23,7 +23,7 @@ export class Viber extends Bot {
 
     this._bot = new ViberBot({
       authToken: token,
-      name: 'GDMN Bot',
+      name: 'Моя зарплата',
       avatar: ''
     });
 
