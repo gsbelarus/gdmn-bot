@@ -11,7 +11,6 @@
  *
  */
 
-import fs from 'fs';
 import path from 'path';
 import { Lang, LName } from './types';
 import { FileDB, IData } from './util/fileDB';
