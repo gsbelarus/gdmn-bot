@@ -104,6 +104,7 @@ dist
 .tern-port
 
 /data/*.json
+/data/**/*.json
 /**/*.pem
 /**/*.pfx
 

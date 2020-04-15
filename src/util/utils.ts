@@ -54,7 +54,7 @@ export function getYears(fromDate: Date, toDate: Date): number[] {
   let fromYear = fromDate.getFullYear();
   let toYear = toDate.getFullYear();
   while (fromYear <= toYear) {
-    years.push(fromDate.getFullYear());
+    years.push(fromYear);
     fromYear = fromYear + 1;
   }
   return years;

@@ -12,7 +12,6 @@ export interface IEmployee {
   lastName: string;
   patrName: string;
   passportId: string;
-  tabNumber: string;
 };
 
 export interface IAccountLink {
@@ -128,8 +127,6 @@ export const monthList: LName[] = ['янв', 'фев', 'мар', 'апр', 'ма
 
 export type ICustomers = IData<Omit<ICustomer, 'id'>>
 export type IEmploeeByCustomer = IData<Omit<IEmployee, 'id'>>
-
-
 
 export const addName = {
   'days': { ru: { name: 'дн' }},

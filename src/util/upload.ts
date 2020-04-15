@@ -1,6 +1,6 @@
-import { customerAccDeds, paySlips } from "../server";
+import { customerAccDeds, paySlips, employeesByCustomer } from "../server";
 import { FileDB } from "./fileDB";
-import { IAccDed, IPaySlip } from "../types";
+import { IAccDed, IPaySlip, IEmployee } from "../types";
 import path from 'path';
 
 export const upload = (ctx: any) => {
@@ -13,16 +13,32 @@ export const upload = (ctx: any) => {
       if (!customerAccDed) {
         customerAccDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip.${customerId}/accdedref.json`), {});
         customerAccDeds[customerId] = customerAccDed;
-      } else {
-        //customerAccDed.clear;
       }
-      customerAccDed.clear;
+      customerAccDed.clear();
 
       for (const [key, value] of Object.entries(objData)) {
         customerAccDed.write(key, value as any);
       }
 
       customerAccDed.flush();
+      break;
+    }
+    //Если тип загружаемых данных - Сотрудники
+    case 'employees': {
+      let employee = employeesByCustomer[customerId];
+
+      if (!employee) {
+        employee = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/employee.${customerId}.json`), {});
+        employeesByCustomer[customerId] = employee;
+      }
+      employee.clear();
+
+      for (const [key, value] of Object.entries(objData)) {
+
+        employee.write(key, value as any);
+      }
+
+      employee.flush();
       break;
     }
     //Если тип загружаемых данных - Расчетные листки по сотрудникам в разрезе года
@@ -38,7 +54,7 @@ export const upload = (ctx: any) => {
           paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip.${customerId}/${year}/payslip.${customerId}.${employeeId}.${year}.json`), {});
           paySlips[employeeId + '_' + year] = paySlip;
         } else {
-          paySlip.clear;
+          paySlip.clear();
         }
 
         paySlip.write('employeeId', value.employeeId);

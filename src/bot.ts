@@ -23,6 +23,8 @@ export type MenuItem = IMenuButton | IMenuLink;
 
 export type Menu = MenuItem[][];
 
+export type Template = [string, number?, boolean?][];
+
 const keyboardLogin: Menu = [
   [
     { type: 'BUTTON', caption: '✏ Зарегистрироваться', command: 'login' },
@@ -52,10 +54,7 @@ export const keyboardSettings: Menu = [
   [
     { type: 'BUTTON', caption: 'Выбрать валюту', command: 'getCurrency' },
     { type: 'BUTTON', caption: 'Меню', command: 'menu' }
-   ],
-  // [
-  //   { type: 'BUTTON', caption: 'Меню', command: 'menu' }
-  // ]
+   ]
 ];
 
 export const keyboardCalendar = (lng: Lang, year: number): Menu => {
@@ -88,7 +87,6 @@ export const separateCallBackData = (data: string) => {
 }
 
 export class Bot {
-
   private _accountLink: FileDB<IAccountLink>;
   private _dialogStates: FileDB<DialogState>;
   private getCustomers: () => ICustomers;
@@ -186,12 +184,9 @@ export class Bot {
       else if (!employee.passportId) {
         employee.passportId = text;
       }
-      else if (!employee.tabNumber) {
-        employee.tabNumber = text;
-      }
     }
 
-    if (employee.tabNumber && employee.customerId) {
+    if (employee.passportId && employee.customerId) {
       let employees = this.getEmployeesByCustomer(employee.customerId);
 
       const found = employees ? Object.entries(employees).find(
@@ -203,8 +198,6 @@ export class Bot {
           normalizeStr(e.patrName) === employee.patrName
           &&
           normalizeStr(e.passportId) === employee.passportId
-          &&
-          normalizeStr(e.tabNumber) === employee.tabNumber
       )
         : undefined;
 
@@ -229,7 +222,6 @@ export class Bot {
   Фамилия: ${employee.lastName}
   Отчество: ${employee.patrName}
   Идентификационный номер: ${employee.passportId}
-  Табельный номер: ${employee.tabNumber}
   `, keyboardLogin);
 
         this._dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() }, ['employee']);
@@ -249,9 +241,6 @@ export class Bot {
       }
       else if (!employee.passportId) {
         this.sendMessage(chatId, 'Введите идентификационный номер из паспорта:');
-      }
-      else if (!employee.tabNumber) {
-        this.sendMessage(chatId, 'Введите табельный номер из расчетного листка:');
       }
     }
   }
@@ -318,7 +307,13 @@ export class Bot {
           await this.sendMessage(chatId, de.toLocaleDateString());
           this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), de });
           const cListok = await this.getPaySlip(chatId, 'CONCISE', lng, db, de);
-          cListok && this.sendMessage(chatId, cListok, keyboardMenu, true);
+          if (cListok !== '') {
+            await this.sendMessage(chatId, cListok, keyboardMenu, true);
+          } else {
+            await this.sendMessage(chatId,
+              `Нет данных для расчетного листка 🤔`,
+              keyboardMenu);
+          }
         }
       }
     }
@@ -367,7 +362,13 @@ export class Bot {
           await this.sendMessage(chatId, de.toLocaleDateString());
           this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDe: de });
           const cListok = await this.getPaySlip(chatId, 'COMPARE', lng, fromDb, fromDe, toDb, de);
-          cListok && this.sendMessage(chatId, cListok, keyboardMenu, true);
+          if (cListok !== '') {
+            await this.sendMessage(chatId, cListok, keyboardMenu, true);
+          } else {
+            await this.sendMessage(chatId,
+              `Нет данных для расчетного листка 🤔`,
+              keyboardMenu);
+          }
         }
       }
     }
@@ -401,17 +402,15 @@ export class Bot {
     }
   }
 
-  paySlipView(typePaySlip: ITypePaySlip, db: Date, de: Date, dbMonthName: string, rate: number, deptName: string, posName: string, currencyAbbreviation: string,
-    accrual: number[], advance: number[], ded: number[], allTaxes: number[], tax_ded: number[], privilage: number[], salary: number[], saldo: number[], incomeTax: number[], pensionTax: number[], tradeUnionTax: number[],
-    strAccruals: string, strAdvances: string, strDeductions: string, strTaxes: string, strTaxDeds: string, strPrivilages: string, toDb?: Date, toDe?: Date) {
-
+  paySlipView(template: Template, rate: number): string {
+    return ''
   }
 
   getPaySlipString(prevStr: string, name: string, s: number) {
     return `${prevStr}${prevStr !== '' ? '\r\n' : ''}${name}\r\n=${s}`
   }
 
-  async getPaySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date) {
+  async getPaySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date): Promise<string> {
     const link = this._accountLink.read(chatId);
 
     if (link?.customerId && link.employeeId) {
@@ -440,6 +439,7 @@ export class Bot {
         let deptName = '';
         let posName = '';
         const dbMonthName = db.toLocaleDateString(lng, { month: 'long', year: 'numeric' });
+        let isHavingData = false;
 
         /** Получить информацию по расчетным листкам за период*/
         const getAccDedsByPeriod = (fromDb: Date, fromDe: Date, i: number) => {
@@ -450,9 +450,7 @@ export class Bot {
             let paySlip = this.getPaySlipByUser(customerId, passportId, year);
 
             if (!paySlip || Object.keys(paySlip).length === 0) {
-              this.sendMessage(chatId,
-                `Нет расчетного листка за период ${fromDb.toLocaleDateString()} - ${fromDe.toLocaleDateString()}!`,
-                keyboardMenu);
+              continue;
             } else {
 
               deptName = getLName(paySlip.deptName as LName, [lng, 'ru']);
@@ -460,6 +458,7 @@ export class Bot {
 
               for (const [key, value] of Object.entries(paySlip.data) as any) {
                 if (new Date(value?.dateBegin) >= fromDb && new Date(value?.dateEnd) <= fromDe || new Date(value?.date) >= fromDb && new Date(value?.date) <= fromDe) {
+                  isHavingData = true;
                   if (value.typeId === 'saldo') {
                     saldo[i] = saldo[i] + value.s;
                   } else if (value.typeId === 'salary') {
@@ -539,19 +538,149 @@ export class Bot {
 
         //Данные по листку заносятся в массивы с индектом = 0
         getAccDedsByPeriod(db, de, 0);
-        const lenS = 8;
 
-        if (typePaySlip === 'COMPARE') {
-          if (toDb && toDe) {
-            getAccDedsByPeriod(toDb, toDe, 1);
+        if (isHavingData || typePaySlip === 'COMPARE') {
+          let template: [string, number?, boolean?][] = [];
+          const emplName = `${empls[employeeId].lastName} ${empls[employeeId].firstName.slice(0, 1)}. ${empls[employeeId].patrName.slice(0, 1)}.`;
+
+          switch (typePaySlip) {
+            case 'DETAIL': {
+            /**
+             * Массив массивов следущего типа:
+             * Один элемент -- просто строка.
+             * Два элемента: строка и число. Название параметра и его значение.
+             * Три элемента: строка, число, true. Название параметра и значение. Будет пересчитано по курсу.
+             */
+              template = [
+                ['Расчетный листок'],
+                [emplName],
+                [`Период: ${dbMonthName}`],
+                ['Начисления:', accrual[0], true],
+                ['==============================='],
+                [strAccruals],
+                ['==============================='],
+                ['Аванс:', advance[0], true],
+                ['==============================='],
+                [strAdvances],
+                ['==============================='],
+                ['Удержания:', ded[0], true],
+                ['==============================='],
+                [strDeductions],
+                ['==============================='],
+                ['Налоги:', allTaxes[0], true],
+                ['==============================='],
+                [strTaxes],
+                ['==============================='],
+                ['Вычеты:', tax_ded[0], true],
+                ['==============================='],
+                [strTaxDeds],
+                ['==============================='],
+                ['Льготы:', privilage[0], true],
+                ['==============================='],
+                [strPrivilages],
+                ['==============================='],
+                ['Подразделение:'],
+                [deptName],
+                ['Должность:'],
+                [posName],
+                ['Оклад:', salary[0], true],
+                [`Валюта: ${currencyAbbreviation}`],
+              ];
+              break;
+            }
+            case 'CONCISE': {
+              const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `${db.toLocaleDateString()}-${de.toLocaleDateString()}` : `${dbMonthName}`;
+              template = [
+                ['Расчетный листок'],
+                [emplName],
+                [`Период: ${m}`],
+                ['Начислено:', accrual[0], true],
+                ['==============================='],
+                ['Зарплата чистыми:', getSumByRate(accrual[0], rate) - allTaxes[0]],
+                ['Аванс:', advance[0], true],
+                ['К выдаче:', saldo[0], true],
+                ['Удержания:', ded[0], true],
+                ['==============================='],
+                ['Налоги:', allTaxes[0]],
+                ['Подоходный:', incomeTax[0], true],
+                ['Пенсионный:', pensionTax[0], true],
+                ['Профсоюзный:', tradeUnionTax[0], true],
+                ['==============================='],
+                ['Подразделение:'],
+                [deptName],
+                ['Должность:'],
+                [posName],
+                ['Оклад:', salary[0], true],
+                [`Валюта: ${currencyAbbreviation}`]
+              ];
+              break;
+            }
+            case 'COMPARE': {
+              if (toDb && toDe) {
+                //Данные по листку за второй период заносятся в массивы с индектом = 1
+                getAccDedsByPeriod(toDb, toDe, 1);
+                if (!isHavingData) {
+                  return ''
+                };
+                template = [
+                  ['Сравнение расчетных листков'],
+                  [emplName],
+                  [`Период I: ${db.toLocaleDateString()}-${de.toLocaleDateString()}`],
+                  [`Период II: ${toDb.toLocaleDateString()}-${toDe.toLocaleDateString()}`],
+                  ['==============================='],
+                  ['Начислено I:', accrual[0], true],
+                  ['Начислено II:', accrual[1], true],
+                  ['', (getSumByRate(accrual[1], rate) - getSumByRate(accrual[0], rate))],
+                  ['==============================='],
+                  ['Зарплата чистыми I:', getSumByRate(accrual[0], rate) - allTaxes[0]],
+                  ['Зарплата чистыми II:', getSumByRate(accrual[1], rate) - allTaxes[1]],
+                  ['', getSumByRate(accrual[1], rate) - allTaxes[1] - (getSumByRate(accrual[0], rate) - allTaxes[0])],
+                  ['Аванс I:', advance[0], true],
+                  ['Аванс II:', advance[1], true],
+                  ['', getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)],
+                  ['К выдаче I:', saldo[0], true],
+                  ['К выдаче II:', saldo[1], true],
+                  ['', getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)],
+                  ['Удержания I:', ded[0], true],
+                  ['Удержания II:', ded[1], true],
+                  ['', getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate)],
+                  ['==============================='],
+                  ['Налоги I:', allTaxes[0], true],
+                  ['Налоги II:', allTaxes[1], true],
+                  ['', allTaxes[1] - allTaxes[0]],
+                  ['Подоходный I:', incomeTax[0], true],
+                  ['Подоходный II:', incomeTax[1], true],
+                  ['', getSumByRate(incomeTax[1], rate) - getSumByRate(incomeTax[0], rate)],
+                  ['Пенсионный I:', pensionTax[0], true],
+                  ['Пенсионный II:', pensionTax[1], true],
+                  ['', getSumByRate(pensionTax[1], rate) - getSumByRate(pensionTax[0], rate)],
+                  ['Профсоюзный I:', tradeUnionTax[0], true],
+                  ['Профсоюзный II:', tradeUnionTax[1], true],
+                  ['', getSumByRate(tradeUnionTax[1], rate) - getSumByRate(tradeUnionTax[0], rate)],
+                  ['==============================='],
+                  ['Подразделение:'],
+                  [deptName],
+                  ['Должность:'],
+                  [posName],
+                  ['Оклад I:', salary[0], true],
+                  ['Оклад II:', salary[1], true],
+                  ['', getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)],
+                  [`Валюта: ${currencyAbbreviation}`]
+                ]
+                break;
+              }
+            }
           }
+          if (currencyId && currencyId !== '0') {
+            template = [...template, [`Курс на ${db.toLocaleDateString()}:`, rate]]
+          }
+          return this.paySlipView(template, rate)
+        } else {
+          return ''
         }
-        return this.paySlipView(typePaySlip, db, de, dbMonthName, rate, deptName, posName, currencyAbbreviation,
-          accrual, advance, ded, allTaxes, tax_ded, privilage, salary, saldo, incomeTax, pensionTax, tradeUnionTax,
-          strAccruals, strAdvances, strDeductions, strTaxes, strTaxDeds, strPrivilages, toDb, toDe)
       }
      }
-    return undefined
+    return ''
   }
 
   /**
@@ -572,11 +701,7 @@ export class Bot {
     if (dialogState?.type === 'LOGGING_IN') {
       this.loginDialog(chatId, message);
     } else if (dialogState?.type === 'LOGGED_IN' && message === 'организации') {
-      //Почему здесь было reply?
       this.sendMessage(chatId, Object.values(this.getCustomers()).map(c => c.name).join(', '), keyboardMenu);
-      //this.sendMessage(chatId, chatId);
-      //fromId && this.sendMessage(chatId, fromId);
-      //fromUserName && this.sendMessage(chatId, fromUserName);
     } else if (dialogState?.type === 'INITIAL') {
       this.sendMessage(chatId,
         'Для получения информации о заработной плате необходимо зарегистрироваться в системе.',
@@ -613,7 +738,6 @@ export class Bot {
     console.log('start');
 
     if (!link) {
-      const dialogState = this._dialogStates.read(chatId);
       this.dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() });
       this.sendMessage(chatId,
         'Приветствуем! ' + startMessage,
@@ -642,8 +766,25 @@ export class Bot {
   }
 
   async paySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date) {
-    const cListok = await this.getPaySlip(chatId, typePaySlip, lng, db, de);
-    cListok && this.sendMessage(chatId, cListok, keyboardMenu, true);
+    let dBegin = db;
+    let dEnd = de;
+    while (true) {
+      const cListok = await this.getPaySlip(chatId, typePaySlip, lng, db, de);
+      if (cListok !== '') {
+        await this.sendMessage(chatId, cListok, keyboardMenu, true);
+        break;
+      }
+      dEnd.setMonth(dBegin.getMonth());
+      dEnd.setDate(0);
+      dBegin.setMonth(dBegin.getMonth() - 1);
+
+      if (dBegin.getTime() < new Date(2018, 0, 1).getTime()) {
+        await this.sendMessage(chatId,
+          `Нет данных для расчетного листка 🤔`,
+          keyboardMenu);
+        break;
+      }
+    }
   }
 
   /**

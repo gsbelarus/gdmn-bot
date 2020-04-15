@@ -1,6 +1,6 @@
 import { Bot, Menu } from "../bot";
 import { getLanguage, getSumByRate } from "../util/utils";
-import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed, ITypePaySlip } from "../types";
+import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "../types";
 import { IData } from "../util/fileDB";
 
 const vb = require('viber-bot');
@@ -49,11 +49,6 @@ export class Viber extends Bot {
     });
 
     this._bot.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
-      console.log('start');
-      // if (isSubscribed) {
-      //   return;
-      // }
-
       if (!response?.userProfile) {
         console.error('Invalid chat context');
       } else {
@@ -104,9 +99,8 @@ export class Viber extends Bot {
         console.error('Invalid chat context');
       } else {
         const today = new Date();
-        //Для теста период апрель 2019, потом удалить, когда будут данные
-        const db = new Date(2019, 4, 1);
-        const de = new Date(2019, 5, 0);
+        const db = new Date(today.getFullYear(), today.getMonth(), 1);
+        const de = new Date(today.getFullYear(), today.getMonth() + 1, 0);
         this.paySlip(response.userProfile.id.toString(), 'CONCISE', getLanguage(response.userProfile.language), db, de);
       }
     });
@@ -116,9 +110,8 @@ export class Viber extends Bot {
         console.error('Invalid chat context');
       } else {
         const today = new Date();
-        //Для теста период апрель 2019, потом удалить, когда будут данные
-        const db = new Date(2019, 1, 1);
-        const de = new Date(2019, 2, 0);
+        const db = new Date(today.getFullYear(), today.getMonth(), 1);
+        const de = new Date(today.getFullYear(), today.getMonth() + 1, 0);
         this.paySlip(response.userProfile.id.toString(), 'DETAIL', getLanguage(response.userProfile.language), db, de);
       }
     });
@@ -228,119 +221,17 @@ export class Viber extends Bot {
   }
 
   getPaySlipString(prevStr: string, name: string, s: number) {
-    return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name}\r\n  =${s}`
+    return `${prevStr}${prevStr !== '' ? '\n' : ''}  ${name}\n  =${s}`
   }
 
-  paySlipView(typePaySlip: ITypePaySlip, db: Date, de: Date, dbMonthName: string, rate: number, deptName: string, posName: string, currencyAbbreviation: string,
-    accrual: number[], advance: number[], ded: number[], allTaxes: number[], tax_ded: number[], privilage: number[], salary: number[], saldo: number[], incomeTax: number[], pensionTax: number[], tradeUnionTax: number[],
-    strAccruals: string, strAdvances: string, strDeductions: string, strTaxes: string, strTaxDeds: string, strPrivilages: string, toDb?: Date, toDe?: Date) {
-    switch (typePaySlip) {
-      case 'DETAIL': {
-        return (
-`Расчетный листок
-Период: ${dbMonthName}
-Начисления: ${getSumByRate(accrual[0], rate).toFixed(2)}
-===========================
-${strAccruals}
-===========================
-Аванс: ${getSumByRate(advance[0], rate).toFixed(2)}
-===========================
-${strAdvances}
-===========================
-Удержания: ${getSumByRate(ded[0], rate).toFixed(2)}
-===========================
-${strDeductions}
-===========================
-Налоги: ${allTaxes[0].toFixed(2)}
-===========================
-${strTaxes}
-===========================
-Вычеты: ${getSumByRate(tax_ded[0], rate).toFixed(2)}
-===========================
-${strTaxDeds}
-===========================
-Льготы: ${getSumByRate(privilage[0], rate).toFixed(2)}
-===========================
-${strPrivilages}
-Подразделение:
-${deptName.toUpperCase()}
-Должность:
-${posName.toUpperCase()}
-Оклад: ${getSumByRate(salary[0], rate).toFixed(2)}
-Валюта: ${currencyAbbreviation}`)
-      }
-      case 'CONCISE': {
-        const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `${db.toLocaleDateString()}-${de.toLocaleDateString()}` : `${dbMonthName}`;
-        return (
-`Расчетный листок
-Период: ${m}
-Начислено: ${getSumByRate(accrual[0], rate).toFixed(2)}
-===========================
-Зарплата чистыми: ${(getSumByRate(accrual[0], rate) - allTaxes[0]).toFixed(2)}
-Аванс: ${getSumByRate(advance[0], rate).toFixed(2)}
-К выдаче: ${getSumByRate(saldo[0], rate).toFixed(2)}
-Удержания: ${getSumByRate(ded[0], rate).toFixed(2)}
-===========================
-Налоги: ${allTaxes[0].toFixed(2)}
-Подоходный: ${getSumByRate(incomeTax[0], rate).toFixed(2)}
-Пенсионный: ${getSumByRate(pensionTax[0], rate).toFixed(2)}
-Профсоюзный: ${getSumByRate(tradeUnionTax[0], rate).toFixed(2)}
-===========================
-Подразделение:
-${deptName}
-Должность:
-${posName}
-Оклад: ${getSumByRate(salary[0], rate).toFixed(2)}
-Валюта: ${currencyAbbreviation}`);
-      }
-      case 'COMPARE': {
-        if (toDb && toDe) {
-          return (
-`Сравнение расчетных листков
-Период I: ${db.toLocaleDateString()}-${de.toLocaleDateString()}
-Период II: ${toDb.toLocaleDateString()}-${toDe.toLocaleDateString()}
-
-Начислено I: ${getSumByRate(accrual[0], rate).toFixed(2)}
-Начислено II:${getSumByRate(accrual[1], rate).toFixed(2)}
-Разница: ${(getSumByRate(accrual[1], rate) - getSumByRate(accrual[0], rate)).toFixed(2)}
-===========================
-Зарплата чистыми I: ${(getSumByRate(accrual[0], rate) - allTaxes[0]).toFixed(2)}
-Зарплата чистыми II: ${(getSumByRate(accrual[1], rate) - allTaxes[1]).toFixed(2)}
-Разница: ${(getSumByRate(accrual[1], rate) - allTaxes[1] - (getSumByRate(accrual[0], rate) - allTaxes[0])).toFixed(2)}
-Аванс I: ${getSumByRate(advance[0], rate).toFixed(2)}
-Аванс II: ${getSumByRate(advance[1], rate).toFixed(2)}
-Разница: ${(getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)).toFixed(2)}
-К выдаче I: ${getSumByRate(saldo[0], rate).toFixed(2)}
-К выдаче II:${getSumByRate(saldo[1], rate).toFixed(2)}
-Разница: ${(getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)).toFixed(2)}
-Удержания I: ${getSumByRate(ded[0], rate).toFixed(2)}
-Удержания II:${getSumByRate(ded[1], rate).toFixed(2)}
-Разница: ${(getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate)).toFixed(2)}
-===========================
-Налоги I: ${allTaxes[0].toFixed(2)}
-Налоги II: ${allTaxes[1].toFixed(2)}
-Разница: ${(allTaxes[1] - allTaxes[0]).toFixed(2)}
-Подоходный I: ${getSumByRate(incomeTax[0], rate).toFixed(2)}
-Подоходный II:.${getSumByRate(incomeTax[1], rate).toFixed(2)}
-Разница: ${(getSumByRate(incomeTax[1], rate) - getSumByRate(incomeTax[0], rate)).toFixed(2)}
-Пенсионный I: ${getSumByRate(pensionTax[0], rate).toFixed(2)}
-Пенсионный II: ${getSumByRate(pensionTax[1], rate).toFixed(2)}
-Разница: ${(getSumByRate(pensionTax[1], rate) - getSumByRate(pensionTax[0], rate)).toFixed(2)}
-Профсоюзный I: ${getSumByRate(tradeUnionTax[0], rate).toFixed(2)}
-Профсоюзный II:${getSumByRate(getSumByRate(tradeUnionTax[1], rate), rate).toFixed(2)}
-Разница: ${(getSumByRate(getSumByRate(tradeUnionTax[1], rate), rate) - getSumByRate(tradeUnionTax[0], rate)).toFixed(2)}
-===========================
-Подразделение:
-${deptName}
-Должность:
-${posName}
-Оклад I: ${getSumByRate(salary[0], rate).toFixed(2)}
-Оклад II: ${getSumByRate(salary[1], rate).toFixed(2)}
-Разница: ${(getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)).toFixed(2)}
-Валюта: ${currencyAbbreviation}`);
-        }
-      }
-    }
-    return;
+  paySlipView(template: [string, number?, boolean?][], rate: number) {
+    const res = template.map( t =>
+      t[1] === undefined
+      ? t[0]
+      : t[2] !== undefined
+      ? `${t[0] === '' ? 'Разница:' : t[0]}  ${getSumByRate(t[1], rate).toFixed(2)}`
+      : `${t[0] === '' ? 'Разница:' : t[0]}  ${t[1].toFixed(2)}`
+    ).join('\n');
+    return res;
   }
 };
