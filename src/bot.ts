@@ -4,7 +4,7 @@ import {
 } from "./types";
 import { FileDB, IData } from "./util/fileDB";
 import path from 'path';
-import { normalizeStr, getYears, getLName, getSumByRate } from "./util/utils";
+import { normalizeStr, getYears, getLName, getSumByRate, date2str, replaceIdentLetters } from "./util/utils";
 import { getCurrencyNameById, getCurrencyAbbreviationById, getCurrRate } from "./currency";
 
 export interface IMenuButton {
@@ -23,7 +23,7 @@ export type MenuItem = IMenuButton | IMenuLink;
 
 export type Menu = MenuItem[][];
 
-export type Template = [string, number?, boolean?][];
+export type Template = [string, number?, boolean?, boolean?][];
 
 const keyboardLogin: Menu = [
   [
@@ -69,7 +69,8 @@ export const keyboardCalendar = (lng: Lang, year: number): Menu => {
       { type: 'BUTTON', caption: '<', command: `prevYear;${year}` },
       { type: 'BUTTON', caption: `${year}`, command: `otherYear;${year}` },
       { type: 'BUTTON', caption: '>', command: `nextYear;${year}` }
-    ]]);
+    ]])
+    .concat([[{ type: 'BUTTON', caption: 'Меню', command: 'menu' }]]);
 };
 
 export const keyboardCurrency = (lng: Lang): Menu => {
@@ -172,17 +173,17 @@ export class Bot {
           return;
         }
       }
-      else if (!employee.firstName) {
-        employee.firstName = text;
-      }
       else if (!employee.lastName) {
         employee.lastName = text;
+      }
+      else if (!employee.firstName) {
+        employee.firstName = text;
       }
       else if (!employee.patrName) {
         employee.patrName = text;
       }
       else if (!employee.passportId) {
-        employee.passportId = text;
+        employee.passportId = replaceIdentLetters(text);
       }
     }
 
@@ -191,13 +192,13 @@ export class Bot {
 
       const found = employees ? Object.entries(employees).find(
         ([_, e]) =>
-          normalizeStr(e.firstName) === employee.firstName
-          &&
           normalizeStr(e.lastName) === employee.lastName
+          &&
+          normalizeStr(e.firstName) === employee.firstName
           &&
           normalizeStr(e.patrName) === employee.patrName
           &&
-          normalizeStr(e.passportId) === employee.passportId
+         replaceIdentLetters(e.passportId) === employee.passportId
       )
         : undefined;
 
@@ -211,18 +212,17 @@ export class Bot {
         this.sendMessage(chatId, '🏁 Регистрация прошла успешно.', keyboardMenu);
       } else {
         this.sendMessage(chatId,
-          `
-  Сотрудник не найден в базе данных.
+`Сотрудник не найден в базе данных.
 
-  Обратитесь в отдел кадров или повторите регистрацию.
+Обратитесь в отдел кадров или повторите регистрацию.
 
-  Были введены следующие данные:
-  Предприятие: ${employee.customerId}
-  Имя: ${employee.firstName}
-  Фамилия: ${employee.lastName}
-  Отчество: ${employee.patrName}
-  Идентификационный номер: ${employee.passportId}
-  `, keyboardLogin);
+Были введены следующие данные:
+Предприятие: ${this.getCustomers()[employee.customerId].name}
+Фамилия: ${employee.lastName}
+Имя: ${employee.firstName}
+Отчество: ${employee.patrName}
+Идентификационный номер: ${employee.passportId}`,
+        keyboardLogin);
 
         this._dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() }, ['employee']);
       }
@@ -230,11 +230,11 @@ export class Bot {
       if (!employee.customerId) {
         this.sendMessage(chatId, 'Введите название предприятия:');
       }
-      else if (!employee.firstName) {
-        this.sendMessage(chatId, 'Введите имя:');
-      }
       else if (!employee.lastName) {
         this.sendMessage(chatId, 'Введите фамилию:');
+      }
+      else if (!employee.firstName) {
+        this.sendMessage(chatId, 'Введите имя:');
       }
       else if (!employee.patrName) {
         this.sendMessage(chatId, 'Введите отчество:');
@@ -295,8 +295,7 @@ export class Bot {
       if (!db) {
         const db = this.calendarSelection(chatId, queryData, lng);
         if (db) {
-          //await ctx.reply(db.toLocaleDateString());
-          await this.sendMessage(chatId, db.toLocaleDateString());
+          await this.sendMessage(chatId, date2str(db));
           this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db });
           await this.sendMessage(chatId, 'Укажите окончание периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
         }
@@ -304,7 +303,7 @@ export class Bot {
         let de = this.calendarSelection(chatId, queryData, lng);
         if (de) {
           de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
-          await this.sendMessage(chatId, de.toLocaleDateString());
+          await this.sendMessage(chatId, date2str(de));
           this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), de });
           const cListok = await this.getPaySlip(chatId, 'CONCISE', lng, db, de);
           if (cListok !== '') {
@@ -336,7 +335,7 @@ export class Bot {
       if (!fromDb) {
         const db = this.calendarSelection(chatId, queryData, lng);
         if (db) {
-          await this.sendMessage(chatId, db.toLocaleDateString());
+          await this.sendMessage(chatId, date2str(db));
           this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDb: db });
           await this.sendMessage(chatId, 'Укажите окончание первого периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
         }
@@ -344,14 +343,14 @@ export class Bot {
         let de = this.calendarSelection(chatId, queryData, lng);
         if (de) {
           de = new Date(de.getFullYear(), de.getMonth() + 1, 0);
-          await this.sendMessage(chatId, de.toLocaleDateString());
+          await this.sendMessage(chatId, date2str(de));
           this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDe: de });
           await this.sendMessage(chatId, 'Укажите начало второго периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
         }
       } else if (!toDb) {
         let db = this.calendarSelection(chatId, queryData, lng);
         if (db) {
-          await this.sendMessage(chatId, db.toLocaleDateString());
+          await this.sendMessage(chatId, date2str(db));
           this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDb: db });
           await this.sendMessage(chatId, 'Укажите окончание второго периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
         }
@@ -359,7 +358,7 @@ export class Bot {
         let de = this.calendarSelection(chatId, queryData, lng);
         if (de) {
           de = new Date(de.getFullYear(), de.getMonth() + 1, 0);
-          await this.sendMessage(chatId, de.toLocaleDateString());
+          await this.sendMessage(chatId, date2str(de));
           this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDe: de });
           const cListok = await this.getPaySlip(chatId, 'COMPARE', lng, fromDb, fromDe, toDb, de);
           if (cListok !== '') {
@@ -407,7 +406,7 @@ export class Bot {
   }
 
   getPaySlipString(prevStr: string, name: string, s: number) {
-    return `${prevStr}${prevStr !== '' ? '\r\n' : ''}${name}\r\n=${s}`
+    return `${prevStr}${prevStr !== '' ? '\r\n' : ''}${name}\r\n=${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s)}`
   }
 
   async getPaySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date): Promise<string> {
@@ -540,7 +539,7 @@ export class Bot {
         getAccDedsByPeriod(db, de, 0);
 
         if (isHavingData || typePaySlip === 'COMPARE') {
-          let template: [string, number?, boolean?][] = [];
+          let template: Template = [];
           const emplName = `${empls[employeeId].lastName} ${empls[employeeId].firstName.slice(0, 1)}. ${empls[employeeId].patrName.slice(0, 1)}.`;
 
           switch (typePaySlip) {
@@ -555,30 +554,18 @@ export class Bot {
                 ['Расчетный листок'],
                 [emplName],
                 [`Период: ${dbMonthName}`],
-                ['Начисления:', accrual[0], true],
-                ['==============================='],
-                [strAccruals],
-                ['==============================='],
-                ['Аванс:', advance[0], true],
-                ['==============================='],
-                [strAdvances],
-                ['==============================='],
-                ['Удержания:', ded[0], true],
-                ['==============================='],
-                [strDeductions],
-                ['==============================='],
-                ['Налоги:', allTaxes[0], true],
-                ['==============================='],
-                [strTaxes],
-                ['==============================='],
-                ['Вычеты:', tax_ded[0], true],
-                ['==============================='],
-                [strTaxDeds],
-                ['==============================='],
-                ['Льготы:', privilage[0], true],
-                ['==============================='],
-                [strPrivilages],
-                ['==============================='],
+                ['Начисления:', accrual[0], true, true],
+                [strAccruals,,, true],
+                ['Аванс:', advance[0], true, true],
+                [strAdvances,,, true],
+                ['Удержания:', ded[0], true, true],
+                [strDeductions,,, true],
+                ['Налоги:', allTaxes[0], true, true],
+                [strTaxes,,, true],
+                ['Вычеты:', tax_ded[0], true, true],
+                [strTaxDeds,,, true],
+                ['Льготы:', privilage[0], true, true],
+                [strPrivilages,,, true],
                 ['Подразделение:'],
                 [deptName],
                 ['Должность:'],
@@ -589,23 +576,20 @@ export class Bot {
               break;
             }
             case 'CONCISE': {
-              const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `${db.toLocaleDateString()}-${de.toLocaleDateString()}` : `${dbMonthName}`;
+              const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `${date2str(db)}-${date2str(de)}` : `${dbMonthName}`;
               template = [
                 ['Расчетный листок'],
                 [emplName],
                 [`Период: ${m}`],
-                ['Начислено:', accrual[0], true],
-                ['==============================='],
+                ['Начислено:', accrual[0], true, true],
                 ['Зарплата чистыми:', getSumByRate(accrual[0], rate) - allTaxes[0]],
                 ['Аванс:', advance[0], true],
                 ['К выдаче:', saldo[0], true],
-                ['Удержания:', ded[0], true],
-                ['==============================='],
+                ['Удержания:', ded[0], true, true],
                 ['Налоги:', allTaxes[0]],
                 ['Подоходный:', incomeTax[0], true],
                 ['Пенсионный:', pensionTax[0], true],
-                ['Профсоюзный:', tradeUnionTax[0], true],
-                ['==============================='],
+                ['Профсоюзный:', tradeUnionTax[0], true, true],
                 ['Подразделение:'],
                 [deptName],
                 ['Должность:'],
@@ -625,39 +609,35 @@ export class Bot {
                 template = [
                   ['Сравнение расчетных листков'],
                   [emplName],
-                  [`Период I: ${db.toLocaleDateString()}-${de.toLocaleDateString()}`],
-                  [`Период II: ${toDb.toLocaleDateString()}-${toDe.toLocaleDateString()}`],
-                  ['==============================='],
+                  [`Период I: ${date2str(db)}-${date2str(de)}`],
+                  [`Период II: ${date2str(toDb)}-${date2str(toDe)}`,,,true],
                   ['Начислено I:', accrual[0], true],
                   ['Начислено II:', accrual[1], true],
-                  ['', (getSumByRate(accrual[1], rate) - getSumByRate(accrual[0], rate))],
-                  ['==============================='],
+                  ['Разница:', (getSumByRate(accrual[1], rate) - getSumByRate(accrual[0], rate)),,true],
                   ['Зарплата чистыми I:', getSumByRate(accrual[0], rate) - allTaxes[0]],
                   ['Зарплата чистыми II:', getSumByRate(accrual[1], rate) - allTaxes[1]],
-                  ['', getSumByRate(accrual[1], rate) - allTaxes[1] - (getSumByRate(accrual[0], rate) - allTaxes[0])],
+                  ['Разница:', getSumByRate(accrual[1], rate) - allTaxes[1] - (getSumByRate(accrual[0], rate) - allTaxes[0])],
                   ['Аванс I:', advance[0], true],
                   ['Аванс II:', advance[1], true],
-                  ['', getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)],
+                  ['Разница:', getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)],
                   ['К выдаче I:', saldo[0], true],
                   ['К выдаче II:', saldo[1], true],
-                  ['', getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)],
+                  ['Разница:', getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)],
                   ['Удержания I:', ded[0], true],
                   ['Удержания II:', ded[1], true],
-                  ['', getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate)],
-                  ['==============================='],
+                  ['Разница:', getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate),,true],
                   ['Налоги I:', allTaxes[0], true],
                   ['Налоги II:', allTaxes[1], true],
-                  ['', allTaxes[1] - allTaxes[0]],
+                  ['Разница:', allTaxes[1] - allTaxes[0]],
                   ['Подоходный I:', incomeTax[0], true],
                   ['Подоходный II:', incomeTax[1], true],
-                  ['', getSumByRate(incomeTax[1], rate) - getSumByRate(incomeTax[0], rate)],
+                  ['Разница:', getSumByRate(incomeTax[1], rate) - getSumByRate(incomeTax[0], rate)],
                   ['Пенсионный I:', pensionTax[0], true],
                   ['Пенсионный II:', pensionTax[1], true],
-                  ['', getSumByRate(pensionTax[1], rate) - getSumByRate(pensionTax[0], rate)],
+                  ['Разница:', getSumByRate(pensionTax[1], rate) - getSumByRate(pensionTax[0], rate)],
                   ['Профсоюзный I:', tradeUnionTax[0], true],
                   ['Профсоюзный II:', tradeUnionTax[1], true],
-                  ['', getSumByRate(tradeUnionTax[1], rate) - getSumByRate(tradeUnionTax[0], rate)],
-                  ['==============================='],
+                  ['Разница:', getSumByRate(tradeUnionTax[1], rate) - getSumByRate(tradeUnionTax[0], rate),,true],
                   ['Подразделение:'],
                   [deptName],
                   ['Должность:'],
@@ -672,7 +652,7 @@ export class Bot {
             }
           }
           if (currencyId && currencyId !== '0') {
-            template = [...template, [`Курс на ${db.toLocaleDateString()}:`, rate]]
+            template = [...template, [`Курс на ${date2str(db)}:`, rate]]
           }
           return this.paySlipView(template, rate)
         } else {
@@ -751,7 +731,12 @@ export class Bot {
   }
 
   menu(chatId: string) {
-    this.sendMessage(chatId, 'Выберите одно из предложенных действий.', keyboardMenu, true);
+    const dialogState = this._dialogStates.read(chatId);
+    if (dialogState?.type === 'GETTING_COMPARE' || dialogState?.type === 'GETTING_SETTINGS' || dialogState?.type === 'GETTING_CURRENCY' || dialogState?.type === 'GETTING_CONCISE') {
+      this.deleteMessage(chatId);
+    }
+    this.dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() });
+    this.sendMessage(chatId, 'Выберите одно из предложенных действий.', keyboardMenu);
   }
 
   settings(chatId: string) {
@@ -760,9 +745,9 @@ export class Bot {
   }
 
   async logout(chatId: string) {
+    this.dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() }, ['employee']);
     await this.sendMessage(chatId, '💔 До свидания!', keyboardLogin);
     this.accountLink.delete(chatId);
-    this.dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() }, ['employee']);
   }
 
   async paySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date) {

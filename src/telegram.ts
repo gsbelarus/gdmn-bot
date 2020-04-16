@@ -179,21 +179,21 @@ export class TelegramBot extends Bot {
     if (name.length > len) {
       name_1 = name.length > len ? name.slice(0, len) : name;
       name = name.slice(len).padEnd(len);
-      return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name_1}\r\n${name}\r\n  =${s.toFixed(2)}`;
+      return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name_1}\r\n${name}\r\n  =${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s)}`;
     } else {
-      return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name.padEnd(len)}\r\n  =${s.toFixed(2)}`;
+      return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name.padEnd(len)}\r\n  =${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s)}`;
     }
   }
 
   paySlipView(template: Template, rate: number) {
-    const lenS = 9;
-    const len = 20;
-    const res = template.map(t =>
+    const lenS = 10;
+    const len = 19;
+    const res = template.filter( t => t[0] !== '' && (t[1] !== 0 || t[1] === undefined )).map(t =>
       t[1] === undefined
-        ? t[0]
+        ? `${t[0]} ${t[3] === true ? '\n===============================' : ''}`
         : t[2] !== undefined
-          ? `${t[0].toString().padEnd(len)}  ${getSumByRate(t[1], rate).toFixed(2).padStart(lenS)}`
-          : `${t[0].toString().padEnd(len)}  ${t[1].toFixed(2).padStart(lenS)}`
+          ? `${t[0].toString().padEnd(len)}  ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(getSumByRate(t[1], rate)).padStart(lenS)}${t[3] === true ? '\n===============================' : ''}`
+          : `${t[0].toString().padEnd(len)}  ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1]).padStart(lenS)}${t[3] === true ? '\n===============================' : ''}`
     ).join('\n');
     return (
       `${'`'}${'`'}${'`'}ini
@@ -204,7 +204,6 @@ ${'`'}${'`'}${'`'}`
 
   async editMessageReplyMarkup(chatId: string, menu: Menu, userProfile?: any) {
     const dialogState = this.dialogStates.read(chatId);
-    let m: any;
     if (dialogState) {
       if (dialogState.menuMessageId) {
         try {
@@ -222,7 +221,6 @@ ${'`'}${'`'}${'`'}`
 
   async deleteMessage(chatId: string) {
     const dialogState = this.dialogStates.read(chatId);
-    let m: any;
     if (dialogState) {
       if (dialogState.menuMessageId) {
         try {

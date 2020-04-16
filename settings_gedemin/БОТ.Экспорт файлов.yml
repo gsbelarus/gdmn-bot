@@ -5,10 +5,10 @@ Properties:
   RUID: 1193786287_1320926323
   Name: "БОТ.Экспорт файлов"
   Caption: "БОТ.Экспорт файлов"
-  Version: "1.0.0.9"
+  Version: "1.0.0.10"
   Optional: False
   Internal: True
-  MD5: 8BB0AEF4798C454A28DAAE5C48C03253
+  MD5: 92D50CE845784DF431BA85B4BA9EFA44
 Uses: 
   - "147029090_1220419898 GS.Общие.Функции работы с json"
 Objects: 
@@ -181,7 +181,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-04-14T11:55:43+03:00
+      EDITIONDATE: 2020-04-14T12:03:24+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTPAYSLIPS
         
@@ -200,11 +200,13 @@ Objects:
           if URL = "" then
             call Application.MessageBox("Не указана константа 'БОТ. Адрес сервера'. Экспорт не будет выполнен!", _
                "Внимание", vbOkOnly + vbIformation + vbSystemModal)
+            exit function
           end if
           idBase = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786349_1320926323"))
           if idBase = "" then
             call Application.MessageBox("Не указана константа 'БОТ. ИД клиента'. Экспорт не будет выполнен!", _
                "Внимание", vbOkOnly + vbIformation + vbSystemModal)
+            exit function
           end if
         
           dim JSON, i
@@ -246,7 +248,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-04-14T11:55:39+03:00
+      EDITIONDATE: 2020-04-14T12:03:02+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTACCDEDS
         
@@ -262,11 +264,13 @@ Objects:
           if URL = "" then
             call Application.MessageBox("Не указана константа 'БОТ. Адрес сервера'. Экспорт не будет выполнен!", _
                "Внимание", vbOkOnly + vbIformation + vbSystemModal)
+            exit function
           end if
           idBase = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786349_1320926323"))
           if idBase = "" then
             call Application.MessageBox("Не указана константа 'БОТ. ИД клиента'. Экспорт не будет выполнен!", _
                "Внимание", vbOkOnly + vbIformation + vbSystemModal)
+            exit function
           end if
         
           dim JSON
@@ -282,3 +286,86 @@ Objects:
             ADDFUNCTIONKEY: "1193785048_1320926323 bot_SendFile"
           - 
             ADDFUNCTIONKEY: "1193785027_1320926323 bot_PrepareAccDed"
+  - 
+    Properties: 
+      Class: "TgdcExplorer"
+      RUID: 1437184482_1434991069
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      PARENT: "1193786363_1320926323 Исследователь\\Бот"
+      NAME: "Экспорт сотрудников"
+      CLASSNAME: ~
+      CMD: "1437183856_1434991069"
+      CMDTYPE: 1
+      HOTKEY: ~
+      IMGINDEX: 174
+      ORDR: ~
+      SUBTYPE: ~
+      EDITIONDATE: 2020-04-15T15:33:06+03:00
+      DISABLED: 0
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1437183856_1434991069
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_exportEmployees"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: ~
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2020-04-15T16:19:17+03:00
+      DISPLAYSCRIPT: | 
+        BOT_EXPORTEMPLOYEES
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAM/l8Oju5AAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
+        RkxQUg==
+      SCRIPT: | 
+        '#include BOT_PREPAREEMPLOYEES
+        '#include BOT_SENDFILE
+        Function bot_exportEmployees(Period)
+          dim gdcConst, URL, idBase, Creator
+          set Creator = new TCreator
+          set gdcConst = Creator.GetObject(NULL, "TgdcConst", "")
+          URL = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786343_1320926323"))
+          if URL = "" then
+            call Application.MessageBox("Не указана константа 'БОТ. Адрес сервера'. Экспорт не будет выполнен!", _
+               "Внимание", vbOkOnly + vbIformation + vbSystemModal)
+            exit function
+          end if
+          idBase = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786349_1320926323"))
+          if idBase = "" then
+            call Application.MessageBox("Не указана константа 'БОТ. ИД клиента'. Экспорт не будет выполнен!", _
+               "Внимание", vbOkOnly + vbIformation + vbSystemModal)
+            exit function
+          end if
+        
+          dim JSON
+          call bot_PrepareEmployees(idBase, Period, JSON)
+          bot_SendFile JSON, URL & "/upload"
+        End Function
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1437183754_1434991069 bot_PrepareEmployees"
+          - 
+            ADDFUNCTIONKEY: "1193785048_1320926323 bot_SendFile"

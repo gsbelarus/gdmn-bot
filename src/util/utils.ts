@@ -71,3 +71,30 @@ function round(value: number, decimals: number) {
   if(value < 0) o *= -1;
   return Math.round((value + r) * o) / o;
 }
+
+/**
+ * Преобразует дату в строку вида YYYY.MM.DD. или DD.MM.YYYY
+ * @param date Дата.
+ */
+export const date2str = (date: Date, yearFirst = false) =>
+  yearFirst
+    ? `${date.getFullYear()}.${('00' + (date.getMonth() + 1).toString()).slice(-2)}.${('00' + date.getDate().toString()).slice(-2)}`
+    : `${('00' + date.getDate().toString()).slice(-2)}.${('00' + (date.getMonth() + 1).toString()).slice(-2)}.${date.getFullYear()}`;
+
+
+const lmap: { [letter: string]: string } = {
+  'А': 'A',
+  'В': 'B',
+  'Е': 'E',
+  'К': 'K',
+  'М': 'M',
+  'Н': 'H',
+  'О': 'O',
+  'Р': 'P',
+  'С': 'C',
+  'Т': 'T',
+  'Х': 'X'
+};
+
+export const replaceIdentLetters = (s: string) => [...s].map( c => c.toUpperCase() ).map( c => lmap[c] || c ).join('');
+

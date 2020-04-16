@@ -1,4 +1,4 @@
-import { Bot, Menu } from "../bot";
+import { Bot, Menu, Template } from "../bot";
 import { getLanguage, getSumByRate } from "../util/utils";
 import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "../types";
 import { IData } from "../util/fileDB";
@@ -39,14 +39,14 @@ export class Viber extends Bot {
       console.error(error);
     });
 
-    this._bot.on(BotEvents.SUBSCRIBED, async (response: any) => {
-      //Непонятно, когда сюда заходит
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      } else {
-        this.start(response.userProfile.id.toString());
-      }
-    });
+    // this._bot.on(BotEvents.SUBSCRIBED, async (response: any) => {
+    //   //Непонятно, когда сюда заходит
+    //   if (!response?.userProfile) {
+    //     console.error('Invalid chat context');
+    //   } else {
+    //     this.start(response.userProfile.id.toString());
+    //   }
+    // });
 
     this._bot.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
       if (!response?.userProfile) {
@@ -221,16 +221,17 @@ export class Viber extends Bot {
   }
 
   getPaySlipString(prevStr: string, name: string, s: number) {
-    return `${prevStr}${prevStr !== '' ? '\n' : ''}  ${name}\n  =${s}`
+    return `${prevStr}${prevStr !== '' ? '\n' : ''}  ${name}\n  =${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s)}`
   }
 
-  paySlipView(template: [string, number?, boolean?][], rate: number) {
-    const res = template.map( t =>
-      t[1] === undefined
-      ? t[0]
+  paySlipView(template: Template, rate: number) {
+    const res = template.filter( t => t[0] !== '' && (t[1] !== 0 || t[1] === undefined )).map( t => {
+      return t[1] === undefined
+      ? `${t[0]} ${t[3] === true ? '\n===========================' : ''}`
       : t[2] !== undefined
-      ? `${t[0] === '' ? 'Разница:' : t[0]}  ${getSumByRate(t[1], rate).toFixed(2)}`
-      : `${t[0] === '' ? 'Разница:' : t[0]}  ${t[1].toFixed(2)}`
+      ? `${t[0]}  ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(getSumByRate(t[1], rate))}${t[3] === true ? '\n===========================' : ''}`
+      : `${t[0]}  ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1])}${t[3] === true ? '\n===========================' : ''}`
+    }
     ).join('\n');
     return res;
   }

@@ -14,7 +14,7 @@
 import path from 'path';
 import { Lang, LName } from './types';
 import { FileDB, IData } from './util/fileDB';
-import { getLName } from './util/utils';
+import { getLName, date2str } from './util/utils';
 
 const fetch = require("node-fetch");
 
@@ -147,12 +147,6 @@ export interface ICurrencyRates {
   [currId: string]: number;
 };
 
-/**
- * Преобразует дату в строку вида YYYY.MM.DD.
- * @param date Дата.
- */
-const date2str = (date: Date) => `${date.getFullYear()}.${(date.getMonth() + 1).toString().padStart(2)}.${date.getDate().toString().padStart(2)}`;
-
 let ratesDB: FileDB<ICurrencyRates> | undefined = undefined;
 
 /**
@@ -177,7 +171,7 @@ export const getCurrRate = async (date: Date, currId: string) => {
   let rate: number | undefined = undefined;
 
   while (true) {
-    const strDate = date2str(d);
+    const strDate = date2str(d, true);
     const ratesForDate = ratesDB.read(strDate);
     rate = ratesForDate?.[currId];
 
