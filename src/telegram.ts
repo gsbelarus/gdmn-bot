@@ -192,8 +192,8 @@ export class TelegramBot extends Bot {
       t[1] === undefined
         ? `${t[0]} ${t[3] === true ? '\n===============================' : ''}`
         : t[2] !== undefined
-          ? `${t[0].toString().padEnd(len)}  ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(getSumByRate(t[1], rate)).padStart(lenS)}${t[3] === true ? '\n===============================' : ''}`
-          : `${t[0].toString().padEnd(len)}  ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1]).padStart(lenS)}${t[3] === true ? '\n===============================' : ''}`
+          ? `${t[0].toString().padEnd(len)} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(getSumByRate(t[1], rate)).padStart(lenS)}${t[3] === true ? '\n===============================' : ''}`
+          : `${t[0].toString().padEnd(len)} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1]).padStart(lenS)}${t[3] === true ? '\n===============================' : ''}`
     ).join('\n');
     return (
       `${'`'}${'`'}${'`'}ini

@@ -229,8 +229,8 @@ export class Viber extends Bot {
       return t[1] === undefined
       ? `${t[0]} ${t[3] === true ? '\n===========================' : ''}`
       : t[2] !== undefined
-      ? `${t[0]}  ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(getSumByRate(t[1], rate))}${t[3] === true ? '\n===========================' : ''}`
-      : `${t[0]}  ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1])}${t[3] === true ? '\n===========================' : ''}`
+      ? `${t[0]} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(getSumByRate(t[1], rate))}${t[3] === true ? '\n===========================' : ''}`
+      : `${t[0]} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1])}${t[3] === true ? '\n===========================' : ''}`
     }
     ).join('\n');
     return res;
