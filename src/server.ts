@@ -9,6 +9,7 @@ import { upload } from "./util/upload";
 import { TelegramBot } from "./telegram";
 import { initCurrencies } from "./currency";
 import { Viber } from "./viber/viber";
+import { request } from 'https';
 
 export const customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), {});
 export const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
@@ -53,6 +54,63 @@ app
   .use(router.routes())
   .use(router.allowedMethods());
 
+  const telegramBotToken = process.env.GDMN_TELEGRAM_BOT_TOKEN;
+  const viberBotToken = process.env.GDMN_VIBER_BOT_TOKEN;
+
+  // var headerBody = {
+  //   'cache-control': 'no-cache',
+  //   'content-type': 'application/json',
+  //   // recommended to inject access tokens as environmental variables, e.g.
+  //   'x-viber-auth-token': viberBotToken
+  // };
+
+//   router.get('/', function(ctx, next) {
+//     ctx.header(200, {
+//         'content-type': 'text/plain'
+//     });
+//     ctx.throw("To chat with ZarobakBot\n\n");
+//     // setting options to request the chat api of viber.
+//     const options = {
+//         method: 'POST',
+//         url: 'https://chatapi.viber.com/pa/set_webhook',
+//         headers: headerBody,
+//         body: {
+//             url: 'https://zarobak.gdmn.app',
+//             event_types: ['delivered', 'seen', 'failed', 'subscribed', 'unsubscribed', 'conversation_started']
+//         },
+//         json: true
+//     };
+
+//     const req = request(options, (res) => {
+//       console.log(`statusCode: ${res.statusCode}`)
+
+//       res.on('data', (d) => {
+//         process.stdout.write(d)
+//       })
+//     })
+
+//     req.on('error', (error) => {
+//       console.error(error)
+//     })
+
+//     //req.write(data)
+//     req.end()
+
+
+//     // request to the chat api of viber.
+//     // const req = request(options, function(res: any) {
+//     //   console.log("The status message received for set Webhook request is - " + res.message);
+
+//     // });
+//     // req.end();
+
+//     // req.on('error', function(e) {
+//     //   console.log('Problem with Webhook request: ' + e.message);
+//     // });
+// });
+
+
+
 const serverCallback = app.callback();
 
 const server = http.createServer(serverCallback);
@@ -62,8 +120,7 @@ server.listen(3000, async () => {
 })
 
 //https.createServer(config.https.options, serverCallback).listen(config.https.port);
-const telegramBotToken = process.env.GDMN_TELEGRAM_BOT_TOKEN;
-const viberBotToken = process.env.GDMN_VIBER_BOT_TOKEN;
+
 
 if (typeof telegramBotToken !== 'string') {
   throw new Error('GDMN_TELEGRAM_BOT_TOKEN env variable is not specified.');
@@ -105,43 +162,43 @@ const getAccDeds = (customerId: string): IData<IAccDed> => {
   return accDed.getMutable(false);
 };
 
-initCurrencies()
-  .then( () => {
-    const telegram = new TelegramBot(
-      telegramBotToken,
-      getCustomers,
-      getEmployeesByCustomer,
-      getAccDeds,
-      getPaySlipByUser);
 
-    const viber = new Viber(
-      viberBotToken,
-      getCustomers,
-      getEmployeesByCustomer,
-      getAccDeds,
-      getPaySlipByUser);
+// initCurrencies()
+//   .then( () => {
+//     const telegram = new TelegramBot(
+//       telegramBotToken,
+//       getCustomers,
+//       getEmployeesByCustomer,
+//       getAccDeds,
+//       getPaySlipByUser);
 
-    /**
-     * При завершении работы сервера скидываем на диск все данные.
-     */
-    process.on('exit', code => {
-      customers.flush();
+//     const viber = new Viber(
+//       viberBotToken,
+//       getCustomers,
+//       getEmployeesByCustomer,
+//       getAccDeds,
+//       getPaySlipByUser);
 
-      for (const ec of Object.values(employeesByCustomer)) {
-        ec.flush();
-      }
+//     /**
+//      * При завершении работы сервера скидываем на диск все данные.
+//      */
+//     process.on('exit', code => {
+//       customers.flush();
 
-      telegram.finalize();
+//       for (const ec of Object.values(employeesByCustomer)) {
+//         ec.flush();
+//       }
 
-      viber.finalize();
+//       telegram.finalize();
 
-      console.log('Process exit event with code: ', code);
-    });
-  });
+//       viber.finalize();
 
-process.on('SIGINT', () => process.exit());
+//       console.log('Process exit event with code: ', code);
+//     });
+//   });
 
 process
+  .on('SIGINT', () => process.exit())
   .on('unhandledRejection', (reason, p) => {
     console.log({ err: reason }, `bot launch ${p}`);
   })

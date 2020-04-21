@@ -423,9 +423,9 @@ export class Bot {
 
       let empls = this.getEmployeesByCustomer(customerId);
 
-      const passportId = empls ? empls[employeeId].passportId : undefined;
+      //const passportId = empls ? empls[employeeId].passportId : undefined;
 
-      if (passportId) {
+      //if (passportId) {
         const accDedObj = this.getAccDeds(customerId);
 
         let allTaxes = [0, 0];
@@ -446,7 +446,7 @@ export class Bot {
           //пробегаемся по всем годам
           for (let y = 0; y < years.length; y++) {
             const year = years[y];
-            let paySlip = this.getPaySlipByUser(customerId, passportId, year);
+            let paySlip = this.getPaySlipByUser(customerId, employeeId, year);
 
             if (!paySlip || Object.keys(paySlip).length === 0) {
               continue;
@@ -658,7 +658,7 @@ export class Bot {
         } else {
           return ''
         }
-      }
+      //}
      }
     return ''
   }
