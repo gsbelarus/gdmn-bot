@@ -12,6 +12,7 @@ import { initCurrencies } from "./currency";
 import { Viber } from "./viber";
 import { request } from 'https';
 import * as fs from "fs";
+import { getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser, customers, employeesByCustomer } from "./data";
 
 /**
  * Мы используем KOA для организации веб-сервера.
@@ -137,39 +138,41 @@ if (typeof viberBotToken !== 'string') {
   throw new Error('GDMN_VIBER_BOT_TOKEN env variable is not specified.');
 }
 
-// initCurrencies()
-//   .then( () => {
-//     const telegram = new TelegramBot(
-//       telegramBotToken,
-//       getCustomers,
-//       getEmployeesByCustomer,
-//       getAccDeds,
-//       getPaySlipByUser);
+initCurrencies()
+  .then( () => {
+    const telegram = new TelegramBot(
+      telegramBotToken,
+      getCustomers,
+      getEmployeesByCustomer,
+      getAccDeds,
+      getPaySlipByUser);
 
-//     const viber = new Viber(
-//       viberBotToken,
-//       getCustomers,
-//       getEmployeesByCustomer,
-//       getAccDeds,
-//       getPaySlipByUser);
+    /*
+    const viber = new Viber(
+      viberBotToken,
+      getCustomers,
+      getEmployeesByCustomer,
+      getAccDeds,
+      getPaySlipByUser);
+    */
 
-//     /**
-//      * При завершении работы сервера скидываем на диск все данные.
-//      */
-//     process.on('exit', code => {
-//       customers.flush();
+    /**
+     * При завершении работы сервера скидываем на диск все данные.
+     */
+    process.on('exit', code => {
+      customers.flush();
 
-//       for (const ec of Object.values(employeesByCustomer)) {
-//         ec.flush();
-//       }
+      for (const ec of Object.values(employeesByCustomer)) {
+        ec.flush();
+      }
 
-//       telegram.finalize();
+      telegram.finalize();
 
-//       viber.finalize();
+      //viber.finalize();
 
-//       console.log('Process exit event with code: ', code);
-//     });
-//   });
+      console.log('Process exit event with code: ', code);
+    });
+  });
 
 process
   .on('SIGINT', () => process.exit())

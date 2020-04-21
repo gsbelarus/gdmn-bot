@@ -18,11 +18,11 @@ export const customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
 export const paySlips: { [employeeId: string]: FileDB<IPaySlip> } = {};
 
 
-const getCustomers = (): ICustomers => {
+export const getCustomers = (): ICustomers => {
   return customers.getMutable(false);
 }
 
-const getEmployeesByCustomer = (customerId: string): IEmploeeByCustomer => {
+export const getEmployeesByCustomer = (customerId: string): IEmploeeByCustomer => {
   let employees = employeesByCustomer[customerId];
   if (!employees) {
     employees = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/employee.${customerId}.json`), {});
@@ -31,7 +31,7 @@ const getEmployeesByCustomer = (customerId: string): IEmploeeByCustomer => {
   return employees.getMutable(false);
 }
 
-const getPaySlipByUser = (customerId: string, userID: string, year: number): IData<IPaySlip> => {
+export const getPaySlipByUser = (customerId: string, userID: string, year: number): IData<IPaySlip> => {
   let paySlip = paySlips[userID + '_' + year];
   if (!paySlip) {
     paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip.${customerId}/${year}/payslip.${customerId}.${userID}.${year}.json`), {});
@@ -40,7 +40,7 @@ const getPaySlipByUser = (customerId: string, userID: string, year: number): IDa
   return paySlip.getMutable(false);
 }
 
-const getAccDeds = (customerId: string): IData<IAccDed> => {
+export const getAccDeds = (customerId: string): IData<IAccDed> => {
   let accDed = customerAccDeds[customerId];
   if (!accDed) {
     accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip.${customerId}/accdedref.json`), {});
