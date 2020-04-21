@@ -55,7 +55,7 @@ export const upload = (ctx: any) => {
           paySlips[employeeId + '_' + year] = paySlip;
         }
 
-        rewrite && paySlip.clear();
+       paySlip.clear();
 
         paySlip.write('employeeId', value.employeeId);
         paySlip.write('year', value.year);
