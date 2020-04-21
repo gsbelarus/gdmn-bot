@@ -34,7 +34,6 @@ export const upload = (ctx: any) => {
       employee.clear();
 
       for (const [key, value] of Object.entries(objData)) {
-
         employee.write(key, value as any);
       }
 
@@ -43,6 +42,7 @@ export const upload = (ctx: any) => {
     }
     //Если тип загружаемых данных - Расчетные листки по сотрудникам в разрезе года
     case 'paySlip': {
+      const { rewrite } = ctx.request.body;
       let paySlip: FileDB<IPaySlip>;
       for (const [key, value] of Object.entries(objData) as any) {
         const employeeId = value.employeeId;
@@ -53,9 +53,9 @@ export const upload = (ctx: any) => {
         if (!paySlip || paySlip.getMutable(false).year !== year) {
           paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip.${customerId}/${year}/payslip.${customerId}.${employeeId}.${year}.json`), {});
           paySlips[employeeId + '_' + year] = paySlip;
-        } else {
-          paySlip.clear();
         }
+
+        rewrite && paySlip.clear();
 
         paySlip.write('employeeId', value.employeeId);
         paySlip.write('year', value.year);
@@ -63,6 +63,7 @@ export const upload = (ctx: any) => {
         paySlip.write('posName', value.posName);
         paySlip.write('hiringDate', value.hiringDate);
         paySlip.write('data', value.data);
+
         paySlip.flush();
         break;
       }
