@@ -1,7 +1,7 @@
-import { customerAccDeds, paySlips, employeesByCustomer } from "../server";
 import { FileDB } from "./fileDB";
 import { IAccDed, IPaySlip, IEmployee } from "../types";
 import path from 'path';
+import { customerAccDeds, employeesByCustomer, paySlips } from "../data";
 
 export const upload = (ctx: any) => {
   const { dataType, customerId, objData } = ctx.request.body;

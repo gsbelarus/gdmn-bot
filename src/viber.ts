@@ -1,7 +1,7 @@
-import { Bot, Menu, Template } from "../bot";
-import { getLanguage, getSumByRate } from "../util/utils";
-import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "../types";
-import { IData } from "../util/fileDB";
+import { Bot, Menu, Template } from "./bot";
+import { getLanguage, getSumByRate } from "./util/utils";
+import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "./types";
+import { IData } from "./util/fileDB";
 import * as fs from "fs";
 import https from 'https';
 

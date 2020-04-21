@@ -2,42 +2,29 @@ import Koa from "koa";
 import bodyParser from 'koa-bodyparser';
 import Router from 'koa-router';
 import http from 'http';
+import https from 'https';
 import path from 'path';
 import { ICustomer, IEmployee, IAccDed, IPaySlip, ICustomers, IEmploeeByCustomer } from "./types";
 import { FileDB, IData } from "./util/fileDB";
 import { upload } from "./util/upload";
 import { TelegramBot } from "./telegram";
 import { initCurrencies } from "./currency";
-import { Viber } from "./viber/viber";
+import { Viber } from "./viber";
 import { request } from 'https';
-
-export const customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), {});
-export const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
+import * as fs from "fs";
 
 /**
- * справочники начислений/удержаний для каждого клиента.
- * ключем объекта выступает РУИД записи из базы Гедымина.
+ * Мы используем KOA для организации веб-сервера.
+ *
+ * Веб сервер нам нужен:
+ *
+ *   1) для загрузки данных из Гедымина через POST запросы
+ *   2) для реализации веб-интерфейса управления учетными
+ *      записями (будет сделано позже)
  */
-export const customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
-
-/**
- * Расчетные листки для каждого клиента.
- * Ключем объекта выступает персональный номер из паспорта.
- */
-export const paySlips: { [employeeId: string]: FileDB<IPaySlip> } = {};
 
 let app = new Koa();
 let router = new Router();
-
-router.get('/load', (ctx, next) => {
-  // ctx.router available
-  load(ctx);
-  next();
-});
-
-const load = (ctx: any) => {
-  ctx.body = 'Hello World!';
-}
 
 router.get('/', (ctx, next) => {
   ctx.body = 'Hello World!';
@@ -54,8 +41,37 @@ app
   .use(router.routes())
   .use(router.allowedMethods());
 
-  const telegramBotToken = process.env.GDMN_TELEGRAM_BOT_TOKEN;
-  const viberBotToken = process.env.GDMN_VIBER_BOT_TOKEN;
+/**
+ * Если у нас получится грузить из Гедымина по протоколу
+ * HTTPS, то HTTP сервер мы вообще уберем из программы.
+ */
+
+const httpServer = http.createServer(app.callback());
+
+httpServer.listen(3000, async () => {
+  console.log(`>>> SERVER: Сервер запущен: https://localhost:3000`)
+});
+
+/**
+ * HTTPS сервер с платным сертификатом нам нужен для подключения
+ * Viber.
+ */
+
+const cert = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.crt'));
+const key = fs.readFileSync(path.resolve(process.cwd(), 'ssl/gdmn.app.key'));
+const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bundle'), {encoding:'utf8'})
+  .split('-----END CERTIFICATE-----\r\n')
+  .map(cert => cert +'-----END CERTIFICATE-----\r\n')
+  .pop();
+
+const httpsServer = https.createServer({ cert, ca, key }, app.callback());
+
+httpsServer.listen(443, async () => {
+  console.log(`>>> HTTPS SERVER: Сервер запущен: https://localhost:443`)
+});
+
+const telegramBotToken = process.env.GDMN_TELEGRAM_BOT_TOKEN;
+const viberBotToken = process.env.GDMN_VIBER_BOT_TOKEN;
 
   // var headerBody = {
   //   'cache-control': 'no-cache',
@@ -110,15 +126,6 @@ app
 // });
 
 
-
-const serverCallback = app.callback();
-
-const server = http.createServer(serverCallback);
-
-server.listen(3000, async () => {
-  console.log(`>>> SERVER: Сервер запущен: https://localhost:3000`)
-})
-
 //https.createServer(config.https.options, serverCallback).listen(config.https.port);
 
 
@@ -129,39 +136,6 @@ if (typeof telegramBotToken !== 'string') {
 if (typeof viberBotToken !== 'string') {
   throw new Error('GDMN_VIBER_BOT_TOKEN env variable is not specified.');
 }
-
-
-const getCustomers = (): ICustomers => {
-  return customers.getMutable(false);
-}
-
-const getEmployeesByCustomer = (customerId: string): IEmploeeByCustomer => {
-  let employees = employeesByCustomer[customerId];
-  if (!employees) {
-    employees = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/employee.${customerId}.json`), {});
-    employeesByCustomer[customerId] = employees;
-  }
-  return employees.getMutable(false);
-}
-
-const getPaySlipByUser = (customerId: string, userID: string, year: number): IData<IPaySlip> => {
-  let paySlip = paySlips[userID + '_' + year];
-  if (!paySlip) {
-    paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip.${customerId}/${year}/payslip.${customerId}.${userID}.${year}.json`), {});
-    paySlips[userID + '_' + year] = paySlip;
-  };
-  return paySlip.getMutable(false);
-}
-
-const getAccDeds = (customerId: string): IData<IAccDed> => {
-  let accDed = customerAccDeds[customerId];
-  if (!accDed) {
-    accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip.${customerId}/accdedref.json`), {});
-    customerAccDeds[customerId] = accDed;
-  };
-  return accDed.getMutable(false);
-};
-
 
 // initCurrencies()
 //   .then( () => {
