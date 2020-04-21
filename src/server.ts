@@ -15,6 +15,44 @@ import * as fs from "fs";
 import { getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser, customers, employeesByCustomer } from "./data";
 
 /**
+ * Подгружаем некоторые справочники.
+ */
+
+initCurrencies().then( () => console.log('Currencies have been loaded...') );
+
+/**
+ * Создаем объекты наших ботов.
+ * Телеграм сам как-то установит связь с внешним миром, через свои сервера
+ * и сообщенный ему токен.
+ * Вайбер надо связать с нашим веб сервером вручную.
+ */
+
+const telegramBotToken = process.env.GDMN_TELEGRAM_BOT_TOKEN;
+const viberBotToken = process.env.GDMN_VIBER_BOT_TOKEN;
+
+if (typeof telegramBotToken !== 'string') {
+  throw new Error('GDMN_TELEGRAM_BOT_TOKEN env variable is not specified.');
+}
+
+if (typeof viberBotToken !== 'string') {
+  throw new Error('GDMN_VIBER_BOT_TOKEN env variable is not specified.');
+}
+
+const telegram = new TelegramBot(
+  telegramBotToken,
+  getCustomers,
+  getEmployeesByCustomer,
+  getAccDeds,
+  getPaySlipByUser);
+
+const viber = new Viber(
+  viberBotToken,
+  getCustomers,
+  getEmployeesByCustomer,
+  getAccDeds,
+  getPaySlipByUser);
+
+/**
  * Мы используем KOA для организации веб-сервера.
  *
  * Веб сервер нам нужен:
@@ -24,8 +62,8 @@ import { getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser, cus
  *      записями (будет сделано позже)
  */
 
-let app = new Koa();
-let router = new Router();
+const app = new Koa();
+const router = new Router();
 
 router.get('/', (ctx, next) => {
   ctx.body = 'Hello World!';
@@ -38,6 +76,7 @@ router.post('/upload', (ctx, next) => {
 });
 
 app
+  //.use(viber.bot.middleware())
   .use(bodyParser())
   .use(router.routes())
   .use(router.allowedMethods());
@@ -65,116 +104,34 @@ const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bun
   .map(cert => cert +'-----END CERTIFICATE-----\r\n')
   .pop();
 
+https.createServer({ cert, ca, key }, viber.bot.middleware()).listen(443, () => viber.bot.setWebhook('https://zarobak.gdmn.app'));
+
+/*
 const httpsServer = https.createServer({ cert, ca, key }, app.callback());
-
 httpsServer.listen(443, async () => {
-  console.log(`>>> HTTPS SERVER: Сервер запущен: https://localhost:443`)
+  console.log(`>>> HTTPS SERVER: Сервер запущен: https://localhost:443`);
+
+  viber.bot.setWebhook('https://zarobak.gdmn.app');
 });
+*/
 
-const telegramBotToken = process.env.GDMN_TELEGRAM_BOT_TOKEN;
-const viberBotToken = process.env.GDMN_VIBER_BOT_TOKEN;
-
-  // var headerBody = {
-  //   'cache-control': 'no-cache',
-  //   'content-type': 'application/json',
-  //   // recommended to inject access tokens as environmental variables, e.g.
-  //   'x-viber-auth-token': viberBotToken
-  // };
-
-//   router.get('/', function(ctx, next) {
-//     ctx.header(200, {
-//         'content-type': 'text/plain'
-//     });
-//     ctx.throw("To chat with ZarobakBot\n\n");
-//     // setting options to request the chat api of viber.
-//     const options = {
-//         method: 'POST',
-//         url: 'https://chatapi.viber.com/pa/set_webhook',
-//         headers: headerBody,
-//         body: {
-//             url: 'https://zarobak.gdmn.app',
-//             event_types: ['delivered', 'seen', 'failed', 'subscribed', 'unsubscribed', 'conversation_started']
-//         },
-//         json: true
-//     };
-
-//     const req = request(options, (res) => {
-//       console.log(`statusCode: ${res.statusCode}`)
-
-//       res.on('data', (d) => {
-//         process.stdout.write(d)
-//       })
-//     })
-
-//     req.on('error', (error) => {
-//       console.error(error)
-//     })
-
-//     //req.write(data)
-//     req.end()
-
-
-//     // request to the chat api of viber.
-//     // const req = request(options, function(res: any) {
-//     //   console.log("The status message received for set Webhook request is - " + res.message);
-
-//     // });
-//     // req.end();
-
-//     // req.on('error', function(e) {
-//     //   console.log('Problem with Webhook request: ' + e.message);
-//     // });
-// });
-
-
-//https.createServer(config.https.options, serverCallback).listen(config.https.port);
-
-
-if (typeof telegramBotToken !== 'string') {
-  throw new Error('GDMN_TELEGRAM_BOT_TOKEN env variable is not specified.');
-}
-
-if (typeof viberBotToken !== 'string') {
-  throw new Error('GDMN_VIBER_BOT_TOKEN env variable is not specified.');
-}
-
-initCurrencies()
-  .then( () => {
-    const telegram = new TelegramBot(
-      telegramBotToken,
-      getCustomers,
-      getEmployeesByCustomer,
-      getAccDeds,
-      getPaySlipByUser);
-
-    /*
-    const viber = new Viber(
-      viberBotToken,
-      getCustomers,
-      getEmployeesByCustomer,
-      getAccDeds,
-      getPaySlipByUser);
-    */
-
-    /**
-     * При завершении работы сервера скидываем на диск все данные.
-     */
-    process.on('exit', code => {
-      customers.flush();
-
-      for (const ec of Object.values(employeesByCustomer)) {
-        ec.flush();
-      }
-
-      telegram.finalize();
-
-      //viber.finalize();
-
-      console.log('Process exit event with code: ', code);
-    });
-  });
+/**
+ * При завершении работы сервера скидываем на диск все данные.
+ */
 
 process
+  .on('exit', code => {
+    customers.flush();
+
+    for (const ec of Object.values(employeesByCustomer)) {
+      ec.flush();
+    }
+
+    telegram.finalize();
+    viber.finalize();
+
+    console.log('Process exit event with code: ', code);
+  })
   .on('SIGINT', () => process.exit())
   .on('unhandledRejection', (reason, p) => {
     console.log({ err: reason }, `bot launch ${p}`);

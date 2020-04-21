@@ -2,8 +2,6 @@ import { Bot, Menu, Template } from "./bot";
 import { getLanguage, getSumByRate } from "./util/utils";
 import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "./types";
 import { IData } from "./util/fileDB";
-import * as fs from "fs";
-import https from 'https';
 
 const vb = require('viber-bot');
 
@@ -28,38 +26,6 @@ export class Viber extends Bot {
       name: 'Моя зарплата',
       avatar: ''
     });
-
-    const cert = fs.readFileSync('./ssl/star.gdmn.app.crt');
-    const key = fs.readFileSync('./ssl/gdmn.app.key');
-
-    const caBundle = fs.readFileSync('./ssl/star.gdmn.app.ca-bundle', {encoding:'utf8'});
-    const ca = caBundle.split('-----END CERTIFICATE-----\r\n').map(cert => cert +'-----END CERTIFICATE-----\r\n');
-    // We had to remove one extra item that is present due to
-    // an extra line at the end of the file.
-    // This may or may not be needed depending on the formatting
-    // of your .ca-bundle file.
-    ca.pop();
-
-    const port = 443;
-
-    let httpsOptions = {
-       cert,
-       ca,
-       key
-    };
-
-    https.createServer(httpsOptions, this._bot.middleware()).listen(port, () => this._bot.setWebhook('https://zarobak.gdmn.app'));
-
-    // const ngrok = require('./get_public_url');
-    // const http = require('http');
-    // const port = process.env.PORT || 8080;
-    // ngrok.getPublicUrl().then((publicUrl: string) => {
-    //   console.log('Set the new webhook to"', publicUrl);
-    //   http.createServer(this._bot.middleware()).listen(port, () => this._bot.setWebhook(publicUrl));
-    // }).catch((error: any) => {
-    //   console.log('Can not connect to ngrok server. Is it running?');
-    //   console.error(error);
-    // });
 
     // this._bot.on(BotEvents.SUBSCRIBED, async (response: any) => {
     //   //Непонятно, когда сюда заходит
@@ -183,6 +149,10 @@ export class Viber extends Bot {
     //this._bot.launch();
   }
 
+  get bot() {
+    return this._bot;
+  }
+
   private _menu2ViberMenu(menu: Menu) {
     const res: any[] = [];
 
@@ -220,10 +190,6 @@ export class Viber extends Bot {
       Type: 'keyboard',
       Buttons: res
     };
-  }
-
-  get bot() {
-    return this._bot;
   }
 
   async editMessageReplyMarkup(chatId: string, menu: Menu) {
