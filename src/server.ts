@@ -4,13 +4,10 @@ import Router from 'koa-router';
 import http from 'http';
 import https from 'https';
 import path from 'path';
-import { ICustomer, IEmployee, IAccDed, IPaySlip, ICustomers, IEmploeeByCustomer } from "./types";
-import { FileDB, IData } from "./util/fileDB";
 import { upload } from "./util/upload";
 import { TelegramBot } from "./telegram";
 import { initCurrencies } from "./currency";
 import { Viber } from "./viber";
-import { request } from 'https';
 import * as fs from "fs";
 import { getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser, customers, employeesByCustomer } from "./data";
 
@@ -104,7 +101,19 @@ const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bun
   .map(cert => cert +'-----END CERTIFICATE-----\r\n')
   .pop();
 
-https.createServer({ cert, ca, key }, viber.bot.middleware()).listen(443, () => viber.bot.setWebhook('https://zarobak.gdmn.app'));
+const viberCallback = viber.bot.middleware();
+const koaCallback = app.callback();
+const host = 'zarobak.gdmn.app';
+
+https.createServer({ cert, ca, key },
+  (req, res) => {
+    if (req.headers.host === host) {
+      viberCallback(req, res);
+    } else {
+      koaCallback(req, res);
+    }
+  }
+).listen(443, () => viber.bot.setWebhook(`https://${host}`));
 
 /*
 const httpsServer = https.createServer({ cert, ca, key }, app.callback());
