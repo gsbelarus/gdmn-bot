@@ -167,24 +167,6 @@ export class TelegramBot extends Bot {
     );
   }
 
-  /**
-  * Разделяем длинную строку на две
-   * @param prevStr
-   * @param name
-   * @param s
-   */
-  getPaySlipString(prevStr: string, name: string, s: number) {
-    let name_1 = '';
-    const len = 28;
-    if (name.length > len) {
-      name_1 = name.length > len ? name.slice(0, len) : name;
-      name = name.slice(len).padEnd(len);
-      return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name_1}\r\n${name}\r\n  =${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s)}`;
-    } else {
-      return `${prevStr}${prevStr !== '' ? '\r\n' : ''}  ${name.padEnd(len)}\r\n  =${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s)}`;
-    }
-  }
-
   paySlipView(template: Template, rate: number) {
     const lenS = 10;
     const len = 19;
@@ -192,8 +174,8 @@ export class TelegramBot extends Bot {
       t[1] === undefined
         ? `${t[0]} ${t[3] === true ? '\n===============================' : ''}`
         : t[2] !== undefined
-          ? `${t[0].toString().padEnd(len)} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(getSumByRate(t[1], rate)).padStart(lenS)}${t[3] === true ? '\n===============================' : ''}`
-          : `${t[0].toString().padEnd(len)} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1]).padStart(lenS)}${t[3] === true ? '\n===============================' : ''}`
+          ? `${t[0].toString().padEnd(len)} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(getSumByRate(t[1], rate)).padStart(lenS)}${t[3] === true ? '\n==============================' : ''}`
+          : `${t[0].toString().padEnd(len)} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1]).padStart(lenS)}${t[3] === true ? '\n==============================' : ''}`
     ).join('\n');
     return (
       `${'`'}${'`'}${'`'}ini

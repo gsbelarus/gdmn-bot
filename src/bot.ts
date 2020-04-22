@@ -134,11 +134,23 @@ export class Bot {
   }
 
   /**
+   * Рассылка уведомления всем пользователям, кто зарегистрирован
+   * @param text - текст уведомления
+   */
+  sendMessageToEmployess(text: string) {
+    const dialogStates = this._dialogStates.getMutable(true);
+    Object.entries(dialogStates).forEach(([idx, d]) => {
+      if (d.type !== 'INITIAL' && d.type !== 'LOGGING_IN') {
+        this.sendMessage(idx, text, keyboardMenu);
+      }
+    })
+  }
+
+  /**
    * Диалог регистрации
    * @param chatId
    */
   async loginDialog(chatId: string, message?: string, start = false) {
-
     if (message === 'login') {
       return
     }
@@ -373,6 +385,13 @@ export class Bot {
     }
   }
 
+  /**
+   * Диалог для выбора валюты
+   * @param chatId - ИД чата
+   * @param lng - язык бота
+   * @param queryData - значение валюты, которое выбрал пользователь
+   * @param start - true при нажатии на кнопку Выбрать валюту
+   */
   async currencyDialog(chatId: string, lng: Lang, queryData?: string, start = false) {
     if (start) {
       this.deleteMessage(chatId);
@@ -397,6 +416,7 @@ export class Bot {
         const currencyName = getCurrencyNameById(lng, currencyId);
         this.deleteMessage(chatId);
         this.sendMessage(chatId, `Валюта ${currencyName} сохранена. Выберите одно из предложенных действий.`, keyboardMenu);
+        this._accountLink.flush();
       }
     }
   }
@@ -405,8 +425,15 @@ export class Bot {
     return ''
   }
 
-  getPaySlipString(prevStr: string, name: string, s: number) {
-    return `${prevStr}${prevStr !== '' ? '\r\n' : ''}${name}\r\n=${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s)}`
+  /**
+  * Разделяем длинную строку на несколько
+   * @param prevStr
+   * @param name
+   * @param s
+   */
+  getPaySlipString(prevStr: string, name: string, s?: number) {
+    let str = name.split('').map((i, id) => Number(id) % 28 === 0 && Number(id) !== 0? `\n  ${i}` : i).join('');
+    return `${prevStr}${prevStr !== '' ? '\n' : ''}  ${str}${s ? '\n  =' + new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s) : ''}`
   }
 
   async getPaySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date): Promise<string> {
@@ -567,9 +594,9 @@ export class Bot {
                 ['Льготы:', privilage[0], true, true],
                 [strPrivilages,,, true],
                 ['Подразделение:'],
-                [deptName],
+                [this.getPaySlipString('', deptName)],
                 ['Должность:'],
-                [posName],
+                [this.getPaySlipString('', posName)],
                 ['Оклад:', salary[0], true],
                 [`Валюта: ${currencyAbbreviation}`],
               ];
@@ -591,9 +618,9 @@ export class Bot {
                 ['Пенсионный:', pensionTax[0], true],
                 ['Профсоюзный:', tradeUnionTax[0], true, true],
                 ['Подразделение:'],
-                [deptName],
+                [this.getPaySlipString('', deptName)],
                 ['Должность:'],
-                [posName],
+                [this.getPaySlipString('', posName)],
                 ['Оклад:', salary[0], true],
                 [`Валюта: ${currencyAbbreviation}`]
               ];
@@ -639,9 +666,9 @@ export class Bot {
                   ['Профсоюзный II:', tradeUnionTax[1], true],
                   ['Разница:', getSumByRate(tradeUnionTax[1], rate) - getSumByRate(tradeUnionTax[0], rate),,true],
                   ['Подразделение:'],
-                  [deptName],
+                  [this.getPaySlipString('', deptName)],
                   ['Должность:'],
-                  [posName],
+                  [this.getPaySlipString('', posName)],
                   ['Оклад I:', salary[0], true],
                   ['Оклад II:', salary[1], true],
                   ['', getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)],

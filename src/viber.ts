@@ -208,10 +208,6 @@ export class Viber extends Bot {
     }
   }
 
-  getPaySlipString(prevStr: string, name: string, s: number) {
-    return `${prevStr}${prevStr !== '' ? '\n' : ''}  ${name}\n  =${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s)}`
-  }
-
   paySlipView(template: Template, rate: number) {
     const res = template.filter( t => t[0] !== '' && (t[1] !== 0 || t[1] === undefined )).map( t => {
       return t[1] === undefined

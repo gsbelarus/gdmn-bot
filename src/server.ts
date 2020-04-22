@@ -69,6 +69,8 @@ router.get('/', (ctx, next) => {
 
 router.post('/upload', (ctx, next) => {
   upload(ctx);
+  viber.sendMessageToEmployess('Пришли новые данные!');
+  telegram.sendMessageToEmployess('Пришли новые данные!');
   next();
 });
 

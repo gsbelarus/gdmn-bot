@@ -6,7 +6,7 @@ import { customerAccDeds, employeesByCustomer, paySlips } from "../data";
 export const upload = (ctx: any) => {
   const { dataType, customerId, objData } = ctx.request.body;
   switch (dataType) {
-    //Если тип загружаемых данных - Справочники видов начислений\удержаний
+    //Если тип загружаемых данных - Справочники видов начислений/удержаний
     case 'accDedRef': {
       let customerAccDed = customerAccDeds[customerId];
 
@@ -55,7 +55,7 @@ export const upload = (ctx: any) => {
           paySlips[employeeId + '_' + year] = paySlip;
         }
 
-       paySlip.clear();
+        paySlip.clear();
 
         paySlip.write('employeeId', value.employeeId);
         paySlip.write('year', value.year);
@@ -65,8 +65,8 @@ export const upload = (ctx: any) => {
         paySlip.write('data', value.data);
 
         paySlip.flush();
-        break;
       }
+      break;
     }
   }
   ctx.status = 200;
