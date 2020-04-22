@@ -137,11 +137,12 @@ export class Bot {
    * Рассылка уведомления всем пользователям, кто зарегистрирован
    * @param text - текст уведомления
    */
-  sendMessageToEmployess(text: string) {
-    const dialogStates = this._dialogStates.getMutable(true);
-    Object.entries(dialogStates).forEach(([idx, d]) => {
-      if (d.type !== 'INITIAL' && d.type !== 'LOGGING_IN') {
-        this.sendMessage(idx, text, keyboardMenu);
+  sendMessageToEmployess(customerId: string, text: string) {
+    const dlgObj = this._dialogStates.getMutable(true);
+    Object.entries(this._accountLink.getMutable(true)).filter(([_, acc]) => acc.customerId === customerId).forEach(([chatId, acc]) => {
+      const dlg = dlgObj[chatId];
+      if (dlg && dlg.type !== 'INITIAL' && dlg.type !== 'LOGGING_IN') {
+        this.sendMessage(chatId, text, keyboardMenu);
       }
     })
   }

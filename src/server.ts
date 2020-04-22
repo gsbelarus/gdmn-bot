@@ -4,7 +4,7 @@ import Router from 'koa-router';
 import http from 'http';
 import https from 'https';
 import path from 'path';
-import { upload } from "./util/upload";
+import { upload_employees, upload_accDedRefs, upload_paySlips } from "./util/upload";
 import { TelegramBot } from "./telegram";
 import { initCurrencies } from "./currency";
 import { Viber } from "./viber";
@@ -67,10 +67,22 @@ router.get('/', (ctx, next) => {
   next();
 });
 
-router.post('/upload', (ctx, next) => {
-  upload(ctx);
-  viber.sendMessageToEmployess('Пришли новые данные!');
-  telegram.sendMessageToEmployess('Пришли новые данные!');
+router.post('/upload_employees', (ctx, next) => {
+  upload_employees(ctx);
+  next();
+});
+
+router.post('/upload_accDedRefs', (ctx, next) => {
+ // upload_accDedRefs(ctx);
+  if (ctx.request.body.dataType === 'accDedRef') {
+    viber.sendMessageToEmployess(ctx.request.body.customerId, 'Пришли новые данные!');
+    telegram.sendMessageToEmployess(ctx.request.body.customerId, 'Пришли новые данные!');
+  }
+  next();
+});
+
+router.post('/upload_paySlips', (ctx, next) => {
+  upload_paySlips(ctx);
   next();
 });
 
