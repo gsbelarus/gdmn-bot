@@ -82,6 +82,7 @@ router.post('/upload_accDedRefs', (ctx, next) => {
 });
 
 router.post('/upload_paySlips', (ctx, next) => {
+  console.log(ctx);
   upload_paySlips(ctx);
   next();
 });

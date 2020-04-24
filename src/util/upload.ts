@@ -59,10 +59,8 @@ export const upload_paySlips = (ctx: any) => {
   const { rewrite, customerId, objData } = ctx.request.body;
   let paySlip: FileDB<IPaySlip>;
 
-  for (const [key, value] of Object.entries(objData) as any) {
-    const employeeId = value.employeeId;
-    const year = value.year;
-
+  //for (const [key, value] of Object.entries(objData) as any) {
+    const employeeId = objData.emplId;
     paySlip = paySlips[employeeId];
 
     if (!paySlip) {
@@ -72,15 +70,17 @@ export const upload_paySlips = (ctx: any) => {
 
     paySlip.clear();
 
-    paySlip.write('employeeId', value.employeeId);
-    paySlip.write('year', value.year);
-    paySlip.write('deptName', value.deptName);
-    paySlip.write('posName', value.posName);
-    paySlip.write('hiringDate', value.hiringDate);
-    paySlip.write('data', value.data);
+    paySlip.write(employeeId, objData as IPaySlip);
+
+    // paySlip.write('emplId', objData.emplId);
+    // paySlip.write('year', value.year);
+    // paySlip.write('deptName', value.deptName);
+    // paySlip.write('posName', value.posName);
+    // paySlip.write('hiringDate', objData.hiringDate);
+    // paySlip.write('data', objData.data);
 
     paySlip.flush();
-  }
+ // }
 
   ctx.status = 200;
   ctx.body = JSON.stringify({ status: 200, result: `ok` });

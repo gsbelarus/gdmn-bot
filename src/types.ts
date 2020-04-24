@@ -79,14 +79,31 @@ export interface IAccDed {
   type: 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' | 'PRIVILAGE' | 'INCOME_TAX' | 'PENSION_TAX' | 'TRADE_UNION_TAX' | 'TAX' | 'REFERENCE';
 };
 
+export interface IPosition {
+  id: string;
+  name: LName;
+  d: Date;
+};
+
+export interface IDepartment {
+  id: string;
+  name: LName;
+  d: Date;
+};
+
+export interface ISalary {
+  s: number;
+  d: Date;
+};
+
 export interface IPaySlip {
   version: "1.0";
-  employeeId: string;
-  year: number;
-  deptName: LName;
-  posName: LName;
+  emplId: string;
   hiringDate: Date;
-  dismissalDate: Date;
+  dept: IDepartment[];
+  pos: IPosition[];
+  salary: ISalary[];
+  dismissalDate?: Date;
   data: {
     typeId: string;
     dateBegin?: Date;
@@ -94,7 +111,7 @@ export interface IPaySlip {
     date?: Date;
     granularity?: 'DAY';
     s: number;
-    adddata?: any;
+    det?: any;
   }[];
 };
 
