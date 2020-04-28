@@ -56,31 +56,28 @@ export const upload_accDedRefs = (ctx: any) => {
  * @param ctx
  */
 export const upload_paySlips = (ctx: any) => {
-  const { rewrite, customerId, objData } = ctx.request.body;
+  const { rewrite, customerId } = ctx.request.body;
+  const objData: IPaySlip = ctx.request.body.objData;
   let paySlip: FileDB<IPaySlip>;
 
-  //for (const [key, value] of Object.entries(objData) as any) {
-    const employeeId = objData.emplId;
-    paySlip = paySlips[employeeId];
+  const employeeId = objData.emplId;
+  paySlip = paySlips[employeeId];
 
-    if (!paySlip) {
-      paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip/${customerId}/${employeeId}.json`), {});
-      paySlips[employeeId] = paySlip;
-    }
+  if (!paySlip) {
+    paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip/${customerId}/${employeeId}.json`), {});
+    paySlips[employeeId] = paySlip;
+  }
 
+  let newPaySlip: IPaySlip = objData;
+  if (rewrite) {
     paySlip.clear();
+  } else {
+    const p = paySlip.getMutable(true)[employeeId];
+    //сделать слияние
+      }
+  paySlip.write(employeeId, newPaySlip);
 
-    paySlip.write(employeeId, objData as IPaySlip);
-
-    // paySlip.write('emplId', objData.emplId);
-    // paySlip.write('year', value.year);
-    // paySlip.write('deptName', value.deptName);
-    // paySlip.write('posName', value.posName);
-    // paySlip.write('hiringDate', objData.hiringDate);
-    // paySlip.write('data', objData.data);
-
-    paySlip.flush();
- // }
+  paySlip.flush();
 
   ctx.status = 200;
   ctx.body = JSON.stringify({ status: 200, result: `ok` });

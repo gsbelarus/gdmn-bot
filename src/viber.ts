@@ -17,7 +17,7 @@ export class Viber extends Bot {
     getCustomers: () => ICustomers,
     getEmployeesByCustomer: (customerId: string) => IEmploeeByCustomer,
     getAccDeds: (customerId: string) => IData<IAccDed>,
-    getPaySlipByUser: (customerId: string, userId: string, year: number) => IData<IPaySlip>) {
+    getPaySlipByUser: (customerId: string, userId: string) => IData<IPaySlip>) {
 
     super('viber', getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser);
 

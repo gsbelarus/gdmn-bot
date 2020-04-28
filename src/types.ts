@@ -103,16 +103,14 @@ export interface IPaySlip {
   dept: IDepartment[];
   pos: IPosition[];
   salary: ISalary[];
-  dismissalDate?: Date;
   data: {
     typeId: string;
-    dateBegin?: Date;
-    dateEnd?: Date;
-    date?: Date;
-    granularity?: 'DAY';
+    db?: Date;
+    de?: Date;
     s: number;
     det?: any;
   }[];
+  dismissalDate?: Date;
 };
 
 export interface IPaySlipItem {
