@@ -12,8 +12,16 @@ export const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee,
 export const customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
 
 /**
- * Расчетные листки для каждого клиента.
- * Ключем объекта выступает персональный номер из паспорта.
+ * На каждого сотрудника мы заводим на диске отдельный файл, который хранит
+ * json объект, внутри которого находится:
+ * 1) массив истории изменения должностей
+ * 2) массив истории подразделений
+ * 3) массив начислений/удержаний
+ *
+ * Данные с диска загружаются по мере требования. Когда нам из чата приходит
+ * команда показать расчетный листок, мы смотрим в объект paySlips по employeeId.
+ * Если там нет записи, то создаем новый экземпляр FileDB и загружаем данные
+ * с диска и помещаем в объект paySlips. Если есть -- берем данные.
  */
 export const paySlips: { [employeeId: string]: FileDB<IPaySlip> } = {};
 
@@ -31,13 +39,13 @@ export const getEmployeesByCustomer = (customerId: string): IEmploeeByCustomer =
   return employees.getMutable(false);
 }
 
-export const getPaySlipByUser = (customerId: string, userID: string): IData<IPaySlip> => {
+export const getPaySlipByUser = (customerId: string, userID: string): IPaySlip | undefined => {
   let paySlip = paySlips[userID];
   if (!paySlip) {
     paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip/${customerId}/${userID}.json`), {});
     paySlips[userID] = paySlip;
   };
-  return paySlip.getMutable(false);
+  return paySlip.read(userID);
 }
 
 export const getAccDeds = (customerId: string): IData<IAccDed> => {

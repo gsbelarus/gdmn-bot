@@ -97,6 +97,11 @@ export class FileDB<T extends Object> {
     }
   }
 
+  public put(data: IData<T>) {
+    this._data = data;
+    this._modified = true;
+  }
+
   public merge(key: string, data: Partial<T>, omit?: string[]) {
     const prev = this._load()[key];
     this._data![key] = {...prev, ...data};

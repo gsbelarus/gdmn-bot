@@ -78,13 +78,12 @@ router.post('/upload_accDedRefs', (ctx, next) => {
 });
 
 router.post('/upload_paySlips', (ctx, next) => {
-  console.log(ctx);
-  upload_paySlips(ctx);
-  
 
-  //Рассылаем сообщение, что пришли новые данные всем сотрудникам из организации customerId
-  viber.sendMessageToEmployess(ctx.request.body.customerId, 'Пришли новые данные!');
-  telegram.sendMessageToEmployess(ctx.request.body.customerId, 'Пришли новые данные!');
+  upload_paySlips(ctx);
+
+  //Рассылаем сообщение, что пришли новые данные сотруднику из организации customerId, если он зарегистрирован
+  viber.sendMessageToEmployee(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
+  telegram.sendMessageToEmployee(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
 
   next();
 });
@@ -118,19 +117,19 @@ const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bun
   .map(cert => cert +'-----END CERTIFICATE-----\r\n')
   .pop();
 
-// const viberCallback = viber.bot.middleware();
-// const koaCallback = app.callback();
-// const host = 'zarobak.gdmn.app';
+const viberCallback = viber.bot.middleware();
+const koaCallback = app.callback();
+const host = 'zarobak.gdmn.app';
 
-// https.createServer({ cert, ca, key },
-//   (req, res) => {
-//     if (req.headers.host === host) {
-//       viberCallback(req, res);
-//     } else {
-//       koaCallback(req, res);
-//     }
-//   }
-// ).listen(443, () => viber.bot.setWebhook(`https://${host}`));
+https.createServer({ cert, ca, key },
+  (req, res) => {
+    if (req.headers.host === host) {
+      viberCallback(req, res);
+    } else {
+      koaCallback(req, res);
+    }
+  }
+).listen(443, () => viber.bot.setWebhook(`https://${host}`));
 
 /*
 const httpsServer = https.createServer({ cert, ca, key }, app.callback());
@@ -154,7 +153,7 @@ process
     }
 
     telegram.finalize();
-    //viber.finalize();
+    viber.finalize();
 
     console.log('Process exit event with code: ', code);
   })

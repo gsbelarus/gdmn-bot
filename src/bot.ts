@@ -1,5 +1,5 @@
 import {
-  DialogState, IAccountLink, IDialogStateLoggingIn, IAccDed, IPaySlip, LName, Lang, ITypePaySlip,
+  DialogState, IAccountLink, IDialogStateLoggingIn, IAccDed, IPaySlip, LName, Lang, TypePaySlip,
   ICustomers, IEmploeeByCustomer, IDialogStateGettingConcise, monthList, IDialogStateGettingCompare, IDialogStateGettingCurrency, addName, IDepartment, IPosition
 } from "./types";
 import { FileDB, IData } from "./util/fileDB";
@@ -93,13 +93,13 @@ export class Bot {
   private getCustomers: () => ICustomers;
   private getEmployeesByCustomer: (customerId: string) => IEmploeeByCustomer;
   private getAccDeds: (customerId: string) => IData<IAccDed>;
-  private getPaySlipByUser: (customerId: string, userId: string) => IData<IPaySlip>;
+  private getPaySlipByUser: (customerId: string, userId: string) => IPaySlip | undefined;
 
   constructor(dir: string,
     getCustomers: () => ICustomers,
     getEmployeesByCustomer: (customerId: string) => IEmploeeByCustomer,
     getAccDeds: (customerId: string) => IData<IAccDed>,
-    getPaySlipByUser: (customerId: string, userId: string) => IData<IPaySlip>) {
+    getPaySlipByUser: (customerId: string, userId: string) => IPaySlip | undefined) {
     this._accountLink = new FileDB<IAccountLink>(path.resolve(process.cwd(), `data/${dir}/accountlink.json`), {});
     this._dialogStates = new FileDB<DialogState>(path.resolve(process.cwd(), `data/${dir}/dialogstates.json`), {});
     this.getCustomers = getCustomers;
@@ -137,7 +137,7 @@ export class Bot {
    * Рассылка уведомления всем пользователям, кто зарегистрирован
    * @param text - текст уведомления
    */
-  sendMessageToEmployess(customerId: string, text: string) {
+  sendMessageToEmployees(customerId: string, text: string) {
     const dlgObj = this._dialogStates.getMutable(true);
     Object.entries(this._accountLink.getMutable(true)).filter(([_, acc]) => acc.customerId === customerId).forEach(([chatId, acc]) => {
       const dlg = dlgObj[chatId];
@@ -145,6 +145,22 @@ export class Bot {
         this.sendMessage(chatId, text, keyboardMenu);
       }
     })
+  }
+
+  /**
+   * Рассылка уведомления одному пользователю
+   * @param text - текст уведомления
+   */
+  sendMessageToEmployee(customerId: string, employeeId: string, text: string) {
+    const dlgObj = this._dialogStates.getMutable(true);
+    const accountLink = Object.entries(this._accountLink.getMutable(true)).find(([_, acc]) => acc.customerId === customerId && acc.employeeId === employeeId);
+    if (accountLink) {
+      const chatId = accountLink[0];
+      const dlg = dlgObj[chatId];
+      if (dlg && dlg.type !== 'INITIAL' && dlg.type !== 'LOGGING_IN') {
+        this.sendMessage(chatId, text, keyboardMenu);
+      }
+    }
   }
 
   /**
@@ -437,7 +453,7 @@ export class Bot {
     return `${prevStr}${prevStr !== '' ? '\n' : ''}  ${str}${s ? '\n  =' + new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s) : ''}`
   }
 
-  async getPaySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date): Promise<string> {
+  async getPaySlip(chatId: string, typePaySlip: TypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date): Promise<string> {
     const link = this._accountLink.read(chatId);
 
     if (link?.customerId && link.employeeId) {
@@ -449,18 +465,28 @@ export class Bot {
         return ('Курс валюты не был загружен')
       }
 
-      let empls = this.getEmployeesByCustomer(customerId);
+      const empls = this.getEmployeesByCustomer(customerId);
       const accDedObj = this.getAccDeds(customerId);
 
       let allTaxes = [0, 0];
 
-      let accrual = [0, 0], salary = [0, 0], tax = [0, 0], ded = [0, 0], saldo = [0, 0],
+      const accrual = [0, 0], salary = [0, 0], tax = [0, 0], ded = [0, 0], saldo = [0, 0],
         incomeTax = [0, 0], pensionTax = [0, 0], tradeUnionTax = [0, 0], advance = [0, 0], tax_ded = [0, 0], privilage = [0, 0];
+
+      /*
+      const data = {
+        accrual: {
+          caption: '',
+          values: [0, 0],
+          needDblLine: true
+        }
+      };
+      */
 
       let strAccruals = '', strAdvances = '', strDeductions = '', strTaxes = '', strPrivilages = '', strTaxDeds = '';
 
-      let deptName = '';
-      let posName = '';
+      let deptName = ['', ''];
+      let posName = ['', ''];
       const dbMonthName = db.toLocaleDateString(lng, { month: 'long', year: 'numeric' });
       let isHavingData = false;
 
@@ -475,31 +501,39 @@ export class Bot {
       const getAccDedsByPeriod = (fromDb: Date, fromDe: Date, i: number) => {
         let paySlip = this.getPaySlipByUser(customerId, employeeId);
 
-        if (!paySlip || Object.keys(paySlip).length === 0) {
+        if (!paySlip) {
           //continue;
         } else {
           //Подразделение получаем из массива подразделений dept,
           //как первый элемент с максимальной датой, но меньший даты начала расч. листка
           //Аналогично с должностью из массива pos
-          const dept = (Object.values(paySlip.dept) as IDepartment[])
-            .filter(deptItem => new Date(deptItem.d).getTime() <= db.getTime())
-            .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime())[0].name;
-          deptName = dept && getLName(dept, [lng, 'ru']);
 
-          const pos = (Object.values(paySlip.pos) as IPosition[])
-            .filter(posItem => new Date(posItem.d).getTime() <= db.getTime())
-            .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime())[0].name;
-          posName = pos && getLName(pos, [lng, 'ru']);
+
+          const dept = paySlip.dept
+            .filter(deptItem => new Date(deptItem.d) <= fromDe)
+            .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
+
+          deptName[i] = dept[0] && getLName(dept[0].name, [lng, 'ru']);
+
+          const pos = paySlip.pos
+            .filter(posItem => new Date(posItem.d) <= fromDe)
+            .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
+
+          posName[i] = pos[0] && getLName(pos[0].name, [lng, 'ru']);
+
+          const sal = paySlip.salary
+            .filter(posItem => new Date(posItem.d) <= fromDe)
+            .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
+
+          salary[i] = sal[0]?.s;
 
           //Цикл по всем записям начислений-удержаний
-          for (const [key, value] of Object.entries(paySlip.data) as any) {
+          for (const [key, value] of Object.entries(paySlip.data)) {
             if (new Date(value?.db) >= fromDb && new Date(value?.de) <= fromDe) {
               isHavingData = true;
 
               if (value.typeId === 'saldo') {
                 saldo[i] = saldo[i] + value.s;
-              } else if (value.typeId === 'salary') {
-                salary[i] = value.s;
               } else if (accDedObj[value.typeId]) {
 
                 let accDedName = getLName(accDedObj[value.typeId].name, [lng, 'ru']);
@@ -591,6 +625,7 @@ export class Bot {
               ['Расчетный листок'],
               [emplName],
               [`Период: ${dbMonthName}`],
+              [`Валюта: ${currencyAbbreviation}`,,, true],
               ['Начисления:', accrual[0], true, true],
               [strAccruals,,, true],
               ['Аванс:', advance[0], true, true],
@@ -603,12 +638,12 @@ export class Bot {
               [strTaxDeds,,, true],
               ['Льготы:', privilage[0], true, true],
               [strPrivilages,,, true],
+              [`Информация на ${date2str(de)}:`],
               ['Подразделение:'],
-              [this.getPaySlipString('', deptName)],
+              [this.getPaySlipString('', deptName[0])],
               ['Должность:'],
-              [this.getPaySlipString('', posName)],
-              ['Оклад:', salary[0], true],
-              [`Валюта: ${currencyAbbreviation}`],
+              [this.getPaySlipString('', posName[0])],
+              ['Оклад:', salary[0], true]
             ];
             break;
           }
@@ -618,6 +653,7 @@ export class Bot {
               ['Расчетный листок'],
               [emplName],
               [`Период: ${m}`],
+              [`Валюта: ${currencyAbbreviation}`,,,true],
               ['Начислено:', accrual[0], true, true],
               ['Зарплата чистыми:', getSumByRate(accrual[0], rate) - allTaxes[0]],
               ['Аванс:', advance[0], true],
@@ -627,12 +663,12 @@ export class Bot {
               ['Подоходный:', incomeTax[0], true],
               ['Пенсионный:', pensionTax[0], true],
               ['Профсоюзный:', tradeUnionTax[0], true, true],
+              [`Информация на ${date2str(de)}:`],
               ['Подразделение:'],
-              [this.getPaySlipString('', deptName)],
+              [this.getPaySlipString('', deptName[0])],
               ['Должность:'],
-              [this.getPaySlipString('', posName)],
-              ['Оклад:', salary[0], true],
-              [`Валюта: ${currencyAbbreviation}`]
+              [this.getPaySlipString('', posName[0])],
+              ['Оклад:', salary[0], true]
             ];
             break;
           }
@@ -646,6 +682,7 @@ export class Bot {
               template = [
                 ['Сравнение расчетных листков'],
                 [emplName],
+                [`Валюта: ${currencyAbbreviation}`],
                 [`Период I: ${date2str(db)}-${date2str(de)}`],
                 [`Период II: ${date2str(toDb)}-${date2str(toDe)}`,,,true],
                 ['Начислено I:', accrual[0], true],
@@ -675,14 +712,19 @@ export class Bot {
                 ['Профсоюзный I:', tradeUnionTax[0], true],
                 ['Профсоюзный II:', tradeUnionTax[1], true],
                 ['Разница:', getSumByRate(tradeUnionTax[1], rate) - getSumByRate(tradeUnionTax[0], rate),,true],
+                [`Информация на ${date2str(de)}:`],
                 ['Подразделение:'],
-                [this.getPaySlipString('', deptName)],
+                [this.getPaySlipString('', deptName[0])],
+                ['Должность}:'],
+                [this.getPaySlipString('', posName[0]),,,true],
+                [`Информация на ${date2str(toDe)}:`],
+                ['Подразделение:'],
+                [this.getPaySlipString('', deptName[1])],
                 ['Должность:'],
-                [this.getPaySlipString('', posName)],
-                ['Оклад I:', salary[0], true],
-                ['Оклад II:', salary[1], true],
-                ['', getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)],
-                [`Валюта: ${currencyAbbreviation}`]
+                [this.getPaySlipString('', posName[1]),,,true],
+                [`Оклад на ${date2str(de)}:`, salary[0], true],
+                [`Оклад на ${date2str(toDe)}:`, salary[1], true],
+                ['Разница:', getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)]
               ]
               break;
             }
@@ -786,15 +828,16 @@ export class Bot {
     this.accountLink.delete(chatId);
   }
 
-  async paySlip(chatId: string, typePaySlip: ITypePaySlip, lng: Lang, db: Date, de: Date) {
+  async paySlip(chatId: string, typePaySlip: TypePaySlip, lng: Lang, db: Date, de: Date) {
     let dBegin = db;
     let dEnd = de;
     while (true) {
-      const cListok = await this.getPaySlip(chatId, typePaySlip, lng, db, de);
-      if (cListok !== '') {
+      const cListok = await this.getPaySlip(chatId, typePaySlip, lng, dBegin, dEnd);
+      if (cListok) {
         await this.sendMessage(chatId, cListok, keyboardMenu, true);
-        break;
+        return;
       }
+
       dEnd.setMonth(dBegin.getMonth());
       dEnd.setDate(0);
       dBegin.setMonth(dBegin.getMonth() - 1);
@@ -803,7 +846,7 @@ export class Bot {
         await this.sendMessage(chatId,
           `Нет данных для расчетного листка 🤔`,
           keyboardMenu);
-        break;
+        return;
       }
     }
   }

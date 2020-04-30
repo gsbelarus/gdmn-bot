@@ -1,7 +1,7 @@
 import { FileDB } from "./fileDB";
-import { IAccDed, IPaySlip, IEmployee } from "../types";
+import { IAccDed, IPaySlip, IEmployee, IDepartment, IAccDeds } from "../types";
 import path from 'path';
-import { customerAccDeds, employeesByCustomer, paySlips } from "../data";
+import { customerAccDeds, employeesByCustomer, paySlips, getAccDeds } from "../data";
 
 /**
  * Загрузка сотрудников
@@ -51,31 +51,98 @@ export const upload_accDedRefs = (ctx: any) => {
   ctx.body = JSON.stringify({ status: 200, result: `ok` });
 }
 
+interface IUploadPaySlipRequest {
+  rewrite: boolean;
+  customerId: string;
+  objData: IPaySlip;
+};
+
+/*
+
+ FileDB делался для работы со множеством записей, у каждой из которых
+ свой уникальный ключ. Сейчас мы перестроили схему хранения так, что данные по
+ одному сотруднику хранятся в одном файле. Т.е. если мы будем использовать
+ для доступа по прежнему FileDB, то в структуре будет только одна запись.
+ в качестве ключа можно выбрать employeeID.
+
+*/
+
+
 /**
  * Загрузка расчетных листков
  * @param ctx
  */
 export const upload_paySlips = (ctx: any) => {
-  const { rewrite, customerId } = ctx.request.body;
-  const objData: IPaySlip = ctx.request.body.objData;
-  let paySlip: FileDB<IPaySlip>;
+  const { rewrite, customerId, objData } = ctx.request.body as IUploadPaySlipRequest;
 
   const employeeId = objData.emplId;
-  paySlip = paySlips[employeeId];
+
+  // has pay slips for the employee been loaded already?
+  let paySlip = paySlips[employeeId];
 
   if (!paySlip) {
-    paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip/${customerId}/${employeeId}.json`), {});
+    // no, let's try load them from the disk
+    // TODO: extract path into constant
+    paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip/${customerId}/${employeeId}.json`));
     paySlips[employeeId] = paySlip;
   }
 
-  let newPaySlip: IPaySlip = objData;
   if (rewrite) {
     paySlip.clear();
+  }
+
+  const paySlipData = paySlip.read(employeeId);
+
+  // если на диске не было файла или там было пусто, то
+  // просто запишем данные, которые пришли из интернета
+  if (!paySlipData) {
+    paySlip.write(employeeId, objData);
   } else {
-    const p = paySlip.getMutable(true)[employeeId];
-    //сделать слияние
+    // данные есть. надо объединить прибывшие данные с тем
+    // что уже есть на диске
+
+    // объединяем начисления
+    for (const d of objData.data) {
+      const i = paySlipData.data.findIndex( a => a.typeId === d.typeId && a.db === d.db && a.de === d.de );
+      if (i === -1) {
+        paySlipData.data.push(d);
+      } else {
+        paySlipData.data[i] = d;
       }
-  paySlip.write(employeeId, newPaySlip);
+    }
+
+    // объединяем подразделения
+    for (const d of objData.dept) {
+      const i = paySlipData.dept.findIndex( a => a.id === d.id && a.d === d.d );
+      if (i === -1) {
+        paySlipData.dept.push(d);
+      } else {
+        paySlipData.dept[i] = d;
+      }
+    }
+
+    // объединяем должности
+    for (const p of objData.pos) {
+      const i = paySlipData.pos.findIndex( a => a.id === p.id && a.d === p.d );
+      if (i === -1) {
+        paySlipData.pos.push(p);
+      } else {
+        paySlipData.pos[i] = p;
+      }
+    }
+
+    // объединяем оклады
+    for (const p of objData.salary) {
+      const i = paySlipData.salary.findIndex( a => a.d === p.d );
+      if (i === -1) {
+        paySlipData.salary.push(p);
+      } else {
+        paySlipData.salary[i] = p;
+      }
+    }
+
+    paySlip.write(employeeId, paySlipData);
+  }
 
   paySlip.flush();
 

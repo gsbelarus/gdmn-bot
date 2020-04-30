@@ -97,7 +97,6 @@ export interface ISalary {
 };
 
 export interface IPaySlip {
-  version: "1.0";
   emplId: string;
   hiringDate: Date;
   dept: IDepartment[];
@@ -105,8 +104,8 @@ export interface IPaySlip {
   salary: ISalary[];
   data: {
     typeId: string;
-    db?: Date;
-    de?: Date;
+    db: Date;
+    de: Date;
     s: number;
     det?: any;
   }[];
@@ -119,7 +118,7 @@ export interface IPaySlipItem {
   s: number;
 };
 
- export type ITypePaySlip = 'DETAIL' | 'CONCISE' | 'COMPARE'
+ export type TypePaySlip = 'DETAIL' | 'CONCISE' | 'COMPARE'
 /**
  * TODO: этот кусок мы просто скопировали из gdmn-internals
  * когда оформим gdmn-internals в отдельный пакет, надо убрать
