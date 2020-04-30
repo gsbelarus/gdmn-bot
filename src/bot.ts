@@ -473,15 +473,13 @@ export class Bot {
       const accrual = [0, 0], salary = [0, 0], tax = [0, 0], ded = [0, 0], saldo = [0, 0],
         incomeTax = [0, 0], pensionTax = [0, 0], tradeUnionTax = [0, 0], advance = [0, 0], tax_ded = [0, 0], privilage = [0, 0];
 
-      /*
-      const data = {
-        accrual: {
-          caption: '',
-          values: [0, 0],
-          needDblLine: true
-        }
-      };
-      */
+      // const data = {
+      //   accrual: {
+      //     caption: '',
+      //     values: [0, 0],
+      //     needDblLine: true
+      //   }
+      // };
 
       let strAccruals = '', strAdvances = '', strDeductions = '', strTaxes = '', strPrivilages = '', strTaxDeds = '';
 
@@ -507,8 +505,6 @@ export class Bot {
           //Подразделение получаем из массива подразделений dept,
           //как первый элемент с максимальной датой, но меньший даты начала расч. листка
           //Аналогично с должностью из массива pos
-
-
           const dept = paySlip.dept
             .filter(deptItem => new Date(deptItem.d) <= fromDe)
             .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
