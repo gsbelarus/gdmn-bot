@@ -5,10 +5,10 @@ Properties:
   RUID: 1193786287_1320926323
   Name: "БОТ.Экспорт файлов"
   Caption: "БОТ.Экспорт файлов"
-  Version: "1.0.0.15"
+  Version: "1.0.0.16"
   Optional: False
   Internal: True
-  MD5: C081DCABC1E7EC256B1292C7877D3AFD
+  MD5: F88E3C9789B7AAEDDEAB6A75AD2F767F
 Uses: 
   - "147029090_1220419898 GS.Общие.Функции работы с json"
 Objects: 
@@ -181,7 +181,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-04-29T12:28:23+03:00
+      EDITIONDATE: 2020-04-30T15:47:18+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTPAYSLIPS
         
@@ -191,19 +191,22 @@ Objects:
         UlNUBwAAAFJFV1JJVEUMAAAAz+Xw5efg7+jx4PL8AAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAEZO
         U1RGTFBS
       SCRIPT: | 
+        Option Explicit
         '#include BOT_GETSERVERDATA
         '#include BOT_SENDFILE
         '#include BOT_PREPAREPAYSLIP
-        Option Explicit
         Function bot_exportPaySlips(Period, isManual, rewrite)
           dim serverData
+          'Получим параметры для отправки на сервер (ид базы и путь к серверу) из констант
           serverData = bot_GetServerData(isManual)
         
           if not isEmpty(serverData) then
             dim Jsons, i, Creator
             set Creator = new TCreator
             set Jsons = Creator.GetObject(nil, "TStringList", "")
+            'Формирование списка Json файлов в разрезе сотрудника
             call bot_PreparePaySlip(serverData(0), Period, isManual, rewrite, Jsons)
+            'Отправим на сервер по одному
             for i = 0 to Jsons.Count - 1
               bot_SendFile Jsons(i), serverData(1) & "/upload_paySlips"
             next
@@ -244,7 +247,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-04-28T12:41:18+03:00
+      EDITIONDATE: 2020-04-30T15:48:08+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTACCDEDS
         
@@ -252,16 +255,20 @@ Objects:
         U0xQUlBSU1QIAAAASVNNQU5VQUwHAAAAwvDz9+3z/gAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAABG
         TlNURkxQUg==
       SCRIPT: | 
+        Option Explicit
         '#include BOT_GETSERVERDATA
         '#include BOT_PREPAREACCDED
         '#include BOT_SENDFILE
         Function bot_exportAccDeds(isManual)
           dim serverData
+          'Получим параметры для отправки на сервер (ид базы и путь к серверу) из констант
           serverData = bot_GetServerData(false)
         
           if not isEmpty(serverData) then
             dim JSON
+            'Формирование Json файла со списком начислений/удержаний
             JSON = bot_PrepareAccDed(serverData(0), isManual)
+            'Отправка на сервер
             bot_SendFile JSON, serverData(1) & "/upload_accDedRefs"
           end if
         End Function
@@ -319,7 +326,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-04-27T23:59:53+03:00
+      EDITIONDATE: 2020-04-30T15:47:58+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTEMPLOYEES
         
@@ -328,16 +335,20 @@ Objects:
         UFJTVAgAAABJU01BTlVBTAcAAADC8PP37fP+AAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAEZOU1RG
         TFBS
       SCRIPT: | 
+        Option Explicit
         '#include BOT_GETSERVERDATA
         '#include BOT_PREPAREEMPLOYEES
         '#include BOT_SENDFILE
         Function bot_exportEmployees(Period, isManual)
           dim serverData
+          'Получим параметры для отправки на сервер (ид базы и путь к серверу) из констант
           serverData = bot_GetServerData(isManual)
         
           if not IsEmpty(serverData) then
             dim JSON
+            'Формирование Json файла со списком всех сотрудников за период
             JSON = bot_PrepareEmployees(serverData(0), Period, isManual)
+            'Отправка на сервер
             bot_SendFile JSON, serverData(1) & "/upload_employees"
           end if
         End Function
@@ -1204,7 +1215,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-04-30T11:49:40+03:00
+      EDITIONDATE: 2020-04-30T15:49:46+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTACCDEDSMANUAL
         
@@ -1212,6 +1223,7 @@ Objects:
       SCRIPT: | 
         '#include BOT_EXPORTACCDEDS
         Option Explicit
+        'Выгрузка типов начислений/удержаний в ручном режиме
         Function bot_exportAccDedsManual
           call bot_exportAccDeds(true)
         End Function
@@ -1246,7 +1258,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-04-30T12:02:58+03:00
+      EDITIONDATE: 2020-04-30T15:41:21+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTEMPLOYEESMANUAL
         
@@ -1256,6 +1268,7 @@ Objects:
       SCRIPT: | 
         '#include BOT_EXPORTEMPLOYEES
         Option Explicit
+        'Выгрузка сотрудников(ФИО, уникальный номер паспорта) за период в ручном режиме
         Function bot_exportEmployeesManual(Period)
           call bot_exportEmployees(Period, true)
         End Function
@@ -1290,7 +1303,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-04-30T12:02:53+03:00
+      EDITIONDATE: 2020-04-30T15:49:17+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTPAYSLIPSMANUAL
         
@@ -1301,6 +1314,8 @@ Objects:
       SCRIPT: | 
         '#include BOT_EXPORTPAYSLIPS
         Option Explicit
+        'Выгрузка расчетных листков за период в ручном режиме
+        ' rewrite - перезаписать все данные
         Function bot_exportPaySlipsManual(Period, rewrite)
           call bot_exportPaySlips(Period, true, rewrite)
         End Function
