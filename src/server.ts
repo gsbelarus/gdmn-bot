@@ -67,18 +67,17 @@ router.get('/', (ctx, next) => {
   next();
 });
 
-router.post('/upload_employees', (ctx, next) => {
+router.post('/zarobak/v1/upload_employees', (ctx, next) => {
   upload_employees(ctx);
   next();
 });
 
-router.post('/upload_accDedRefs', (ctx, next) => {
+router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
   upload_accDedRefs(ctx);
   next();
 });
 
-router.post('/upload_paySlips', (ctx, next) => {
-
+router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
   upload_paySlips(ctx);
 
   //Рассылаем сообщение, что пришли новые данные сотруднику из организации customerId, если он зарегистрирован

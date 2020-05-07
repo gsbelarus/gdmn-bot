@@ -1,7 +1,7 @@
 import { FileDB } from "./fileDB";
 import { IAccDed, IPaySlip, IEmployee, IDepartment, IAccDeds } from "../types";
 import path from 'path';
-import { customerAccDeds, employeesByCustomer, paySlips, getAccDeds } from "../data";
+import { customerAccDeds, employeesByCustomer, paySlips, getAccDeds, paySlipRoot, emploeeFileName, accDedRefFileName } from "../data";
 
 /**
  * Загрузка сотрудников
@@ -12,7 +12,7 @@ export const upload_employees = (ctx: any) => {
   let employee = employeesByCustomer[customerId];
 
   if (!employee) {
-    employee = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`), {});
+    employee = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `${paySlipRoot}/${customerId}/${emploeeFileName}`), {});
     employeesByCustomer[customerId] = employee;
   }
   employee.clear();
@@ -36,9 +36,10 @@ export const upload_accDedRefs = (ctx: any) => {
   let customerAccDed = customerAccDeds[customerId];
 
   if (!customerAccDed) {
-    customerAccDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip/${customerId}/accdedref.json`), {});
+    customerAccDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${paySlipRoot}/${customerId}/${accDedRefFileName}`), {});
     customerAccDeds[customerId] = customerAccDed;
   }
+
   customerAccDed.clear();
 
   for (const [key, value] of Object.entries(objData)) {
@@ -83,7 +84,7 @@ export const upload_paySlips = (ctx: any) => {
   if (!paySlip) {
     // no, let's try load them from the disk
     // TODO: extract path into constant
-    paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip/${customerId}/${employeeId}.json`));
+    paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `${paySlipRoot}/${customerId}/${employeeId}.json`));
     paySlips[employeeId] = paySlip;
   }
 

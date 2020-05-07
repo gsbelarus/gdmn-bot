@@ -95,6 +95,10 @@ export interface ISalary {
   s: number;
   d: Date;
 };
+export interface IHourRate {
+  s: number;
+  d: Date;
+};
 
 export interface IPaySlip {
   emplId: string;
@@ -102,6 +106,7 @@ export interface IPaySlip {
   dept: IDepartment[];
   pos: IPosition[];
   salary: ISalary[];
+  hourrate?: IHourRate[];
   data: {
     typeId: string;
     db: Date;

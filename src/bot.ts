@@ -23,7 +23,7 @@ export type MenuItem = IMenuButton | IMenuLink;
 
 export type Menu = MenuItem[][];
 
-export type Template = [string, number?, boolean?, boolean?][];
+export type Template = [string, number?, boolean?][];
 
 const keyboardLogin: Menu = [
   [
@@ -470,7 +470,7 @@ export class Bot {
 
       let allTaxes = [0, 0];
 
-      const accrual = [0, 0], salary = [0, 0], tax = [0, 0], ded = [0, 0], saldo = [0, 0],
+      const accrual = [0, 0], salary = [0, 0], hourrate =[0, 0], tax = [0, 0], ded = [0, 0], saldo = [0, 0],
         incomeTax = [0, 0], pensionTax = [0, 0], tradeUnionTax = [0, 0], advance = [0, 0], tax_ded = [0, 0], privilage = [0, 0];
 
       // const data = {
@@ -522,6 +522,13 @@ export class Bot {
             .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
 
           salary[i] = sal[0]?.s;
+
+          const hr = paySlip.hourrate
+            ?.filter(posItem => new Date(posItem.d) <= fromDe)
+            .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
+          if (hr?.length) {
+            hourrate[i] = hr[0]?.s;
+          }
 
           //Цикл по всем записям начислений-удержаний
           for (const [key, value] of Object.entries(paySlip.data)) {
@@ -621,25 +628,39 @@ export class Bot {
               ['Расчетный листок'],
               [emplName],
               [`Период: ${dbMonthName}`],
-              [`Валюта: ${currencyAbbreviation}`,,, true],
-              ['Начисления:', accrual[0], true, true],
-              [strAccruals,,, true],
-              ['Аванс:', advance[0], true, true],
-              [strAdvances,,, true],
-              ['Удержания:', ded[0], true, true],
-              [strDeductions,,, true],
-              ['Налоги:', allTaxes[0], true, true],
-              [strTaxes,,, true],
-              ['Вычеты:', tax_ded[0], true, true],
-              [strTaxDeds,,, true],
-              ['Льготы:', privilage[0], true, true],
-              [strPrivilages,,, true],
+              [`Валюта: ${currencyAbbreviation}`],
+              ['='],
+              ['Начисления:', accrual[0], true],
+              [accrual[0] ? '=' : ''],
+              [strAccruals],
+              [accrual[0] ? '=' : ''],
+              ['Аванс:', advance[0], true],
+              [advance[0] ? '=' : ''],
+              [strAdvances],
+              [advance[0] ? '=' : ''],
+              ['Удержания:', ded[0], true],
+              [ded[0] ? '=' : ''],
+              [strDeductions],
+              [ded[0] ? '=' : ''],
+              ['Налоги:', allTaxes[0], true],
+              [allTaxes[0] ? '=' : ''],
+              [strTaxes],
+              [allTaxes[0] ? '=' : ''],
+              ['Вычеты:', tax_ded[0], true],
+              [tax_ded[0] ? '=' : ''],
+              [strTaxDeds],
+              [tax_ded[0] ? '=' : ''],
+              ['Льготы:', privilage[0], true],
+              [privilage[0] ? '=' : ''],
+              [strPrivilages],
+              [privilage[0] ? '=' : ''],
               [`Информация на ${date2str(de)}:`],
               ['Подразделение:'],
               [this.getPaySlipString('', deptName[0])],
               ['Должность:'],
               [this.getPaySlipString('', posName[0])],
-              ['Оклад:', salary[0], true]
+              ['Оклад:', salary[0], true],
+              ['ЧТС:', hourrate[0], true]
             ];
             break;
           }
@@ -649,22 +670,27 @@ export class Bot {
               ['Расчетный листок'],
               [emplName],
               [`Период: ${m}`],
-              [`Валюта: ${currencyAbbreviation}`,,,true],
-              ['Начислено:', accrual[0], true, true],
+              [`Валюта: ${currencyAbbreviation}`],
+              ['='],
+              ['Начислено:', accrual[0], true],
+              ['='],
               ['Зарплата чистыми:', getSumByRate(accrual[0], rate) - allTaxes[0]],
-              ['Аванс:', advance[0], true],
-              ['К выдаче:', saldo[0], true],
-              ['Удержания:', ded[0], true, true],
+              ['  Аванс:', advance[0], true],
+              ['  К выдаче:', saldo[0], true],
+              ['  Удержания:', ded[0], true],
+              ['='],
               ['Налоги:', allTaxes[0]],
-              ['Подоходный:', incomeTax[0], true],
-              ['Пенсионный:', pensionTax[0], true],
-              ['Профсоюзный:', tradeUnionTax[0], true, true],
+              ['  Подоходный:', incomeTax[0], true],
+              ['  Пенсионный:', pensionTax[0], true],
+              ['  Профсоюзный:', tradeUnionTax[0], true],
+              ['='],
               [`Информация на ${date2str(de)}:`],
               ['Подразделение:'],
               [this.getPaySlipString('', deptName[0])],
               ['Должность:'],
               [this.getPaySlipString('', posName[0])],
-              ['Оклад:', salary[0], true]
+              ['Оклад:', salary[0], true],
+              ['ЧТС:', hourrate[0], true]
             ];
             break;
           }
@@ -679,48 +705,58 @@ export class Bot {
                 ['Сравнение расчетных листков'],
                 [emplName],
                 [`Валюта: ${currencyAbbreviation}`],
-                [`Период I: ${date2str(db)}-${date2str(de)}`],
-                [`Период II: ${date2str(toDb)}-${date2str(toDe)}`,,,true],
-                ['Начислено I:', accrual[0], true],
+                [` I: ${date2str(db)}-${date2str(de)}`],
+                [`II: ${date2str(toDb)}-${date2str(toDe)}`],
+                ['='],
+                ['Начислено  I:', accrual[0], true],
                 ['Начислено II:', accrual[1], true],
-                ['Разница:', (getSumByRate(accrual[1], rate) - getSumByRate(accrual[0], rate)),,true],
-                ['Зарплата чистыми I:', getSumByRate(accrual[0], rate) - allTaxes[0]],
-                ['Зарплата чистыми II:', getSumByRate(accrual[1], rate) - allTaxes[1]],
+                ['Разница:', (getSumByRate(accrual[1], rate) - getSumByRate(accrual[0], rate))],
+                ['='],
+                ['Чистыми  I:', getSumByRate(accrual[0], rate) - allTaxes[0]],
+                ['Чистыми II:', getSumByRate(accrual[1], rate) - allTaxes[1]],
                 ['Разница:', getSumByRate(accrual[1], rate) - allTaxes[1] - (getSumByRate(accrual[0], rate) - allTaxes[0])],
-                ['Аванс I:', advance[0], true],
-                ['Аванс II:', advance[1], true],
-                ['Разница:', getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)],
-                ['К выдаче I:', saldo[0], true],
-                ['К выдаче II:', saldo[1], true],
-                ['Разница:', getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)],
-                ['Удержания I:', ded[0], true],
-                ['Удержания II:', ded[1], true],
-                ['Разница:', getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate),,true],
-                ['Налоги I:', allTaxes[0], true],
+                ['  Аванс  I:', advance[0], true],
+                ['  Аванс II:', advance[1], true],
+                ['  Разница:', getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)],
+                ['  К выдаче  I:', saldo[0], true],
+                ['  К выдаче II:', saldo[1], true],
+                ['  Разница:', getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)],
+                [(getSumByRate(accrual[0], rate) - allTaxes[0]) || (getSumByRate(accrual[1], rate) - allTaxes[1]) ? '=' : ''],
+                ['  Удержания  I:', ded[0], true],
+                ['  Удержания II:', ded[1], true],
+                ['  Разница:', getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate)],
+                [ded[0] || ded[1] ? '=' : ''],
+                ['Налоги  I:', allTaxes[0], true],
                 ['Налоги II:', allTaxes[1], true],
                 ['Разница:', allTaxes[1] - allTaxes[0]],
-                ['Подоходный I:', incomeTax[0], true],
-                ['Подоходный II:', incomeTax[1], true],
-                ['Разница:', getSumByRate(incomeTax[1], rate) - getSumByRate(incomeTax[0], rate)],
-                ['Пенсионный I:', pensionTax[0], true],
-                ['Пенсионный II:', pensionTax[1], true],
-                ['Разница:', getSumByRate(pensionTax[1], rate) - getSumByRate(pensionTax[0], rate)],
-                ['Профсоюзный I:', tradeUnionTax[0], true],
-                ['Профсоюзный II:', tradeUnionTax[1], true],
-                ['Разница:', getSumByRate(tradeUnionTax[1], rate) - getSumByRate(tradeUnionTax[0], rate),,true],
+                ['  Подоходный  I:', incomeTax[0], true],
+                ['  Подоходный II:', incomeTax[1], true],
+                ['  Разница:', getSumByRate(incomeTax[1], rate) - getSumByRate(incomeTax[0], rate)],
+                ['  Пенсионный  I:', pensionTax[0], true],
+                ['  Пенсионный II:', pensionTax[1], true],
+                ['  Разница:', getSumByRate(pensionTax[1], rate) - getSumByRate(pensionTax[0], rate)],
+                ['  Профсоюзный  I:', tradeUnionTax[0], true],
+                ['  Профсоюзный II:', tradeUnionTax[1], true],
+                ['  Разница:', getSumByRate(tradeUnionTax[1], rate) - getSumByRate(tradeUnionTax[0], rate)],
+                [allTaxes[0] || allTaxes[1] ? '=' : ''],
                 [`Информация на ${date2str(de)}:`],
                 ['Подразделение:'],
                 [this.getPaySlipString('', deptName[0])],
-                ['Должность}:'],
-                [this.getPaySlipString('', posName[0]),,,true],
+                ['Должность:'],
+                [this.getPaySlipString('', posName[0])],
+                ['='],
                 [`Информация на ${date2str(toDe)}:`],
                 ['Подразделение:'],
                 [this.getPaySlipString('', deptName[1])],
                 ['Должность:'],
-                [this.getPaySlipString('', posName[1]),,,true],
+                [this.getPaySlipString('', posName[1])],
+                ['='],
                 [`Оклад на ${date2str(de)}:`, salary[0], true],
                 [`Оклад на ${date2str(toDe)}:`, salary[1], true],
-                ['Разница:', getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)]
+                ['Разница:', getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)],
+                [`ЧТС на ${date2str(de)}:`, hourrate[0], true],
+                [`ЧТС на ${date2str(toDe)}:`, hourrate[1], true],
+                ['Разница:', getSumByRate(hourrate[1], rate) - getSumByRate(hourrate[0], rate)]
               ]
               break;
             }
@@ -743,7 +779,7 @@ export class Bot {
    * @param message
    */
   process(chatId: string, message: string, fromId?: string, fromUserName?: string) {
-    console.log(`Из чата ${chatId} нам пришел такой текст: ${message}`)
+    //console.log(`Из чата ${chatId} нам пришел такой текст: ${message}`)
 
     const dialogState = this._dialogStates.read(chatId);
 

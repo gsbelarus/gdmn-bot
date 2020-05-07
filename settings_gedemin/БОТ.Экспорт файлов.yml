@@ -5,12 +5,10 @@ Properties:
   RUID: 1193786287_1320926323
   Name: "БОТ.Экспорт файлов"
   Caption: "БОТ.Экспорт файлов"
-  Version: "1.0.0.16"
+  Version: "1.0.0.18"
   Optional: False
   Internal: True
-  MD5: F88E3C9789B7AAEDDEAB6A75AD2F767F
-Uses: 
-  - "147029090_1220419898 GS.Общие.Функции работы с json"
+  MD5: 4A4DB1A02F8D9B893C52E52E12F2DD8D
 Objects: 
   - 
     Properties: 

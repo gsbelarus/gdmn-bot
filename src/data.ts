@@ -2,7 +2,13 @@ import { FileDB, IData } from "./util/fileDB";
 import { ICustomer, IEmployee, IAccDed, IPaySlip, ICustomers, IEmploeeByCustomer } from "./types";
 import path from 'path';
 
-export const customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), {});
+export const DATA_ROOT = `data/`;
+export const customersFile = `${DATA_ROOT}customers.json`;
+export const paySlipRoot = `${DATA_ROOT}/payslip`;
+export const emploeeFileName = 'employee.json';
+export const accDedRefFileName = 'accdedref.json';
+
+export const customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), customersFile), {});
 export const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
 
 /**
@@ -33,7 +39,7 @@ export const getCustomers = (): ICustomers => {
 export const getEmployeesByCustomer = (customerId: string): IEmploeeByCustomer => {
   let employees = employeesByCustomer[customerId];
   if (!employees) {
-    employees = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`), {});
+    employees = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `${paySlipRoot}/${customerId}/${emploeeFileName}`), {});
     employeesByCustomer[customerId] = employees;
   }
   return employees.getMutable(false);
@@ -42,7 +48,7 @@ export const getEmployeesByCustomer = (customerId: string): IEmploeeByCustomer =
 export const getPaySlipByUser = (customerId: string, userID: string): IPaySlip | undefined => {
   let paySlip = paySlips[userID];
   if (!paySlip) {
-    paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `data/payslip/${customerId}/${userID}.json`), {});
+    paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `${paySlipRoot}/${customerId}/${userID}.json`), {});
     paySlips[userID] = paySlip;
   };
   return paySlip.read(userID);
@@ -51,7 +57,7 @@ export const getPaySlipByUser = (customerId: string, userID: string): IPaySlip |
 export const getAccDeds = (customerId: string): IData<IAccDed> => {
   let accDed = customerAccDeds[customerId];
   if (!accDed) {
-    accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `data/payslip/${customerId}/accdedref.json`), {});
+    accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${paySlipRoot}/${customerId}/${accDedRefFileName}`), {});
     customerAccDeds[customerId] = accDed;
   };
   return accDed.getMutable(false);
