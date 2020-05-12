@@ -104,5 +104,14 @@ dist
 .tern-port
 
 /data/*.json
+/data/**/*.json
 /**/*.pem
 /**/*.pfx
+
+data/telegram/dialogstates.json
+
+/ssl/*.csr
+/ssl/*.key
+/ssl/*.ca-bundle
+/ssl/*.crt
+/ssl/*.p7b

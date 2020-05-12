@@ -1,0 +1,13 @@
+%YAML 1.1
+--- 
+StructureVersion: "1.0"
+Properties: 
+  RUID: 158513317_1444931844
+  Name: "ZarobakBot"
+  Caption: "ZarobakBot"
+  Version: "1.0.0.4"
+  Optional: False
+  Internal: False
+  MD5: 5DD699B2B22AAF8B060FA75C5587D299
+Uses: 
+  - "1193786287_1320926323 ZarobakBot.Экспорт файлов"

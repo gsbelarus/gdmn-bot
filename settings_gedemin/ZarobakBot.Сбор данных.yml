@@ -1,0 +1,801 @@
+%YAML 1.1
+--- 
+StructureVersion: "1.0"
+Properties: 
+  RUID: 158513268_1444931844
+  Name: "ZarobakBot.Сбор данных"
+  Caption: "ZarobakBot.Сбор данных"
+  Version: "1.0.0.3"
+  Optional: False
+  Internal: True
+  MD5: C5C8998A96E3C930556205750EB6898B
+Objects: 
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1193785764_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_PreparePaySlip"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: ~
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2020-05-08T10:33:08+03:00
+      DISPLAYSCRIPT: | 
+        BOT_PREPAREPAYSLIP
+        BOT_PREPAREPAYSLIP_ROLLBACK
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAFBFUklPRAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
+        UFJTVAoAAABDVVNUT01FUklECgAAAENVU1RPTUVSSUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        Rk5TVFBSU1QJAAAAQ09NUEFOWUlECQAAAENPTVBBTllJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AABGTlNUUFJTVAkAAABJU1JFV1JJVEUJAAAASVNSRVdSSVRFAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAEZOU1RQUlNUCAAAAElTTUFOVUFMCAAAAElTTUFOVUFMAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAEZOU1RQUlNUBQAAAEpTT05TBQAAAEpTT05TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZO
+        U1RGTFBS
+      SCRIPT: | 
+        Option Explicit
+        Function bot_PreparePaySlip(Period, customerId, companyId, isRewrite, isManual, ByRef Jsons)
+          dim qSel, Creator, Transaction
+          set Creator = new TCreator
+          set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
+          Transaction.Defaultdatabase = IBLogin.Database
+          if not Transaction.InTransaction then
+            Transaction.StartTransaction
+          end if
+        
+          except bot_PreparePaySlipByEmploee_RollBack(Transaction)
+        
+          if isManual then
+            dim qSelCount
+            set qSelCount = Creator.GetObject(nil, "TIBSQL", "")
+            qSelCount.Transaction = gdcBaseManager.ReadTransaction
+            qSelCount.SQL.Text = _
+              "  SELECT COUNT(DISTINCT p.CONTACTKEY) AS C " & _
+              "  FROM USR$WG_TOTAL t " & _
+              "    LEFT JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
+              "    LEFT JOIN USR$WG_P_EMPLMOVESTATE(tline.USR$EMPLKEY, t.USR$DATEEND) state ON 1 = 1 " & _
+              "    LEFT JOIN USR$WG_MOVEMENTLINE ml ON ml.DOCUMENTKEY = state.ID " & _
+              "    LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = tline.USR$EMPLKEY " & _
+              "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
+              "  WHERE COALESCE(p.PERSONALNUMBER, '') <> '' AND " & _
+              "    t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
+              "    AND doc.COMPANYKEY = :companyId " & _
+              "    AND (ml.USR$MOVEMENTTYPE <> 3 OR tline.USR$CREDIT <> 0 OR tline.USR$DEBIT <> 0)  "
+            qSelCount.ParamByName("DB").AsDateTime = Period(0)
+            qSelCount.ParamByName("DE").AsDateTime = Period(1)
+            qSelCount.ParamByName("companyId").AsInteger = companyId
+            qSelCount.ExecQuery
+        
+            dim count
+            count = qSelCount.FieldByName("C").AsInteger
+        
+            dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
+            P.StartWork "ZarobakBot", "Формируем данные..", count, True, True
+          end if
+        
+          set qSel = Creator.GetObject(nil, "TIBSQL", "")
+          qSel.Transaction = Transaction
+          qSel.SQL.Text = _
+            "EXECUTE BLOCK (DB DATE = :DB, DE DATE = :DE, COMPANYID dintkey = :COMPANYID) " & _
+            "RETURNS ( " & _
+            "  EmployeeKey     dforeignkey,      " & _
+            "  EmployeeRuid    VARCHAR(40), " & _
+            "  NickName        VARCHAR(160), " & _
+            "  HiringDate      DATE, " & _
+            "  accdedStr       VARCHAR(4000) " & _
+            "  ) " & _
+            "AS " & _
+            "  DECLARE TotalDocKey         dintkey; " & _
+            "  DECLARE CurMonth            INTEGER; " & _
+            "  DECLARE CurYear             INTEGER; " & _
+            "  DECLARE IncDate             DATE; " & _
+            "  DECLARE pDate               DATE; " & _
+            "  DECLARE pName               VARCHAR(60); " & _
+            "  DECLARE posDB               DATE; " & _
+            "  DECLARE posDE               DATE; " & _
+            "  DECLARE posName             VARCHAR(60); " & _
+            "  DECLARE pRuid               VARCHAR(40); " & _
+            "  DECLARE DetStr              VARCHAR(240); " & _
+            "  DECLARE IncMonth            INTEGER; " & _
+            "  DECLARE IncYear             INTEGER; " & _
+            "  DECLARE How                 DECIMAL(15,2); " & _
+            "  DECLARE Dow                 DECIMAL(15,2); " & _
+            "  DECLARE FeeTypeName         VARCHAR(90); " & _
+            "  DECLARE typeId              VARCHAR(22); " & _
+            "  DECLARE Category            VARCHAR(60); " & _
+            "  DECLARE S                   DECIMAL(15,4); " & _
+            "  DECLARE OnDateBegin         DATE; " & _
+            "  DECLARE OnDateEnd           DATE; " & _
+            "  DECLARE Salary              DECIMAL(15,4); " & _
+            "  DECLARE DismissalDate       DATE; " & _
+            "  DECLARE EndSaldo            DECIMAL(15,4); " & _
+            "BEGIN " & _
+            "  FOR " & _
+            "    SELECT " & _
+            "      p.NICKNAME                  AS NickName, " & _
+            "      CAST(r.XID AS VARCHAR(14)) || '_' || CAST(r.DBID AS VARCHAR(14)) AS EmployeeRuid, " & _
+            "      tline.USR$EMPLKEY          AS EmployeeKey, " & _
+            "      t.DOCUMENTKEY               AS TotalDocKey, " & _
+            "      t.USR$DATEBEGIN             AS OnDateBegin, " & _
+            "      t.USR$DATEEND               AS OnDateEnd, " & _
+            "      workterm.USR$DATEBEGIN      AS HiringDate, " & _
+            "      coalesce(workterm.USR$DATEEND, null)        AS DismissalDate, " & _
+            "      tline.USR$ENDSALDO " & _
+            "    FROM USR$WG_TOTAL t " & _
+            "      LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
+            "      LEFT JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
+            "      LEFT JOIN USR$WG_P_EMPLMOVESTATE(tline.USR$EMPLKEY, t.USR$DATEEND) state ON 1 = 1 " & _
+            "      LEFT JOIN USR$WG_MOVEMENTLINE ml ON ml.DOCUMENTKEY = state.ID " & _
+            "      LEFT JOIN GD_CONTACT dep ON dep.ID = ml.USR$DEPTKEY " & _
+            "      LEFT JOIN WG_POSITION pos ON pos.ID = ml.USR$POSITIONKEY " & _
+            "      LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = tline.USR$EMPLKEY " & _
+            "      LEFT JOIN usr$wg_emplworkterm workterm ON workterm.USR$FIRSTMOVEKEY = ml.USR$FIRSTMOVE " & _
+            "      LEFT JOIN GD_P_GETRUID(p.CONTACTKEY) r ON 1 = 1 " & _
+            "    WHERE COALESCE(p.PERSONALNUMBER, '') <> '' AND " & _
+            "      t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
+            "      AND (ml.USR$MOVEMENTTYPE <> 3 OR tline.USR$CREDIT <> 0 OR tline.USR$DEBIT <> 0) " & _
+            "      AND doc.COMPANYKEY = :companyId " & _
+            "    ORDER BY NickName, EmployeeRuid, t.USR$DATEBEGIN " & _
+            "    INTO :NickName, :EmployeeRuid, :EmployeeKey, :TotalDocKey,  :OnDateBegin, :OnDateEnd, " & _
+            "      :HiringDate, :DismissalDate, :EndSaldo " & _
+            "    DO " & _
+            "    BEGIN " & _
+            "      CurMonth = EXTRACT(MONTH FROM OnDateBegin); " & _
+            "      CurYear = EXTRACT(YEAR FROM OnDateBegin); " & _
+            "      accdedStr = ''; " & _
+            "      FOR " & _
+            "        SELECT " & _
+            "          ft.USR$NAME                          AS Name, " & _
+            "          CAST(r.XID AS VARCHAR(14)) || '_' || CAST(r.DBID AS VARCHAR(14)) AS typeId, " & _
+            "          it.USR$DATEBEGIN                     AS IncDate, " & _
+            "          EXTRACT(MONTH FROM it.USR$DATEBEGIN) AS IncMonth, " & _
+            "          EXTRACT(YEAR FROM  it.USR$DATEBEGIN) AS IncYear, " & _
+            "          CASE " & _
+            "            WHEN ft.ID = <RUID XID = 147653395 DBID = 119619099/> THEN 'PENSION_TAX' " & _
+            "            WHEN ft.ID = <RUID XID = 147567139 DBID = 119619099/> THEN 'INCOME_TAX' " & _
+            "            WHEN ft.ID = <RUID XID = 147653396 DBID = 119619099/> THEN 'TRADE_UNION_TAX'  /*налог*/ " & _
+            "            WHEN NOT gr_adv.FEETYPE IS NULL THEN 'ADVANCE'                    /*аванс*/ " & _
+            "            WHEN COALESCE(ft.USR$DEDUCTION, 0) = 1 THEN 'DEDUCTION'           /*удержание*/ " & _
+            "            ELSE 'ACCRUAL'                                                    /*начисление*/ " & _
+            "          END  AS Category, " & _
+            "          SUM( IIF(ft.ID IN (<RUID XID = 147653395 DBID = 119619099/>, " & _
+            "                             <RUID XID = 147567139 DBID = 119619099/>, " & _
+            "                             <RUID XID = 147653396 DBID = 119619099/>) " & _
+            "                             OR NOT gr_adv.FEETYPE IS NULL " & _
+            "                             OR COALESCE(ft.USR$DEDUCTION, 0) = 1, " & _
+            "                             cr.USR$CREDIT, cr.USR$DEBIT  ) ) AS S, " & _
+            "          SUM(cr.USR$HOW)                      AS How, " & _
+            "          SUM(cr.USR$DOW)                      AS Dow " & _
+            "        FROM USR$WG_TBLCHARGE cr " & _
+            "        LEFT JOIN USR$WG_TOTAL it ON it.DOCUMENTKEY = cr.USR$INCDOCKEY " & _
+            "        LEFT JOIN USR$WG_FEETYPE ft ON ft.ID = cr.USR$FEETYPEKEY " & _
+            "        LEFT JOIN USR$WG_P_GETFEETYPEBYGROUP(<RUID XID = 184134911 DBID = 1194748640/>) gr_adv ON gr_adv.FEETYPE = ft.ID " & _
+            "        LEFT JOIN GD_P_GETRUID(ft.ID) r ON 1 = 1 " & _
+            "        WHERE cr.USR$TOTALDOCKEY = :TotalDocKey " & _
+            "          AND cr.USR$EMPLKEY = :EmployeeKey " & _
+            "          AND ft.ID <> <RUID XID = 147582378 DBID = 119619099/> /*выдача заплаты*/ " & _
+            "        GROUP BY 1, 2, 3, 4, 5, 6 " & _
+            "        INTO :FeeTypeName, :typeId, " & _
+            "             :IncDate, :IncMonth, :IncYear, :Category, " & _
+            "             :S, :How, :Dow " & _
+            "      DO " & _
+            "        BEGIN " & _
+            "          IF (How IS NULL) THEN How = 0; " & _
+            "          IF (Dow IS NULL) THEN Dow = 0; " & _
+            "          detStr = ''; " & _
+            "          IF  (IncMonth <> CurMonth OR IncYear <> CurYear OR How > 0 OR Dow > 0 ) THEN " & _
+            "          BEGIN " & _
+            "            IF (Dow > 0) THEN " & _
+            "            BEGIN " & _
+            "              detStr = detStr || '""days"":' || Dow; " & _
+            "            END " & _
+            "            IF (How > 0) THEN " & _
+            "            BEGIN " & _
+            "              IF (detStr <> '') THEN " & _
+            "                BEGIN " & _
+            "                  detStr = detStr || ','; " & _
+            "                END " & _
+            "              detStr = detStr || '""hours"":' || How; " & _
+            "            END " & _
+            "            IF  (IncMonth <> CurMonth OR IncYear <> CurYear) THEN " & _
+            "            BEGIN " & _
+            "              IF (detStr <> '') THEN " & _
+            "                BEGIN " & _
+            "                  detStr = detStr || ','; " & _
+            "                END " & _
+            "              detStr = detStr || '""IncMonth"":' || IncMonth || ','; " & _
+            "              detStr = detStr || '""IncYear"":' || IncYear; " & _
+            "            END " & _
+            "            ELSE " & _
+            "              BEGIN " & _
+            "              IncMonth = 0; " & _
+            "              IncYear = 0; " & _
+            "              END " & _
+            "            detStr = '""det"": {' || detStr || '}'; " & _
+            "          END " & _
+            "          ELSE " & _
+            "            BEGIN " & _
+            "              IncMonth = 0; " & _
+            "              IncYear = 0; " & _
+            "            END " & _
+            "          IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
+            "          accdedStr = accdedStr || '{' ||  '""typeId"":""' || typeId || '"",""db"":""'" & _
+            "            || EXTRACT(YEAR FROM onDateBEgin) || '.' || EXTRACT(MONTH FROM onDateBEgin) || '.' || EXTRACT(DAY FROM onDateBEgin) || " & _
+            "            '"",""de"":""' || EXTRACT(YEAR FROM OnDateEnd) || '.' || EXTRACT(MONTH FROM OnDateEnd) || '.' || EXTRACT(DAY FROM OnDateEnd) || " & _
+            "            '"",""s"":' || S; " & _
+            "          IF (detStr <> '') THEN accdedStr = accdedStr || ',' || detStr; " & _
+            "          accdedStr = accdedStr || '}'; " & _
+            "        END " & _
+            "      FeeTypeName = ''; " & _
+            "      S = 0; " & _
+            "      IncMonth = 0; " & _
+            "      IncYear = 0; " & _
+            "      How = 0; " & _
+            "      Dow = 0; " & _
+            " " & _
+            "      /*льготы*/ " & _
+            "      FOR " & _
+            "        SELECT " & _
+            "          pt.USR$NAME        AS Name, " & _
+            "          CAST(r.XID AS VARCHAR(14)) || '_' || CAST(r.DBID AS VARCHAR(14)) AS typeId, " & _
+            "          'PRIVILAGE'        AS Category, " & _
+            "          SUM(cha.USR$SUMMA) AS Summa " & _
+            "        FROM USR$WG_CHREGADDINFO cha " & _
+            "         JOIN USR$WG_PRIVILEGETYPE pt ON pt.ID = cha.USR$PRIVTYPEKEY " & _
+            "         LEFT JOIN GD_P_GETRUID(pt.ID) r ON 1 = 1 " & _
+            "        WHERE cha.USR$EMPLKEY = :EmployeeKey " & _
+            "          AND cha.USR$TOTALDOCKEY = :TotalDocKey " & _
+            "        GROUP BY 1, 2, 3 " & _
+            "        INTO :FeeTypeName, :typeId, :Category, :S " & _
+            "      DO " & _
+            "        BEGIN " & _
+            "          IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
+            "          accdedStr = accdedStr || '{' || '""typeId"":""' || typeId || " & _
+            "            '"",""db"":""' || EXTRACT(YEAR FROM onDateBEgin) || '.' || EXTRACT(MONTH FROM onDateBEgin) || '.' || EXTRACT(DAY FROM onDateBEgin) || " & _
+            "            '"",""de"":""' || EXTRACT(YEAR FROM OnDateEnd) || '.' || EXTRACT(MONTH FROM OnDateEnd) || '.' || EXTRACT(DAY FROM OnDateEnd) || " & _
+            "            '"",""s"":' || S || '}'; " & _
+            "        END " & _
+            " " & _
+            "      /* вычеты*/ " & _
+            "      FOR " & _
+            "        SELECT " & _
+            "          dt.USR$NAME        AS Name, " & _
+            "          CAST(r.XID AS VARCHAR(14)) || '_' || CAST(r.DBID AS VARCHAR(14)) AS typeId, " & _
+            "          'TAX_DEDUCTION'    AS Category, " & _
+            "          SUM(cha.USR$SUMMA) AS Summa " & _
+            "        FROM USR$WG_CHREGADDINFO cha " & _
+            "          JOIN USR$WG_TAXINCOMDEDEDUCTTYPE dt ON dt.ID = cha.USR$INCTAXDEDTYPEKEY " & _
+            "          LEFT JOIN GD_P_GETRUID(dt.ID) r ON 1 = 1 " & _
+            "        WHERE cha.USR$EMPLKEY = :EmployeeKey " & _
+            "          AND cha.USR$TOTALDOCKEY = :TotalDocKey " & _
+            "        GROUP BY 1, 2, 3 " & _
+            "        INTO  :FeeTypeName, :typeId, :Category, :S " & _
+            "      DO " & _
+            "        BEGIN " & _
+            "          IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
+            "          accdedStr = accdedStr || '{' || '""typeId"":""' || typeId || " & _
+            "            '"",""db"":""' || EXTRACT(YEAR FROM onDateBEgin) || '.' || EXTRACT(MONTH FROM onDateBEgin) || '.' || EXTRACT(DAY FROM onDateBEgin) || " & _
+            "            '"",""de"":""' || EXTRACT(YEAR FROM OnDateEnd) || '.' || EXTRACT(MONTH FROM OnDateEnd) || '.' || EXTRACT(DAY FROM OnDateEnd) || " & _
+            "            '"",""s"":' || S || '}'; " & _
+            "        END " & _
+            " " & _
+            "      /*Сальдо на конец*/ " & _
+            "      FeeTypeName = 'Сальдо на конец'; " & _
+            "      typeId = 'saldo'; " & _
+            "      Category = ''; " & _
+            "      S = EndSaldo; " & _
+            "      IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
+            "          accdedStr = accdedStr || '{' || '""typeId"":""' || typeId || " & _
+            "            '"",""db"":""' || EXTRACT(YEAR FROM onDateBEgin) || '.' || EXTRACT(MONTH FROM onDateBEgin) || '.' || EXTRACT(DAY FROM onDateBEgin) || " & _
+            "            '"",""de"":""' || EXTRACT(YEAR FROM OnDateEnd) || '.' || EXTRACT(MONTH FROM OnDateEnd) || '.' || EXTRACT(DAY FROM OnDateEnd) || " & _
+            "            '"",""s"":' || S || '}'; " & _
+            " " & _
+            "      SUSPEND; " & _
+            " " & _
+            "    END " & _
+            "END; "
+        
+          qSel.ParamByName("DB").AsDateTime = Period(0)
+          qSel.ParamByName("DE").AsDateTime = Period(1)
+          qSel.ParamByName("companyId").AsInteger = companyId
+          qSel.ExecQuery
+        
+          dim qSelDep
+          set qSelDep = Creator.GetObject(nil, "TIBSQL", "")
+          qSelDep.Transaction = Transaction
+          qSelDep.SQL.Text = _
+            "EXECUTE BLOCK (EmplKey dintkey = :EmplKey, CompanyId dintkey = :CompanyId) " & vbCrLf & _
+            "  RETURNS( " & vbCrLf & _
+            "    JSON_POS VARCHAR(4000), " & vbCrLf & _
+            "    JSON_SALARY VARCHAR(4000), " & vbCrLf & _
+            "    JSON_HOURRATE VARCHAR(4000), " & vbCrLf & _
+            "    JSON_DEPT VARCHAR(4000)) " & vbCrLf & _
+            "AS " & vbCrLf & _
+            "  DECLARE VARIABLE PosID VARCHAR(50); " & vbCrLf & _
+            "  DECLARE VARIABLE DeptID VARCHAR(50); " & vbCrLf & _
+            "  DECLARE VARIABLE PrevPosID VARCHAR(50) = ''; " & vbCrLf & _
+            "  DECLARE VARIABLE PrevDeptID VARCHAR(50) = ''; " & vbCrLf & _
+            "  DECLARE VARIABLE PosName VARCHAR(1024); " & vbCrLf & _
+            "  DECLARE VARIABLE DeptName VARCHAR(1024); " & vbCrLf & _
+            "  DECLARE VARIABLE Salary NUMERIC(15, 4); " & vbCrLf & _
+            "  DECLARE VARIABLE PrevSalary NUMERIC(15, 4); " & vbCrLf & _
+            "  DECLARE VARIABLE HourRate NUMERIC(15, 4); " & vbCrLf & _
+            "  DECLARE VARIABLE PrevHourRate NUMERIC(15, 4); " & vbCrLf & _
+            "  DECLARE VARIABLE D DATE; " & vbCrLf & _
+            "  DECLARE VARIABLE DJson VARCHAR(20); " & vbCrLf & _
+            "BEGIN " & vbCrLf & _
+            "  JSON_POS = ''; " & vbCrLf & _
+            "  JSON_DEPT = ''; " & vbCrLf & _
+            "  JSON_SALARY = ''; " & vbCrLf & _
+            "  JSON_HOURRATE = ''; " & vbCrLf & _
+            "  PrevSalary = -1; " & vbCrLf & _
+            "  PrevHourRate = -1; " & vbCrLf & _
+            " " & vbCrLf & _
+            "  FOR " & vbCrLf & _
+            "    SELECT " & vbCrLf & _
+            "      CAST(rPos.XID AS VARCHAR(14)) || '_' || CAST(rPos.DBID AS VARCHAR(14)), REPLACE(pos.NAME, '""', '\""'), " & vbCrLf & _
+            "      CAST(rDept.XID AS VARCHAR(14)) || '_' || CAST(rDept.DBID AS VARCHAR(14)), REPLACE(dept.NAME, '""', '\""'), " & vbCrLf & _
+            "      ml.USR$MSALARY, ml.USR$MHOURRATE, ml.USR$DATEBEGIN " & vbCrLf & _
+            "    FROM " & vbCrLf & _
+            "      USR$WG_MOVEMENTLINE ml " & vbCrLf & _
+            "      LEFT JOIN WG_POSITION pos ON pos.ID = ml.USR$POSITIONKEY " & vbCrLf & _
+            "      LEFT JOIN GD_CONTACT dept ON dept.ID = ml.USR$DEPTKEY " & vbCrLf & _
+            "      LEFT JOIN GD_P_GETRUID(pos.ID) rPos ON 1 = 1 " & vbCrLf & _
+            "      LEFT JOIN GD_P_GETRUID(dept.ID) rDept ON 1 = 1 " & vbCrLf & _
+            "      LEFT JOIN GD_DOCUMENT doc ON doc.ID = ml.DOCUMENTKEY " & vbCrLf & _
+            "    WHERE ml.USR$EMPLKEY = :EmplKey " & vbCrLf & _
+            "      AND ml.USR$MOVEMENTTYPE NOT IN (3, 7) " & vbCrLf & _
+            "      AND doc.COMPANYKEY = :CompanyId " & _
+            "    ORDER BY " & vbCrLf & _
+            "      ml.USR$DATEBEGIN " & vbCrLf & _
+            "    INTO " & vbCrLf & _
+            "      :PosID, :PosName, :DeptID, :DeptName, :Salary, :HourRate, :D " & vbCrLf & _
+            "  DO BEGIN " & vbCrLf & _
+            "    /* может быть ситуация, когда будет документ изменения, но должность      */ " & vbCrLf & _
+            "    /* останется прежней. такие записи нас не интересуют с т.зр. формирования */ " & vbCrLf & _
+            "    /* расчетного листка                                                      */ " & vbCrLf & _
+            "    DJson = EXTRACT(YEAR FROM :D) || '.' || EXTRACT(MONTH FROM :D) || '.' || EXTRACT(DAY FROM :D); " & _
+            "    IF (:PosID <> :PrevPosID) THEN " & vbCrLf & _
+            "    BEGIN " & vbCrLf & _
+            " " & vbCrLf & _
+            "      IF (:JSON_POS > '') THEN " & vbCrLf & _
+            "      BEGIN " & vbCrLf & _
+            "        JSON_POS = :JSON_POS || ','; " & vbCrLf & _
+            "      END " & vbCrLf & _
+            "       " & vbCrLf & _
+            "      JSON_POS = :JSON_POS || '{""id"":""' || :PosID " & vbCrLf & _
+            "        || '"",""name"":{""ru"":{""name"":""' || :PosName " & vbCrLf & _
+            "        || '""}},""d"":""' || :DJson || '""}'; " & vbCrLf & _
+            "    END " & vbCrLf & _
+            "     " & vbCrLf & _
+            "    IF (:DeptID <> :PrevDeptID) THEN " & vbCrLf & _
+            "    BEGIN " & vbCrLf & _
+            " " & vbCrLf & _
+            "      IF (:JSON_DEPT > '') THEN " & vbCrLf & _
+            "      BEGIN " & vbCrLf & _
+            "        JSON_DEPT = :JSON_DEPT || ','; " & vbCrLf & _
+            "      END " & vbCrLf & _
+            " " & vbCrLf & _
+            "      JSON_DEPT = :JSON_DEPT || '{""id"":""' || :DeptID " & vbCrLf & _
+            "        || '"",""name"":{""ru"":{""name"":""' || :DeptName " & vbCrLf & _
+            "        || '""}},""d"":""' || :DJson || '""}'; " & vbCrLf & _
+            "    END " & vbCrLf & _
+            "     " & vbCrLf & _
+            "    IF (:Salary <> :PrevSalary) THEN " & vbCrLf & _
+            "    BEGIN " & vbCrLf & _
+            " " & vbCrLf & _
+            "      IF (:JSON_SALARY > '') THEN " & vbCrLf & _
+            "      BEGIN " & vbCrLf & _
+            "        JSON_SALARY = :JSON_SALARY || ','; " & vbCrLf & _
+            "      END " & vbCrLf & _
+            " " & vbCrLf & _
+            "      JSON_SALARY = :JSON_SALARY || '{""s"":' || salary " & vbCrLf & _
+            "        || ',""d"":""' || :DJson || '""}'; " & vbCrLf & _
+            "    END " & vbCrLf & _
+            " " & vbCrLf & _
+            "    IF (:HourRate <> :PrevHourRate) THEN " & vbCrLf & _
+            "    BEGIN " & vbCrLf & _
+            " " & vbCrLf & _
+            "      IF (:JSON_HOURRATE > '') THEN " & vbCrLf & _
+            "      BEGIN " & vbCrLf & _
+            "        JSON_HOURRATE = :JSON_HOURRATE || ','; " & vbCrLf & _
+            "      END " & vbCrLf & _
+            " " & vbCrLf & _
+            "      JSON_HOURRATE = :JSON_HOURRATE || '{""s"":' || HourRate " & vbCrLf & _
+            "        || ',""d"":""' || :DJson || '""}'; " & vbCrLf & _
+            "    END " & vbCrLf & _
+            "     " & vbCrLf & _
+            "    PrevPosID = :PosID; " & vbCrLf & _
+            "    PrevDeptID = :DeptID; " & vbCrLf & _
+            "    PrevSalary = :Salary; " & vbCrLf & _
+            "    PrevHourRate = :HourRate; " & vbCrLf & _
+            "  END " & vbCrLf & _
+            "     " & vbCrLf & _
+            "  JSON_POS = '[' || JSON_POS || ']'; " & vbCrLf & _
+            "  JSON_DEPT = '[' || JSON_DEPT || ']'; " & vbCrLf & _
+            "  JSON_SALARY = '[' || JSON_SALARY || ']'; " & vbCrLf & _
+            "  JSON_HOURRATE = '[' || JSON_HOURRATE || ']'; " & vbCrLf & _
+            "  SUSPEND; " & vbCrLf & _
+            "END "
+        
+          dim employeeItems, objItem, JsonDept, JsonPos, JsonSalary, EmployeeRuid
+          dim emplkey_prev, hiringdate_prev, nickname_prev
+        
+          EmployeeRuid = ""
+          dim canceled, strData, JsonHourRate
+          canceled = false
+          while not qSel.eof and not canceled
+            if qSel.FieldByName("EmployeeRuid").AsString <> EmployeeRuid and EmployeeRuid <> "" then
+              if isManual then
+                canceled = P.Canceled
+                P.StartStep "Сотрудник: " & nickname_prev, 1
+              end if
+              'добавляем запись по сотруднику
+              qSelDep.Close
+              qSelDep.ParamByName("EmplKey").AsInteger = emplkey_prev
+              qSelDep.ParamByName("CompanyId").AsInteger = companyId
+              qSelDep.ExecQuery
+              JsonDept = qSelDep.FieldByName("JSON_DEPT").AsString
+              JsonPos = qSelDep.FieldByName("JSON_POS").AsString
+              JsonSalary = qSelDep.FieldByName("JSON_SALARY").AsString
+              if qSelDep.FieldByName("JSON_HOURRATE").AsString <> "" then
+                JsonHourRate = """hourrate"":" & qSelDep.FieldByName("JSON_HOURRATE").AsString & ","
+              end if
+        
+              objItem = "{""emplId"":""" & EmployeeRuid & """," & _
+                """hiringDate"":""" & hiringdate_prev & """," & _
+                """dept"":" & JsonDept & "," & _
+                """pos"":" & JsonPos & "," & _
+                """salary"":" & JsonSalary & "," & _
+                JsonHourRate & _
+                """data"": [" & employeeItems & "]"  & _
+                "}"
+        
+              Jsons.Add("{""version"":""1.0""," & _
+                """customerId"":""" & customerId & """," & _
+                """rewrite"":" & LCase(isRewrite) & "," & _
+                """objData"":" & objItem & "}")
+              employeeItems = ""
+            end if
+        
+            if employeeItems <> "" then employeeItems = employeeItems & ","
+            employeeItems = employeeItems & qSel.FieldByName("accdedStr").AsString
+            EmployeeRuid = qSel.FieldByName("EmployeeRuid").AsString
+            emplkey_prev = qSel.FieldByName("EmployeeKey").AsInteger
+            hiringdate_prev = qSel.FieldByName("HiringDate").AsString
+            nickname_prev = qSel.FieldByName("NickName").AsString
+            qSel.Next
+          wend
+        
+          if EmployeeRuid <> "" then
+            if isManual then P.StartStep "Сотрудник: " & qSel.FieldByName("NickName").AsString, 1
+            'добавляем запись по сотруднику
+            qSelDep.Close
+            qSelDep.ParamByName("EmplKey").AsInteger = qSel.FieldByName("EmployeeKey").AsInteger
+            qSelDep.ExecQuery
+            JsonDept = qSelDep.FieldByName("JSON_DEPT").AsString
+            JsonPos = qSelDep.FieldByName("JSON_POS").AsString
+            JsonSalary = qSelDep.FieldByName("JSON_SALARY").AsString
+            if qSelDep.FieldByName("JSON_HOURRATE").AsString <> "" then
+              JsonHourRate = """hourrate"":" & qSelDep.FieldByName("JSON_HOURRATE").AsString & ","
+            end if
+        
+            objItem = "{""emplId"":""" & qSel.FieldByName("EmployeeRuid").AsString & """," & _
+              """hiringDate"":""" & qSel.FieldByName("HiringDate").AsString & """," & _
+              """dept"":" & JsonDept & "," & _
+              """pos"":" & JsonPos & "," & _
+              """salary"":" & JsonSalary & "," & _
+              JsonHourRate & _
+              """data"": [" & employeeItems & "]"  & _
+              "}"
+        
+            Jsons.Add("{""version"":""1.0""," & _
+              """customerId"":""" & customerId & """," & _
+              """rewrite"":" & LCase(isRewrite) & "," & _
+              """objData"":" & objItem & "}")
+          end if
+        
+          if Transaction.InTransaction then
+            Transaction.Commit
+          end if
+        
+          if isManual then P.EndWork "Данные по расчетным листкам отправлены на сервер!", False
+        End Function
+        
+        sub bot_PreparePaySlip_RollBack(Transaction)
+          if Transaction.InTransaction then
+            Transaction.Rollback
+          end if
+        end sub
+        
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1193785027_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_PrepareAccDed"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: ~
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2020-05-03T22:50:24+03:00
+      DISPLAYSCRIPT: | 
+        BOT_PREPAREACCDED
+        BOT_PREPAREACCDED_ROLLBACK
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAEZOU1RQUlNUCAAAAElTTUFOVUFMCAAAAElTTUFOVUFMAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAEZOU1RQUlNUBAAAAEpTT04EAAAASlNPTgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
+        RkxQUg==
+      SCRIPT: | 
+        Option Explicit
+        Function bot_prepareAccDed(customerId, isManual, ByRef Json)
+          dim Creator, Transaction
+          set Creator = new TCreator
+          set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
+          Transaction.Defaultdatabase = IBLogin.Database
+          if not Transaction.InTransaction then
+            Transaction.StartTransaction
+          end if
+        
+          except bot_prepareAccDed_RollBack(Transaction)
+        
+          if isManual then
+            dim qSelCount
+            set qSelCount = Creator.GetObject(nil, "TIBSQL", "")
+            qSelCount.Transaction = gdcBaseManager.ReadTransaction
+            qSelCount.SQL.Text = _
+              "SELECT COUNT(DISTINCT sel.ID) AS C " & _
+              "FROM " & _
+              "(SELECT ft.ID " & _
+              "FROM USR$WG_FEETYPE ft " & _
+              "  LEFT JOIN USR$WG_P_GETFEETYPEBYGROUP(<RUID XID = 184134911 DBID = 1194748640/>) gr_adv ON gr_adv.FEETYPE = ft.ID " & _
+              "  LEFT JOIN GD_P_GETRUID(ft.ID) r ON 1 = 1 " & _
+              " " & _
+              "UNION ALL " & _
+              "SELECT pt.ID " & _
+              "FROM  USR$WG_PRIVILEGETYPE pt " & _
+              "LEFT JOIN GD_P_GETRUID(pt.ID) r ON 1 = 1 " & _
+              " " & _
+              "UNION ALL " & _
+              "SELECT d.ID " & _
+              "FROM USR$WG_TAXINCOMDEDEDUCTTYPE d " & _
+              "LEFT JOIN GD_P_GETRUID(d.ID) r ON 1 = 1 " & _
+              ") sel "
+            qSelCount.ExecQuery
+        
+            dim count
+            count = qSelCount.FieldByName("C").AsInteger
+        
+            dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
+            P.StartWork "ZarobakBot", "Формируем данные..", count, True, True
+          end if
+        
+          dim qSel
+          set qSel = Creator.GetObject(nil, "TIBSQL", "")
+          qSel.Transaction = Transaction
+          qSel.SQL.Text = _
+            "SELECT  " & _
+            "  CASE " & _
+            "    WHEN ft.ID = <RUID XID = 147653395 DBID = 119619099/> THEN 'PENSION_TAX' " & _
+            "    WHEN ft.ID = <RUID XID = 147567139 DBID = 119619099/> THEN 'INCOME_TAX' " & _
+            "    WHEN ft.ID = <RUID XID = 147653396 DBID = 119619099/> THEN 'TRADE_UNION_TAX'  /*налог*/ " & _
+            "    WHEN NOT gr_adv.FEETYPE IS NULL THEN 'ADVANCE'                        /*аванс*/ " & _
+            "    WHEN COALESCE(ft.USR$DEDUCTION, 0) = 1 THEN 'DEDUCTION'               /*удержание*/ " & _
+            "    ELSE 'ACCRUAL'                                                        /*начисление*/ " & _
+            "  END  AS category, " & _
+            "  REPLACE(ft.USR$NAME, '""', '\""')                                         AS name, " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12))  AS typeId " & _
+            "FROM USR$WG_FEETYPE ft " & _
+            "  LEFT JOIN USR$WG_P_GETFEETYPEBYGROUP(<RUID XID = 184134911 DBID = 1194748640/>) gr_adv ON gr_adv.FEETYPE = ft.ID " & _
+            "  LEFT JOIN GD_P_GETRUID(ft.ID) r ON 1 = 1 " & _
+            "   " & _
+            "UNION ALL " & _
+            "SELECT " & _
+            "  'PRIVILAGE'    AS category, " & _
+            "  REPLACE(pt.USR$NAME, '""', '\""')    AS name, " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12)) AS typeId " & _
+            "FROM  USR$WG_PRIVILEGETYPE pt " & _
+            "LEFT JOIN GD_P_GETRUID(pt.ID) r ON 1 = 1 " & _
+            " " & _
+            "UNION ALL " & _
+            "SELECT " & _
+            "  'TAX_DEDUCTION'    AS category, " & _
+            "  REPLACE(d.USR$NAME, '""', '\""')    AS name, " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12)) AS typeId " & _
+            "FROM USR$WG_TAXINCOMDEDEDUCTTYPE d " & _
+            "LEFT JOIN GD_P_GETRUID(d.ID) r ON 1 = 1 " & _
+            " " & _
+            "ORDER BY 1, 2 "
+          qSel.ExecQuery
+        
+          dim canceled
+          canceled = false
+          while not qSel.eof and not canceled
+            if isManual then
+              canceled = P.Canceled
+              P.StartStep "Вид начисления: " & qSel.FieldByName("name").AsString, 1
+            end if
+            if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+            Json.Add("""" & qSel.FieldByName("typeId").AsString & """:{" & _
+              """type"":""" & Trim(qSel.FieldByName("category").AsString) & """," & _
+              """name"":{""ru"":{""name"":""" & Trim(qSel.FieldByName("name").AsString) & """}}}")
+            qSel.Next
+          wend
+        
+          if Transaction.InTransaction then
+            Transaction.Commit
+          end if
+        
+          Json.Text = "{" & _
+            """version"":""1.0""," & _
+            """customerId"":""" & customerId & """," & _
+            """objData"":{" & Json.Text & "}" & _
+            "}"
+            
+          if isManual then
+            P.EndWork "Данные по видам начисления отправлены на сервер!", False
+          end if
+        End Function
+        
+        sub bot_prepareAccDed_RollBack(Transaction)
+          if Transaction.InTransaction then
+            Transaction.Rollback
+          end if
+        end sub
+        
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1437183754_1434991069
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_PrepareEmployees"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: ~
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2020-05-03T22:49:55+03:00
+      DISPLAYSCRIPT: | 
+        BOT_PREPAREEMPLOYEES
+        BOT_PREPAREEMPLOYEES_ROLLBACK
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAABQAAAAAAAAAA
+        AAAAAEZOU1RQUlNUCQAAAENPTVBBTllJRAkAAABDT01QQU5ZSUQAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAAAARk5TVFBSU1QIAAAASVNNQU5VQUwIAAAASVNNQU5VQUwAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAAAARk5TVFBSU1QEAAAASlNPTgQAAABKU09OAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZO
+        U1RGTFBS
+      SCRIPT: | 
+        Option Explicit
+        Function bot_prepareEmployees(customerId, companyId, isManual, ByRef Json)
+          dim Creator, Transaction
+          set Creator = new TCreator
+          set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
+          Transaction.Defaultdatabase = IBLogin.Database
+          if not Transaction.InTransaction then
+            Transaction.StartTransaction
+          end if
+        
+          except bot_prepareEmployees_RollBack(Transaction)
+          
+          if isManual then
+            dim qSelCount
+            set qSelCount = Creator.GetObject(nil, "TIBSQL", "")
+            qSelCount.Transaction = gdcBaseManager.ReadTransaction
+            qSelCount.SQL.Text = _
+              "SELECT COUNT(c.ID) AS C " & _
+              "FROM GD_CONTACT c " & _
+              "  JOIN GD_EMPLOYEE empl ON empl.CONTACTKEY = c.ID " & _
+              "  LEFT JOIN GD_CONTACT par ON par.ID = c.PARENT " & _
+              "  LEFT JOIN GD_CONTACT own ON own.LB <= par.LB AND own.RB >= par.RB " & _
+              "  LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = c.ID " & _
+              "WHERE own.ID = :companyId " & _
+              "  AND COALESCE(p.PERSONALNUMBER, '') <> '' "
+            qSelCount.ParamByName("companyId").AsInteger = companyId
+            qSelCount.ExecQuery
+            
+            dim count
+            count = qSelCount.FieldByName("C").AsInteger
+            
+            dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
+            P.StartWork "ZarobakBot", "Формируем данные..", count, True, True
+          end if
+          
+          dim qSel
+          set qSel = Creator.GetObject(nil, "TIBSQL", "")
+          qSel.Transaction = Transaction
+          qSel.SQL.Text = _
+            "SELECT DISTINCT p.SURNAME, p.FIRSTNAME, p.MIDDLENAME, " & _
+            "  TRIM(p.PERSONALNUMBER)  AS PERSONALNUMBER, " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12))  AS ID " & _
+            "FROM GD_CONTACT c " & _
+            "  JOIN GD_EMPLOYEE empl ON empl.CONTACTKEY = c.ID " & _
+            "  LEFT JOIN GD_CONTACT par ON par.ID = c.PARENT " & _
+            "  LEFT JOIN GD_CONTACT own ON own.LB <= par.LB AND own.RB >= par.RB " & _
+            "  LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = c.ID " & _
+            "  LEFT JOIN GD_P_GETRUID(p.CONTACTKEY) r ON 1 = 1 " & _
+            "WHERE own.ID = :companyId " & _
+            "  AND COALESCE(p.PERSONALNUMBER, '') <> '' " & _
+            "ORDER BY p.SURNAME, c.ID "
+          qSel.ParamByName("companyId").AsInteger = companyId
+          qSel.ExecQuery
+        
+          dim canceled
+          canceled = false
+          while not qSel.eof and not canceled
+            if isManual then
+              canceled = P.Canceled
+              P.StartStep "Сотрудник: " & qSel.FieldByName("SURNAME").AsString & " " & qSel.FieldByName("FIRSTNAME").AsString & " " & qSel.FieldByName("MIDDLENAME").AsString, 1
+            end if
+            if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+            Json.Add("""" & qSel.FieldByName("ID").AsString & """:{" & _
+              """firstName"":""" & Trim(qSel.FieldByName("FIRSTNAME").AsString) & """," & _
+              """lastName"":""" & Trim(qSel.FieldByName("SURNAME").AsString) & """," & _
+              """patrName"":""" & Trim(qSel.FieldByName("MIDDLENAME").AsString) & """," & _
+              """passportId"":""" & Trim(qSel.FieldByName("PERSONALNUMBER").AsString) & """}")
+            qSel.Next
+          wend
+        
+          if Transaction.InTransaction then
+            Transaction.Commit
+          end if
+        
+          Json.Text = "{" & _
+            """version"":""1.0""," & _
+            """customerId"":""" & customerId & """," & _
+            """objData"":{" & Json.Text & "}" & _
+            "}"
+            
+          if isManual then P.EndWork "Данные по сотрудникам отправлены на сервер!", False
+        End Function
+        
+        sub bot_prepareEmployees_RollBack(Transaction)
+          if Transaction.InTransaction then
+            Transaction.Rollback
+          end if
+        end sub
+        
