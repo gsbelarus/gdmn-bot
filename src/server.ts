@@ -24,7 +24,12 @@ const HTTPS_PORT = 443;
 /**
  * Host name for Viber callback;
  */
-const VIBER_CALLBACK_HOST = 'zarobak.gdmn.app';
+
+const ZAROBAK_VIBER_CALLBACK_HOST = process.env.ZAROBAK_VIBER_CALLBACK_HOST;
+
+if (typeof ZAROBAK_VIBER_CALLBACK_HOST !== 'string' || !ZAROBAK_VIBER_CALLBACK_HOST) {
+  throw new Error('ZAROBAK_VIBER_CALLBACK_HOST env variable is not specified.');
+}
 
 /**
  * Подгружаем некоторые справочники.
@@ -39,27 +44,27 @@ initCurrencies().then( () => console.log('Currencies have been loaded...') );
  * Вайбер надо связать с нашим веб сервером вручную.
  */
 
-const GDMN_TELEGRAM_BOT_TOKEN = process.env.GDMN_TELEGRAM_BOT_TOKEN;
+const ZAROBAK_TELEGRAM_BOT_TOKEN = process.env.ZAROBAK_TELEGRAM_BOT_TOKEN;
 
-if (typeof GDMN_TELEGRAM_BOT_TOKEN !== 'string' || !GDMN_TELEGRAM_BOT_TOKEN) {
-  throw new Error('GDMN_TELEGRAM_BOT_TOKEN env variable is not specified.');
+if (typeof ZAROBAK_TELEGRAM_BOT_TOKEN !== 'string' || !ZAROBAK_TELEGRAM_BOT_TOKEN) {
+  throw new Error('ZAROBAK_TELEGRAM_BOT_TOKEN env variable is not specified.');
 }
 
-const GDMN_VIBER_BOT_TOKEN = process.env.GDMN_VIBER_BOT_TOKEN;
+const ZAROBAK_VIBER_BOT_TOKEN = process.env.ZAROBAK_VIBER_BOT_TOKEN;
 
-if (typeof GDMN_VIBER_BOT_TOKEN !== 'string' || !GDMN_VIBER_BOT_TOKEN) {
-  throw new Error('GDMN_VIBER_BOT_TOKEN env variable is not specified.');
+if (typeof ZAROBAK_VIBER_BOT_TOKEN !== 'string' || !ZAROBAK_VIBER_BOT_TOKEN) {
+  throw new Error('ZAROBAK_VIBER_BOT_TOKEN env variable is not specified.');
 }
 
 const telegram = new TelegramBot(
-  GDMN_TELEGRAM_BOT_TOKEN,
+  ZAROBAK_TELEGRAM_BOT_TOKEN,
   getCustomers,
   getEmployeesByCustomer,
   getAccDeds,
   getPaySlipByUser);
 
 const viber = new Viber(
-  GDMN_VIBER_BOT_TOKEN,
+  ZAROBAK_VIBER_BOT_TOKEN,
   getCustomers,
   getEmployeesByCustomer,
   getAccDeds,
@@ -148,7 +153,7 @@ const viberCallback = viber.bot.middleware();
 
 https.createServer({ cert, ca, key },
   (req, res) => {
-    if (req.headers.host === VIBER_CALLBACK_HOST) {
+    if (req.headers.host === ZAROBAK_VIBER_CALLBACK_HOST) {
       viberCallback(req, res);
     } else {
       koaCallback(req, res);
@@ -156,7 +161,7 @@ https.createServer({ cert, ca, key },
   }
 ).listen(HTTPS_PORT,
   () => {
-    viber.bot.setWebhook(`https://${VIBER_CALLBACK_HOST}`);
+    viber.bot.setWebhook(`https://${ZAROBAK_VIBER_CALLBACK_HOST}`);
 
     // раз в час пишем на диск все несохраненные данные
     setInterval(flushData, 60 * 60 * 1000);
