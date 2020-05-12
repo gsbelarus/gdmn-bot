@@ -1,12 +1,11 @@
 import { Bot, Menu, Template } from "./bot";
-import Telegraf, { ContextMessageUpdate, Extra, Markup } from "telegraf";
+import Telegraf, { Context, Extra, Markup } from "telegraf";
 import { getLanguage, getSumByRate } from "./util/utils";
 import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "./types";
 import { IData } from "./util/fileDB";
-import { Message } from "telegraf/typings/telegram-types";
 
 export class TelegramBot extends Bot {
-  private _bot: Telegraf<ContextMessageUpdate>;
+  private _bot: Telegraf<Context>;
 
   constructor(token: string,
     getCustomers: () => ICustomers,
@@ -173,7 +172,7 @@ export class TelegramBot extends Bot {
     const len = 19;
     const res = template.filter( t => t[0] !== '' && (t[1] !== 0 || t[1] === undefined )).map(t =>
       t[1] === undefined
-        ? `${t[0] === '=' ? '==============================' : t[0]}` // ${t[3] === true ? '\n==============================' : ''}`
+        ? `${t[0] === '=' ? '==============================' : t[0]}`
         : t[2] !== undefined
           ? `${t[0].toString().padEnd(len)} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(getSumByRate(t[1], rate)).padStart(lenS)}`
           : `${t[0].toString().padEnd(len)} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1]).padStart(lenS)}`
@@ -193,6 +192,8 @@ ${'`'}${'`'}${'`'}`
           this.bot.telegram.editMessageReplyMarkup(chatId, dialogState.menuMessageId, undefined, JSON.stringify(this.menu2markup(menu)));
         }
         catch (e) {
+          // FIXME: error
+          //
           // TODO: если сообщение уже было удалено из чата, то
           // будет ошибка, которую мы подавляем.
           // В будущем надо ловить события удаления сообщения
@@ -262,8 +263,7 @@ ${'`'}${'`'}${'`'}`
   }
 
  getPaySlipString(prevStr: string, name: string, s?: number) {
-    //let str = name.split('').map((i, id) => Number(id) % 28 === 0 && Number(id) !== 0? `\n  ${i}` : i).join('');
-    const mas: string[] = [];
+    const mas: string[] = [''];
     let i = 0;
     name.split(' ').filter(n => n !== '').forEach((s, xid) => {
       if (`${mas[i]} ${s}`.length <= 28)  {
@@ -275,6 +275,6 @@ ${'`'}${'`'}${'`'}`
       }
     });
     const str = mas.join('');
-    return `${prevStr}${prevStr !== '' ? '\n' : ''}  ${str}${s ? '\n  =' + new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s) : ''}`
+    return `${prevStr}${s === 0 ? '' : prevStr !== '' ? '  \n' + str  : '  ' + str}${s ? '\n  =' + new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s) : ''}`
   }
 };
