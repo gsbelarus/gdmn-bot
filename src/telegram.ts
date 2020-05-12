@@ -3,6 +3,7 @@ import Telegraf, { ContextMessageUpdate, Extra, Markup } from "telegraf";
 import { getLanguage, getSumByRate } from "./util/utils";
 import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "./types";
 import { IData } from "./util/fileDB";
+import { Message } from "telegraf/typings/telegram-types";
 
 export class TelegramBot extends Bot {
   private _bot: Telegraf<ContextMessageUpdate>;
@@ -219,29 +220,43 @@ ${'`'}${'`'}${'`'}`
   }
 
   async sendMessage(chatId: string, message: string, menu?: Menu, markdown?: boolean, userProfile?: any) {
-    const m = markdown
-      ? await this.bot.telegram.sendMessage(chatId, message, menu && { parse_mode: 'MarkdownV2', ...Extra.markup(this.menu2markup(menu)) })
-      : await this.bot.telegram.sendMessage(chatId, message, menu && Extra.markup(this.menu2markup(menu)));
-
+    // const m = markdown
+    //   ? await this.bot.telegram.sendMessage(chatId, message, menu && { parse_mode: 'MarkdownV2', ...Extra.markup(this.menu2markup(menu)) })
+    //   : await this.bot.telegram.sendMessage(chatId, message, menu && Extra.markup(this.menu2markup(menu)));
     const dialogState = this.dialogStates.read(chatId);
+    let m;
+    try {
+      m = markdown
+        ? await this.bot.telegram.sendMessage(chatId, message, menu && { parse_mode: 'MarkdownV2', ...Extra.markup(this.menu2markup(menu)) })
+        : await this.bot.telegram.sendMessage(chatId, message, menu && Extra.markup(this.menu2markup(menu)));
 
-    if (dialogState) {
-      if (dialogState.menuMessageId) {
-        try {
-          await this.bot.telegram.editMessageReplyMarkup(chatId, dialogState.menuMessageId);
+      if (dialogState) {
+        if (dialogState.menuMessageId) {
+          try {
+            await this.bot.telegram.editMessageReplyMarkup(chatId, dialogState.menuMessageId);
+          }
+          catch (e) {
+            // TODO: если сообщение уже было удалено из чата, то
+            // будет ошибка, которую мы подавляем.
+            // В будущем надо ловить события удаления сообщения
+            // и убирать его ИД из сохраненных данных
+          }
         }
-        catch (e) {
-          // TODO: если сообщение уже было удалено из чата, то
-          // будет ошибка, которую мы подавляем.
-          // В будущем надо ловить события удаления сообщения
-          // и убирать его ИД из сохраненных данных
+
+        if (menu) {
+          this.dialogStates.merge(chatId, { menuMessageId: m.message_id });
+        } else {
+          this.dialogStates.merge(chatId, { menuMessageId: undefined });
         }
       }
-
-      if (menu) {
-        this.dialogStates.merge(chatId, { menuMessageId: m.message_id });
+    }
+    catch(error) {
+      if (error.response && error.code === 403) {
+        console.log(`Bot was blocked by the user. ChatId = ${chatId}`);
+         this.dialogStates.delete(chatId);
       } else {
-        this.dialogStates.merge(chatId, { menuMessageId: undefined });
+        console.log(`Failed to send message. ChatId = ${chatId}`);
+        console.log(error);
       }
     }
   }
