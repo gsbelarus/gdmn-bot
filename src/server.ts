@@ -12,6 +12,21 @@ import * as fs from "fs";
 import { getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser, customers, employeesByCustomer } from "./data";
 
 /**
+ * Host and port number our HTTP server is accessible at.
+ */
+const HTTP_PORT = 3000;
+
+/**
+ * Host and port number our HTTPS server is accessible at.
+ */
+const HTTPS_PORT = 443;
+
+/**
+ * Host name for Viber callback;
+ */
+const VIBER_CALLBACK_HOST = 'zarobak.gdmn.app';
+
+/**
  * Подгружаем некоторые справочники.
  */
 
@@ -24,26 +39,27 @@ initCurrencies().then( () => console.log('Currencies have been loaded...') );
  * Вайбер надо связать с нашим веб сервером вручную.
  */
 
-const telegramBotToken = process.env.GDMN_TELEGRAM_BOT_TOKEN;
-const viberBotToken = process.env.GDMN_VIBER_BOT_TOKEN;
+const GDMN_TELEGRAM_BOT_TOKEN = process.env.GDMN_TELEGRAM_BOT_TOKEN;
 
-if (typeof telegramBotToken !== 'string') {
+if (typeof GDMN_TELEGRAM_BOT_TOKEN !== 'string' || !GDMN_TELEGRAM_BOT_TOKEN) {
   throw new Error('GDMN_TELEGRAM_BOT_TOKEN env variable is not specified.');
 }
 
-if (typeof viberBotToken !== 'string') {
+const GDMN_VIBER_BOT_TOKEN = process.env.GDMN_VIBER_BOT_TOKEN;
+
+if (typeof GDMN_VIBER_BOT_TOKEN !== 'string' || !GDMN_VIBER_BOT_TOKEN) {
   throw new Error('GDMN_VIBER_BOT_TOKEN env variable is not specified.');
 }
 
 const telegram = new TelegramBot(
-  telegramBotToken,
+  GDMN_TELEGRAM_BOT_TOKEN,
   getCustomers,
   getEmployeesByCustomer,
   getAccDeds,
   getPaySlipByUser);
 
 const viber = new Viber(
-  viberBotToken,
+  GDMN_VIBER_BOT_TOKEN,
   getCustomers,
   getEmployeesByCustomer,
   getAccDeds,
@@ -63,45 +79,57 @@ const app = new Koa();
 const router = new Router();
 
 router.get('/', (ctx, next) => {
-  ctx.body = 'Hello World!';
-  next();
+  ctx.body = 'Zarobak Telegram/Viber Bot. Copyright (c) 2020 by Golden Software of Belarus, Ltd';
+  return next();
 });
 
 router.post('/zarobak/v1/upload_employees', (ctx, next) => {
   upload_employees(ctx);
-  next();
+  return next();
 });
 
 router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
   upload_accDedRefs(ctx);
-  next();
+  return next();
 });
 
 router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
   upload_paySlips(ctx);
 
-  //Рассылаем сообщение, что пришли новые данные сотруднику из организации customerId, если он зарегистрирован
+  // TODO: Сделать, чтобы не просто надпись выводилась, а человек сразу получал в чат
+  //       краткий расчетный листок.
   viber.sendMessageToEmployee(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
   telegram.sendMessageToEmployee(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
 
-  next();
+  return next();
 });
 
 app
-  //.use(viber.bot.middleware())
   .use(bodyParser())
   .use(router.routes())
   .use(router.allowedMethods());
 
-/**
- * Если у нас получится грузить из Гедымина по протоколу
- * HTTPS, то HTTP сервер мы вообще уберем из программы.
- */
+const koaCallback = app.callback();
 
-const httpServer = http.createServer(app.callback());
+const flushData = () => {
+  customers.flush();
 
-httpServer.listen(3000, async () => {
-  console.log(`>>> SERVER: Сервер запущен: https://localhost:3000`)
+  for (const ec of Object.values(employeesByCustomer)) {
+    ec.flush();
+  }
+
+  // FIXME: переименовать finalize в flush
+  telegram.finalize();
+  viber.finalize();
+};
+
+
+// TODO: Если у нас получится грузить из Гедымина по протоколу HTTPS, то HTTP сервер мы вообще уберем из программы.
+
+const httpServer = http.createServer(koaCallback);
+
+httpServer.listen(HTTP_PORT, async () => {
+  console.log(`>>> SERVER: Сервер запущен: https://localhost:${HTTP_PORT}`)
 });
 
 /**
@@ -117,27 +145,24 @@ const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bun
   .pop();
 
 const viberCallback = viber.bot.middleware();
-const koaCallback = app.callback();
-const host = 'zarobak.gdmn.app';
 
 https.createServer({ cert, ca, key },
   (req, res) => {
-    if (req.headers.host === host) {
+    if (req.headers.host === VIBER_CALLBACK_HOST) {
       viberCallback(req, res);
     } else {
       koaCallback(req, res);
     }
   }
-).listen(443, () => viber.bot.setWebhook(`https://${host}`));
+).listen(HTTPS_PORT,
+  () => {
+    viber.bot.setWebhook(`https://${VIBER_CALLBACK_HOST}`);
 
-/*
-const httpsServer = https.createServer({ cert, ca, key }, app.callback());
-httpsServer.listen(443, async () => {
-  console.log(`>>> HTTPS SERVER: Сервер запущен: https://localhost:443`);
+    // раз в час пишем на диск все несохраненные данные
+    setInterval(flushData, 60 * 60 * 1000);
+  }
+);
 
-  viber.bot.setWebhook('https://zarobak.gdmn.app');
-});
-*/
 
 /**
  * При завершении работы сервера скидываем на диск все данные.
@@ -145,15 +170,7 @@ httpsServer.listen(443, async () => {
 
 process
   .on('exit', code => {
-    customers.flush();
-
-    for (const ec of Object.values(employeesByCustomer)) {
-      ec.flush();
-    }
-
-    telegram.finalize();
-    viber.finalize();
-
+    flushData();
     console.log('Process exit event with code: ', code);
   })
   .on('SIGINT', () => process.exit())
