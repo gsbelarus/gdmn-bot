@@ -12,19 +12,18 @@ import * as fs from "fs";
 import { getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser, customers, employeesByCustomer } from "./data";
 
 /**
- * Host and port number our HTTP server is accessible at.
+ * Port number our HTTP server is accessible at.
  */
 const HTTP_PORT = 3000;
 
 /**
- * Host and port number our HTTPS server is accessible at.
+ * Port number our HTTPS server is accessible at.
  */
 const HTTPS_PORT = 443;
 
 /**
- * Host name for Viber callback;
+ * Host name for Viber callback.
  */
-
 const ZAROBAK_VIBER_CALLBACK_HOST = process.env.ZAROBAK_VIBER_CALLBACK_HOST;
 
 if (typeof ZAROBAK_VIBER_CALLBACK_HOST !== 'string' || !ZAROBAK_VIBER_CALLBACK_HOST) {
@@ -160,8 +159,15 @@ https.createServer({ cert, ca, key },
     }
   }
 ).listen(HTTPS_PORT,
-  () => {
-    viber.bot.setWebhook(`https://${ZAROBAK_VIBER_CALLBACK_HOST}`);
+  async () => {
+    const viberWebhook = `https://${ZAROBAK_VIBER_CALLBACK_HOST}`;
+
+    try {
+      await viber.bot.setWebhook(viberWebhook);
+      console.log(`Viber webhook set at ${viberWebhook}`)
+    } catch(e) {
+      console.log(`Error setting Viber webhook at ${viberWebhook}`, e);
+    }
 
     // раз в час пишем на диск все несохраненные данные
     setInterval(flushData, 60 * 60 * 1000);
