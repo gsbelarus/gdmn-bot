@@ -226,12 +226,12 @@ export class Viber extends Bot {
       if (`${mas[i]} ${s}`.length <= 36)  {
         mas[i] = xid === 0 ? s : `${mas[i]} ${s}`
       } else {
-        mas[i] = `${mas[i]}\n`
+        mas[i] = `${mas[i]}\n  `
         i = i + 1;
         mas[i] = s;
       }
     });
     const str = mas.join('');
-    return `${prevStr}${s === 0 ? '' : prevStr !== '' ? '  \n' + str  : '  ' + str}${s ? '\n  =' + new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s) : ''}`
+    return `${prevStr}${s === 0 ? '' : prevStr !== '' ? '\n  ' + str  : '  ' + str}${s ? '\n  =' + new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(s) : ''}`
   }
 };

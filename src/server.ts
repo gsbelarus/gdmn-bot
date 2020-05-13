@@ -19,7 +19,7 @@ const HTTP_PORT = 3000;
 /**
  * Port number our HTTPS server is accessible at.
  */
-const HTTPS_PORT = 443;
+const HTTPS_PORT = 8084; //443
 
 /**
  * Host name for Viber callback.
@@ -109,7 +109,10 @@ router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
 });
 
 app
-  .use(bodyParser())
+  .use(bodyParser({
+    jsonLimit: '20mb',
+    textLimit: '20mb'
+  }))
   .use(router.routes())
   .use(router.allowedMethods());
 
@@ -152,7 +155,8 @@ const viberCallback = viber.bot.middleware();
 
 https.createServer({ cert, ca, key },
   (req, res) => {
-    if (req.headers.host === ZAROBAK_VIBER_CALLBACK_HOST) {
+    //console.log(req.headers);
+    if (req.headers['x-viber-content-signature']) {
       viberCallback(req, res);
     } else {
       koaCallback(req, res);
@@ -160,7 +164,7 @@ https.createServer({ cert, ca, key },
   }
 ).listen(HTTPS_PORT,
   async () => {
-    const viberWebhook = `https://${ZAROBAK_VIBER_CALLBACK_HOST}`;
+    const viberWebhook = `https://${ZAROBAK_VIBER_CALLBACK_HOST}:${HTTPS_PORT}`;
 
     try {
       await viber.bot.setWebhook(viberWebhook);

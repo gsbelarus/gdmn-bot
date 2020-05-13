@@ -5,11 +5,54 @@ Properties:
   RUID: 158513268_1444931844
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.3"
+  Version: "1.0.0.13"
   Optional: False
   Internal: True
-  MD5: C5C8998A96E3C930556205750EB6898B
+  MD5: 854DE3FE069724ACF0776745FE4EAF95
 Objects: 
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 147160790_1454092899
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_strRepl"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: ~
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2020-05-13T12:32:18+03:00
+      DISPLAYSCRIPT: | 
+        BOT_STRREPL
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QDAAAAU1RSAwAAAFNUUgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNURkxQUg==
+      SCRIPT: | 
+        Option Explicit
+        
+        '  Функция заменяет символы обратного слэша, двойной кавычки
+        '  и перевода строки на управляющие команды.
+        '
+        '  Необходима для записи строки в JSON.
+        
+        Function bot_strRepl(str)
+          bot_strRepl = Trim(Replace(Replace(Replace(Replace(Replace(str, "\", "\\"), """", "\"""), vbCrLf, "\n"), vbTab, "\t"), vbCr, "\n"))
+        
+        End Function
+        
   - 
     Properties: 
       Class: "TgdcFunction"
@@ -34,7 +77,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-08T10:33:08+03:00
+      EDITIONDATE: 2020-05-13T18:11:32+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREPAYSLIP
         BOT_PREPAREPAYSLIP_ROLLBACK
@@ -135,7 +178,7 @@ Objects:
             "      t.USR$DATEEND               AS OnDateEnd, " & _
             "      workterm.USR$DATEBEGIN      AS HiringDate, " & _
             "      coalesce(workterm.USR$DATEEND, null)        AS DismissalDate, " & _
-            "      tline.USR$ENDSALDO " & _
+            "      SUM(tline.USR$ENDSALDO) " & _
             "    FROM USR$WG_TOTAL t " & _
             "      LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
             "      LEFT JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
@@ -150,6 +193,7 @@ Objects:
             "      t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
             "      AND (ml.USR$MOVEMENTTYPE <> 3 OR tline.USR$CREDIT <> 0 OR tline.USR$DEBIT <> 0) " & _
             "      AND doc.COMPANYKEY = :companyId " & _
+            "    GROUP BY 1,2,3,4,5,6,7,8 " & _
             "    ORDER BY NickName, EmployeeRuid, t.USR$DATEBEGIN " & _
             "    INTO :NickName, :EmployeeRuid, :EmployeeKey, :TotalDocKey,  :OnDateBegin, :OnDateEnd, " & _
             "      :HiringDate, :DismissalDate, :EndSaldo " & _
@@ -189,6 +233,7 @@ Objects:
             "        WHERE cr.USR$TOTALDOCKEY = :TotalDocKey " & _
             "          AND cr.USR$EMPLKEY = :EmployeeKey " & _
             "          AND ft.ID <> <RUID XID = 147582378 DBID = 119619099/> /*выдача заплаты*/ " & _
+            "          AND (cr.USR$CREDIT <> 0 OR cr.USR$DEBIT <> 0) " & _
             "        GROUP BY 1, 2, 3, 4, 5, 6 " & _
             "        INTO :FeeTypeName, :typeId, " & _
             "             :IncDate, :IncMonth, :IncYear, :Category, " & _
@@ -261,6 +306,7 @@ Objects:
             "        WHERE cha.USR$EMPLKEY = :EmployeeKey " & _
             "          AND cha.USR$TOTALDOCKEY = :TotalDocKey " & _
             "        GROUP BY 1, 2, 3 " & _
+            "        HAVING SUM(cha.USR$SUMMA) <> 0 " & _
             "        INTO :FeeTypeName, :typeId, :Category, :S " & _
             "      DO " & _
             "        BEGIN " & _
@@ -283,7 +329,9 @@ Objects:
             "          LEFT JOIN GD_P_GETRUID(dt.ID) r ON 1 = 1 " & _
             "        WHERE cha.USR$EMPLKEY = :EmployeeKey " & _
             "          AND cha.USR$TOTALDOCKEY = :TotalDocKey " & _
+            "          AND cha.USR$SUMMA <> 0 " & _
             "        GROUP BY 1, 2, 3 " & _
+            "        HAVING SUM(cha.USR$SUMMA) <> 0 " & _
             "        INTO  :FeeTypeName, :typeId, :Category, :S " & _
             "      DO " & _
             "        BEGIN " & _
@@ -348,8 +396,10 @@ Objects:
             " " & vbCrLf & _
             "  FOR " & vbCrLf & _
             "    SELECT " & vbCrLf & _
-            "      CAST(rPos.XID AS VARCHAR(14)) || '_' || CAST(rPos.DBID AS VARCHAR(14)), REPLACE(pos.NAME, '""', '\""'), " & vbCrLf & _
-            "      CAST(rDept.XID AS VARCHAR(14)) || '_' || CAST(rDept.DBID AS VARCHAR(14)), REPLACE(dept.NAME, '""', '\""'), " & vbCrLf & _
+            "      CAST(rPos.XID AS VARCHAR(14)) || '_' || CAST(rPos.DBID AS VARCHAR(14)), " & _
+            "      Trim(Replace(Replace(Replace(Replace(Replace(pos.NAME, '\', '\\'), '""', '\""'), '" & vbCrLf & "', '\n'), '" & vbTab & "', '\t'), '" & vbCr & "', '\n')), " & vbCrLf & _
+            "      CAST(rDept.XID AS VARCHAR(14)) || '_' || CAST(rDept.DBID AS VARCHAR(14)), " & _
+            "      Trim(Replace(Replace(Replace(Replace(Replace(dept.NAME, '\', '\\'), '""', '\""'), '" & vbCrLf & "', '\n'), '" & vbTab & "', '\t'), '" & vbCr & "', '\n')), " & vbCrLf & _
             "      ml.USR$MSALARY, ml.USR$MHOURRATE, ml.USR$DATEBEGIN " & vbCrLf & _
             "    FROM " & vbCrLf & _
             "      USR$WG_MOVEMENTLINE ml " & vbCrLf & _
@@ -466,9 +516,12 @@ Objects:
                 """data"": [" & employeeItems & "]"  & _
                 "}"
         
+              Dim b
+              If isRewrite Then b = "true" Else b = "false"
+        
               Jsons.Add("{""version"":""1.0""," & _
                 """customerId"":""" & customerId & """," & _
-                """rewrite"":" & LCase(isRewrite) & "," & _
+                """rewrite"":" & b & "," & _
                 """objData"":" & objItem & "}")
               employeeItems = ""
             end if
@@ -506,7 +559,7 @@ Objects:
         
             Jsons.Add("{""version"":""1.0""," & _
               """customerId"":""" & customerId & """," & _
-              """rewrite"":" & LCase(isRewrite) & "," & _
+              """rewrite"":" & b & "," & _
               """objData"":" & objItem & "}")
           end if
         
@@ -547,7 +600,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-03T22:50:24+03:00
+      EDITIONDATE: 2020-05-13T12:11:35+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREACCDED
         BOT_PREPAREACCDED_ROLLBACK
@@ -558,6 +611,7 @@ Objects:
         AAAAAEZOU1RQUlNUBAAAAEpTT04EAAAASlNPTgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
         RkxQUg==
       SCRIPT: | 
+        '#include BOT_STRREPL
         Option Explicit
         Function bot_prepareAccDed(customerId, isManual, ByRef Json)
           dim Creator, Transaction
@@ -648,8 +702,8 @@ Objects:
             end if
             if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
             Json.Add("""" & qSel.FieldByName("typeId").AsString & """:{" & _
-              """type"":""" & Trim(qSel.FieldByName("category").AsString) & """," & _
-              """name"":{""ru"":{""name"":""" & Trim(qSel.FieldByName("name").AsString) & """}}}")
+              """type"":""" & bot_strRepl(qSel.FieldByName("category").AsString) & """," & _
+              """name"":{""ru"":{""name"":""" & bot_strRepl(qSel.FieldByName("name").AsString) & """}}}")
             qSel.Next
           wend
         
@@ -674,6 +728,12 @@ Objects:
           end if
         end sub
         
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "147160790_1454092899 bot_strRepl"
   - 
     Properties: 
       Class: "TgdcFunction"
@@ -698,7 +758,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-03T22:49:55+03:00
+      EDITIONDATE: 2020-05-13T12:10:19+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREEMPLOYEES
         BOT_PREPAREEMPLOYEES_ROLLBACK
@@ -710,6 +770,7 @@ Objects:
         AAAAAAAARk5TVFBSU1QEAAAASlNPTgQAAABKU09OAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZO
         U1RGTFBS
       SCRIPT: | 
+        '#include BOT_STRREPL
         Option Explicit
         Function bot_prepareEmployees(customerId, companyId, isManual, ByRef Json)
           dim Creator, Transaction
@@ -773,10 +834,10 @@ Objects:
             end if
             if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
             Json.Add("""" & qSel.FieldByName("ID").AsString & """:{" & _
-              """firstName"":""" & Trim(qSel.FieldByName("FIRSTNAME").AsString) & """," & _
-              """lastName"":""" & Trim(qSel.FieldByName("SURNAME").AsString) & """," & _
-              """patrName"":""" & Trim(qSel.FieldByName("MIDDLENAME").AsString) & """," & _
-              """passportId"":""" & Trim(qSel.FieldByName("PERSONALNUMBER").AsString) & """}")
+              """firstName"":""" & bot_strRepl(qSel.FieldByName("FIRSTNAME").AsString) & """," & _
+              """lastName"":""" & bot_strRepl(qSel.FieldByName("SURNAME").AsString) & """," & _
+              """patrName"":""" & bot_strRepl(qSel.FieldByName("MIDDLENAME").AsString) & """," & _
+              """passportId"":""" & bot_strRepl(qSel.FieldByName("PERSONALNUMBER").AsString) & """}")
             qSel.Next
           wend
         
@@ -799,3 +860,9 @@ Objects:
           end if
         end sub
         
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "147160790_1454092899 bot_strRepl"

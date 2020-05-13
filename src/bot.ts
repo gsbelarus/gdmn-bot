@@ -356,7 +356,7 @@ export class Bot {
           de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
           await this.sendMessage(chatId, date2str(de));
           this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), de });
-          const cListok = await this.getPaySlip(chatId, 'CONCISE', lng, db, de);
+          const cListok = await this.getPaySlip(chatId, 'DETAIL', lng, db, de);
           if (cListok !== '') {
             await this.sendMessage(chatId, cListok, keyboardMenu, true);
           } else {
@@ -873,7 +873,7 @@ export class Bot {
 
   settings(chatId: string) {
     this._dialogStates.merge(chatId, { type: 'GETTING_SETTINGS', lastUpdated: new Date().getTime() });
-    this.sendMessage(chatId, 'Параметры.', keyboardSettings);
+    this.sendMessage(chatId, 'Выберите необходимый пункт из параметров.', keyboardSettings);
   }
 
   async logout(chatId: string) {
