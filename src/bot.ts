@@ -4,7 +4,7 @@ import {
 } from "./types";
 import { FileDB, IData } from "./util/fileDB";
 import path from 'path';
-import { normalizeStr, getYears, getLName, getSumByRate, date2str, replaceIdentLetters } from "./util/utils";
+import { normalizeStr, getYears, getLName, getSumByRate, date2str, replaceIdentLetters, getLanguage } from "./util/utils";
 import { getCurrencyNameById, getCurrencyAbbreviationById, getCurrRate } from "./currency";
 
 export interface IMenuButton {
@@ -162,6 +162,28 @@ export class Bot {
       }
     }
   }
+
+  /**
+   * Рассылка уведомления одному пользователю
+   * @param text - текст уведомления
+   */
+  showPaySlip(customerId: string, employeeId: string, text: string) {
+    const dlgObj = this._dialogStates.getMutable(true);
+    const today = new Date();
+    const db = new Date(today.getFullYear(), today.getMonth(), 1);
+    const de = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    Object.entries(this._accountLink.getMutable(true)).filter(([_, acc]) => acc.customerId === customerId && acc.employeeId === employeeId)
+    .forEach(async(l) => {
+      const chatId = l[0];
+      const dlg = dlgObj[chatId];
+      if (dlg && dlg.type !== 'INITIAL' && dlg.type !== 'LOGGING_IN') {
+        await this.sendMessage(chatId, text);
+        this.paySlip(chatId, 'CONCISE', 'ru', db, de);
+      }
+    })
+  }
+
 
   /**
    * Диалог регистрации
@@ -519,8 +541,9 @@ export class Bot {
           const sal = paySlip.salary
             .filter(posItem => new Date(posItem.d) <= fromDe)
             .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
-
-          salary[i] = sal[0]?.s;
+          if (sal?.length) {
+            salary[i] = sal[0]?.s
+          }
 
           const hr = paySlip.hourrate
             ?.filter(posItem => new Date(posItem.d) <= fromDe)

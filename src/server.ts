@@ -103,8 +103,8 @@ router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
 
   // TODO: Сделать, чтобы не просто надпись выводилась, а человек сразу получал в чат
   //       краткий расчетный листок.
-  viber.sendMessageToEmployee(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
-  telegram.sendMessageToEmployee(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
+  viber.showPaySlip(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
+  telegram.showPaySlip(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
 
   return next();
 });
