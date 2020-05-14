@@ -1,0 +1,11 @@
+// example of configuration data.
+// make a copy of this file and rename it to "config.ts"
+
+export const config = {
+  logger: {
+    fileName: '',
+    maxFileSize: 10 * 1024 * 1024,
+    level: 'INFO',
+    useConsole: true
+  }
+};

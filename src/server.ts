@@ -10,6 +10,13 @@ import { initCurrencies } from "./currency";
 import { Viber } from "./viber";
 import * as fs from "fs";
 import { getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser, customers, employeesByCustomer } from "./data";
+import { Logger } from "./log";
+
+// if not exists create configuration file using
+// config.ts.sample as an example
+import { config } from "./config";
+
+const log = new Logger(config.logger);
 
 /**
  * Port number our HTTP server is accessible at.
@@ -34,7 +41,7 @@ if (typeof ZAROBAK_VIBER_CALLBACK_HOST !== 'string' || !ZAROBAK_VIBER_CALLBACK_H
  * Подгружаем некоторые справочники.
  */
 
-initCurrencies().then( () => console.log('Currencies have been loaded...') );
+initCurrencies().then( () => log.info('Currencies have been loaded...') );
 
 /**
  * Создаем объекты наших ботов.
@@ -97,6 +104,9 @@ router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
   return next();
 });
 
+// TODO: ид сотрудника, данные которого передаются, можно сразу включать в URI,
+// например: /zarobak/v1/upload_paySlips?employeeId=445566
+// тогда сразу будет видно на каком именно сотруднике произошла ошибка
 router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
   upload_paySlips(ctx);
 
@@ -135,9 +145,7 @@ const flushData = () => {
 
 const httpServer = http.createServer(koaCallback);
 
-httpServer.listen(HTTP_PORT, async () => {
-  console.log(`>>> SERVER: Сервер запущен: https://localhost:${HTTP_PORT}`)
-});
+httpServer.listen(HTTP_PORT, () => log.info(`>>> SERVER: Сервер запущен: http://localhost:${HTTP_PORT}`) );
 
 /**
  * HTTPS сервер с платным сертификатом нам нужен для подключения
@@ -155,7 +163,6 @@ const viberCallback = viber.bot.middleware();
 
 https.createServer({ cert, ca, key },
   (req, res) => {
-    //console.log(req.headers);
     if (req.headers['x-viber-content-signature']) {
       viberCallback(req, res);
     } else {
@@ -168,9 +175,9 @@ https.createServer({ cert, ca, key },
 
     try {
       await viber.bot.setWebhook(viberWebhook);
-      console.log(`Viber webhook set at ${viberWebhook}`)
+      log.info(`Viber webhook set at ${viberWebhook}`)
     } catch(e) {
-      console.log(`Error setting Viber webhook at ${viberWebhook}`, e);
+      log.error(`Error setting Viber webhook at ${viberWebhook}: ${e}`);
     }
 
     // раз в час пишем на диск все несохраненные данные
@@ -184,9 +191,10 @@ https.createServer({ cert, ca, key },
  */
 
 process
-  .on('exit', code => {
+  .on('exit', async (code) => {
     flushData();
-    console.log('Process exit event with code: ', code);
+    await log.info(`Process exit event with code: ${code}`);
+    await log.shutdown();
   })
   .on('SIGINT', () => process.exit())
   .on('unhandledRejection', (reason, p) => {
