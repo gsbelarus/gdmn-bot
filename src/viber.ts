@@ -4,11 +4,39 @@ import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "./types";
 import { IData } from "./util/fileDB";
 
 const vb = require('viber-bot');
+const winston = require('winston');
 
 const ViberBot = vb.Bot
 const BotEvents = vb.Events
 const TextMessage = vb.Message.Text;
 const KeyboardMessage = vb.Message.Keyboard;
+
+function createLogger() {
+  const logger = winston.createLogger({
+    level: 'info',
+    format: winston.format.json(),
+    defaultMeta: { service: 'user-service' },
+    transports: [
+      //
+      // - Write all logs with level `error` and below to `error.log`
+      // - Write all logs with level `info` and below to `combined.log`
+      //
+      new winston.transports.File({ filename: 'error.log', level: 'error' }),
+      new winston.transports.File({ filename: 'combined.log' })
+    ]
+  });
+
+  //
+  // If we're not in production then log to the `console` with the format:
+  // `${info.level}: ${info.message} JSON.stringify({ ...rest }) `
+  //
+  if (process.env.NODE_ENV !== 'production') {
+    logger.add(new winston.transports.Console({
+      format: winston.format.simple()
+    }));
+  }
+	return logger;
+}
 
 export class Viber extends Bot {
   private _bot: any;
@@ -21,14 +49,17 @@ export class Viber extends Bot {
 
     super('viber', getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser);
 
+
+    const logger = createLogger();
+
     this._bot = new ViberBot({
       authToken: token,
+     //logger: logger,
       name: 'Моя зарплата',
       avatar: ''
     });
 
     // this._bot.on(BotEvents.SUBSCRIBED, async (response: any) => {
-    //   //Непонятно, когда сюда заходит
     //   if (!response?.userProfile) {
     //     console.error('Invalid chat context');
     //   } else {
@@ -36,15 +67,27 @@ export class Viber extends Bot {
     //   }
     // });
 
+    this._bot.onError((err: Error) => logger.error(err));
+
+    this._bot.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
+      this.unsubscribe(response);
+      logger.log(`User unsubscribed, ${response}`)
+    });
+
     this._bot.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
       if (!response?.userProfile) {
         console.error('Invalid chat context');
       } else {
-        this.start(response.userProfile.id.toString(), 'Для подписки введите любое сообщение.');
+        this.start(response.userProfile.id.toString(),
+        `Здравствуйте${response?.userProfile.name ? ', ' + response.userProfile.name : ''}!\nДля подписки введите любое сообщение.`);
       }
     });
 
     this._bot.on(BotEvents.MESSAGE_RECEIVED, async (message: any, response: any) => {
+      //console.log(JSON.stringify(message, undefined, 2));
+      //console.log(JSON.stringify(response, undefined, 2));
+      console.log(message);
+      console.log(response);
       if (!response?.userProfile) {
         console.error('Invalid chat context');
       }
@@ -56,6 +99,8 @@ export class Viber extends Bot {
     });
 
     this._bot.on(BotEvents.MESSAGE_RECEIVED, async (message: any, response: any) => {
+      console.log(message);
+      console.log(response);
       if (!response?.userProfile) {
         console.error('Invalid chat context');
       }
@@ -146,7 +191,6 @@ export class Viber extends Bot {
 
     // this._bot.action('delete', ({ deleteMessage }) => deleteMessage());
 
-    //this._bot.launch();
   }
 
   get bot() {
@@ -201,10 +245,19 @@ export class Viber extends Bot {
   }
 
   async sendMessage(chatId: string, message: string, menu?: Menu, markdown?: boolean) {
-    if (menu) {
-      await this._bot.sendMessage({ id: chatId }, [new TextMessage(message), new KeyboardMessage(this._menu2ViberMenu(menu))]);
-    } else {
-      await this._bot.sendMessage({ id: chatId }, [new TextMessage(message)]);
+    try {
+      if (menu) {
+        await this._bot.sendMessage({ id: chatId }, [new TextMessage(message), new KeyboardMessage(this._menu2ViberMenu(menu))]);
+      } else {
+        await this._bot.sendMessage({ id: chatId }, [new TextMessage(message)]);
+      }
+    } catch(error) {
+      if (error.status === 6) {
+        console.log(`User is not subscribed. ChatId = ${chatId}`);
+      } else {
+        console.log(`Failed to send message. ChatId = ${chatId}`);
+        console.log(error);
+      }
     }
   }
 

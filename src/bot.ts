@@ -7,6 +7,8 @@ import path from 'path';
 import { normalizeStr, getYears, getLName, getSumByRate, date2str, replaceIdentLetters, getLanguage } from "./util/utils";
 import { getCurrencyNameById, getCurrencyAbbreviationById, getCurrRate } from "./currency";
 
+export const MINDATE = new Date(2018, 0, 1);
+
 export interface IMenuButton {
   type: 'BUTTON';
   caption: string;
@@ -66,9 +68,9 @@ export const keyboardCalendar = (lng: Lang, year: number): Menu => {
 
   return mm.map(mr => mr.map(m => ({ type: 'BUTTON', caption: getLName(monthList[m], ['ru']), command: `month;${year};${m}` } as IMenuButton)))
     .concat([[
-      { type: 'BUTTON', caption: '<', command: `prevYear;${year}` },
+      { type: 'BUTTON', caption: ' < ', command: `prevYear;${year}` },
       { type: 'BUTTON', caption: `${year}`, command: `otherYear;${year}` },
-      { type: 'BUTTON', caption: '>', command: `nextYear;${year}` }
+      { type: 'BUTTON', caption: ' > ', command: `nextYear;${year}` }
     ]])
     .concat([[{ type: 'BUTTON', caption: 'Меню', command: 'menu' }]]);
 };
@@ -174,8 +176,8 @@ export class Bot {
     const de = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
     Object.entries(this._accountLink.getMutable(true)).filter(([_, acc]) => acc.customerId === customerId && acc.employeeId === employeeId)
-    .forEach(async(l) => {
-      const chatId = l[0];
+    .forEach(async(acclink) => {
+      const chatId = acclink[0];
       const dlg = dlgObj[chatId];
       if (dlg && dlg.type !== 'INITIAL' && dlg.type !== 'LOGGING_IN') {
         await this.sendMessage(chatId, text);
@@ -656,14 +658,14 @@ export class Bot {
               [accrual[0] ? '=' : ''],
               [strAccruals],
               [accrual[0] ? '=' : ''],
-              ['Аванс:', advance[0], true],
-              [advance[0] ? '=' : ''],
-              [strAdvances],
-              [advance[0] ? '=' : ''],
               ['Удержания:', ded[0], true],
               [ded[0] ? '=' : ''],
               [strDeductions],
               [ded[0] ? '=' : ''],
+              ['Аванс:', advance[0], true],
+              [advance[0] ? '=' : ''],
+              [strAdvances],
+              [advance[0] ? '=' : ''],
               ['Налоги:', allTaxes[0], true],
               [allTaxes[0] ? '=' : ''],
               [strTaxes],
@@ -697,9 +699,9 @@ export class Bot {
               ['Начислено:', accrual[0], true],
               ['='],
               ['Зарплата чистыми:', getSumByRate(accrual[0], rate) - allTaxes[0]],
+              ['  Удержания:', ded[0], true],
               ['  Аванс:', advance[0], true],
               ['  К выдаче:', saldo[0], true],
-              ['  Удержания:', ded[0], true],
               ['='],
               ['Налоги:', allTaxes[0]],
               ['  Подоходный:', incomeTax[0], true],
@@ -737,9 +739,6 @@ export class Bot {
                 ['Чистыми  I:', getSumByRate(accrual[0], rate) - allTaxes[0]],
                 ['Чистыми II:', getSumByRate(accrual[1], rate) - allTaxes[1]],
                 ['Разница:', getSumByRate(accrual[1], rate) - allTaxes[1] - (getSumByRate(accrual[0], rate) - allTaxes[0])],
-                ['  Аванс  I:', advance[0], true],
-                ['  Аванс II:', advance[1], true],
-                ['  Разница:', getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)],
                 ['  К выдаче  I:', saldo[0], true],
                 ['  К выдаче II:', saldo[1], true],
                 ['  Разница:', getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)],
@@ -747,6 +746,9 @@ export class Bot {
                 ['  Удержания  I:', ded[0], true],
                 ['  Удержания II:', ded[1], true],
                 ['  Разница:', getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate)],
+                ['  Аванс  I:', advance[0], true],
+                ['  Аванс II:', advance[1], true],
+                ['  Разница:', getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)],
                 [ded[0] || ded[1] ? '=' : ''],
                 ['Налоги  I:', allTaxes[0], true],
                 ['Налоги II:', allTaxes[1], true],
@@ -812,18 +814,16 @@ export class Bot {
 
     if (dialogState?.type === 'LOGGING_IN') {
       this.loginDialog(chatId, message);
-    } else if (dialogState?.type === 'LOGGED_IN' && message === 'организации') {
-      this.sendMessage(chatId, Object.values(this.getCustomers()).map(c => c.name).join(', '), keyboardMenu);
     } else if (dialogState?.type === 'INITIAL') {
       this.sendMessage(chatId,
         'Для получения информации о заработной плате необходимо зарегистрироваться в системе.',
         keyboardLogin);
-    } else if (dialogState?.type !== 'GETTING_CURRENCY' && dialogState?.type !== 'GETTING_CONCISE' && dialogState?.type !== 'GETTING_COMPARE')  {
+    } else { //if (dialogState?.type !== 'GETTING_CURRENCY' && dialogState?.type !== 'GETTING_CONCISE' && dialogState?.type !== 'GETTING_COMPARE')  {
       this.sendMessage(chatId,
         `
   🤔 Ваша команда непонятна.
 
-  Выберите одно из предложенных действий.
+Выберите одно из предложенных действий.
   `, keyboardMenu);
     }
   }
@@ -844,22 +844,25 @@ export class Bot {
    * Вызывается при запуске чат бота клиентом.
    * @param chatId
    */
-  start(chatId: string, startMessage?: string) {
+  start(chatId: string, startMessage: string) {
     const link = this.accountLink.read(chatId);
 
     console.log('start');
 
     if (!link) {
       this.dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() });
-      this.sendMessage(chatId,
-        'Приветствуем! ' + startMessage,
-        keyboardLogin);
+      this.sendMessage(chatId, startMessage, keyboardLogin);
     } else {
       this.dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() });
       this.sendMessage(chatId,
-        'Здравствуйте! Вы зарегистрированы в системе. Выберите одно из предложенных действий.',
+        `Здравствуйте! Вы зарегистрированы в системе.\nВыберите одно из предложенных действий.`,
         keyboardMenu);
     }
+  }
+
+  unsubscribe(chatId: string) {
+    this.dialogStates.delete(chatId);
+    this.accountLink.delete(chatId);
   }
 
   menu(chatId: string) {
@@ -896,7 +899,7 @@ export class Bot {
       dEnd.setDate(0);
       dBegin.setMonth(dBegin.getMonth() - 1);
 
-      if (dBegin.getTime() < new Date(2018, 0, 1).getTime()) {
+      if (dBegin.getTime() < MINDATE.getTime()) {
         await this.sendMessage(chatId,
           `Нет данных для расчетного листка 🤔`,
           keyboardMenu);

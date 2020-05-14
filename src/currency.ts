@@ -15,6 +15,7 @@ import path from 'path';
 import { Lang, LName } from './types';
 import { FileDB, IData } from './util/fileDB';
 import { getLName, date2str } from './util/utils';
+import { MINDATE } from './bot';
 
 const fetch = require("node-fetch");
 
@@ -221,7 +222,7 @@ export const getCurrRate = async (date: Date, currId: string) => {
 
     d.setDate(d.getDate() - 1);
 
-    if (d.getTime() < new Date(2018, 0, 1).getTime()) {
+    if (d.getTime() < MINDATE.getTime()) {
       break;
     }
   }

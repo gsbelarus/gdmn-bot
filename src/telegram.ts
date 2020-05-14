@@ -27,7 +27,8 @@ export class TelegramBot extends Bot {
         if (!ctx.chat) {
           console.error('Invalid chat context');
         } else {
-          this.start(ctx.chat.id.toString(), 'Для получения информации о заработной плате необходимо зарегистрироваться в системе.');
+          this.start(ctx.chat.id.toString(),
+          `Здравствуйте${ctx.chat.first_name ? ', ' + ctx.chat.first_name : ''}!\nДля получения информации о заработной плате необходимо зарегистрироваться в системе.`);
         }
       }
     );
@@ -150,7 +151,8 @@ export class TelegramBot extends Bot {
 
     this._bot.action('delete', ({ deleteMessage }) => deleteMessage());
 
-    this._bot.launch();
+    this._bot.launch()
+      .then( () => this._bot.telegram.setMyCommands([ { command: 'start', description: 'Запустить бот "Моя зарплата"' }]) );
   }
 
   get bot() {
@@ -250,11 +252,11 @@ ${'`'}${'`'}${'`'}`
           this.dialogStates.merge(chatId, { menuMessageId: undefined });
         }
       }
-    }
-    catch(error) {
+    } catch(error) {
       if (error.response && error.code === 403) {
         console.log(`Bot was blocked by the user. ChatId = ${chatId}`);
-         this.dialogStates.delete(chatId);
+        //Если пользователь заблокировал бот, удаляем информацию по нему из баз данных
+        this.unsubscribe(chatId);
       } else {
         console.log(`Failed to send message. ChatId = ${chatId}`);
         console.log(error);
