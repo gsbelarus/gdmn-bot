@@ -818,7 +818,7 @@ export class Bot {
       this.sendMessage(chatId,
         'Для получения информации о заработной плате необходимо зарегистрироваться в системе.',
         keyboardLogin);
-    } else { //if (dialogState?.type !== 'GETTING_CURRENCY' && dialogState?.type !== 'GETTING_CONCISE' && dialogState?.type !== 'GETTING_COMPARE')  {
+    } else if (dialogState?.type !== 'GETTING_CURRENCY' && dialogState?.type !== 'GETTING_CONCISE' && dialogState?.type !== 'GETTING_COMPARE')  {
       this.sendMessage(chatId,
         `
   🤔 Ваша команда непонятна.

@@ -84,10 +84,6 @@ export class Viber extends Bot {
     });
 
     this._bot.on(BotEvents.MESSAGE_RECEIVED, async (message: any, response: any) => {
-      //console.log(JSON.stringify(message, undefined, 2));
-      //console.log(JSON.stringify(response, undefined, 2));
-      console.log(message);
-      console.log(response);
       if (!response?.userProfile) {
         console.error('Invalid chat context');
       }
@@ -99,8 +95,7 @@ export class Viber extends Bot {
     });
 
     this._bot.on(BotEvents.MESSAGE_RECEIVED, async (message: any, response: any) => {
-      console.log(message);
-      console.log(response);
+
       if (!response?.userProfile) {
         console.error('Invalid chat context');
       }

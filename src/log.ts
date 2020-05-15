@@ -74,7 +74,7 @@ export class Logger {
     const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds()}`;
     const chat = chatId ? `, chatId: ${chatId}` : '';
     const user = userId ? `, userId: ${userId}` : '';
-    return `[${level}] ${date} ${time}${user}${chat}: ${data}\n`;
+    return `[${level}] ${date} ${time}${user}${chat}: ${data}`;
   }
 
   private async _log(level: Level, data: any, chatId?: string, userId?: string) {
@@ -84,7 +84,7 @@ export class Logger {
 
     if (this._fileHandle) {
       try {
-        await this._fileHandle.write(msg);
+        await this._fileHandle.write(msg + '\n');
       } catch(e) {
         console.error(e);
       }
