@@ -1,13 +1,16 @@
-// example of configuration data.
-// make a copy of this file and rename it to "config.ts"
-
 import { ILoggerParams } from "./log";
 
 interface IConfig {
+  telegram: {
+    token: string;
+  }
   logger: ILoggerParams;
 };
 
 export const config: IConfig = {
+  telegram: {
+    token: 'put_token_here'
+  },
   logger: {
     fileName: '',
     maxSize: 10 * 1024 * 1024,
