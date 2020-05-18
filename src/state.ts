@@ -1,25 +1,35 @@
-import  { assign, interpret, Machine } from 'xstate';
+import  { assign, interpret, Machine, send } from 'xstate';
 
 interface IBotMachineContext {
   companyId?: string;
   employeeId?: string;
+  year?: number;
+  month?: number;
 };
 
 type StartEvent = { type: 'START' };
 type NextEvent = { type: 'NEXT' };
 type EnterTextEvent = { type: 'ENTER_TEXT'; text: string; };
 type MenuCommandEvent = { type: 'MENU_COMMAND'; command: string; };
+type ChangeYearEvent = { type: 'CHANGE_YEAR'; delta: number; };
+type MainMenuEvent = { type: 'MAIN_MENU' };
+type SelectMonthEvent = { type: 'SELECT_MONTH'; month: number; };
 
 type BotMachineEvent = StartEvent
   | NextEvent
   | EnterTextEvent
-  | MenuCommandEvent;
+  | MenuCommandEvent
+  | ChangeYearEvent
+  | MainMenuEvent
+  | SelectMonthEvent;
 
 const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
   {
     id: 'botMachine',
     initial: 'init',
-    context: { },
+    context: {
+      year: 2020
+    },
     states: {
       init: {
         on: {
@@ -104,19 +114,34 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
         on: {
           '': 'mainMenu'
         },
-        entry: () => console.log('Показываем расчетный листок на экране')
+        entry: () => console.log('Показываем последний расчетный листок на экране')
       },
       payslipForPeriod: {
         initial: 'showCalendar',
-        context: {
-
-        },
         on: {
-
+          CHANGE_YEAR: {
+            target: 'payslipForPeriod',
+            actions: assign({ year: ({ year }, { delta }: ChangeYearEvent) => (year ?? 2020) + delta })
+          },
+          SELECT_MONTH: {
+            target: '.monthSelected',
+            actions: assign({ month: (_, { month }: SelectMonthEvent ) => month })
+          },
+          MAIN_MENU: {
+            target: 'mainMenu'
+          }
         },
         states: {
           showCalendar: {
-            entry: () => {}
+            entry: ({ year }) => console.log(`Рисуем календарь на ${year} год.`)
+          },
+          monthSelected: {
+            on: {
+              '': '#botMachine.mainMenu'
+            },
+            entry: [
+              ({ year, month }) => console.log(`Выбран месяц и год ${month}.${year}`)
+            ]
           }
         }
       }
@@ -140,6 +165,11 @@ const sequence: BotMachineEvent[] = [
   { type: 'ENTER_TEXT', text: '002' },
   { type: 'ENTER_TEXT', text: '001' },
   { type: 'MENU_COMMAND', command: 'payslip' },
+  { type: 'MENU_COMMAND', command: 'payslipForPeriod' },
+  { type: 'CHANGE_YEAR', delta: -1 },
+  { type: 'MAIN_MENU' },
+  { type: 'MENU_COMMAND', command: 'payslipForPeriod' },
+  { type: 'SELECT_MONTH', month: 2 },
   { type: 'MENU_COMMAND', command: 'logout' },
 ];
 
