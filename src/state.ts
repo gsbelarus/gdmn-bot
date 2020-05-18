@@ -1,8 +1,12 @@
 import  { assign, interpret, Machine, Interpreter, MachineConfig } from 'xstate';
 
-interface ICalendarMachineContext {
+interface ISelectedDate {
   year: number;
   month: number;
+};
+
+interface ICalendarMachineContext {
+  selectedDate: ISelectedDate;
   canceled: boolean;
 };
 
@@ -18,11 +22,19 @@ const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, Calenda
   on: {
     CHANGE_YEAR: {
       target: 'showCalendar',
-      actions: assign({ year: ({ year }, { delta }: ChangeYearEvent) => year + delta })
+      actions: assign({
+        selectedDate: ({ selectedDate }, { delta }: ChangeYearEvent) => ({
+          ...selectedDate, year: selectedDate.year + delta
+        })
+      })
     },
     SELECT_MONTH: {
       target: 'finished',
-      actions: assign({ month: (_, { month }: SelectMonthEvent ) => month })
+      actions: assign({
+        selectedDate: ({ selectedDate }, { month }: SelectMonthEvent) => ({
+          ...selectedDate, month
+        })
+      })
     },
     CANCEL_CALENDAR: {
       target: 'finished',
@@ -31,7 +43,7 @@ const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, Calenda
   },
   states: {
     showCalendar: {
-      entry: ({ year }) => console.log(`Рисуем календарь на ${year} год.`)
+      entry: ({ selectedDate: { year } }) => console.log(`Рисуем календарь на ${year} год.`)
     },
     finished: {
       type: 'final',
@@ -43,9 +55,8 @@ const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, Calenda
 interface IBotMachineContext {
   companyId?: string;
   employeeId?: string;
-  year?: number;
-  month?: number;
-  calendarRef?: Interpreter<ICalendarMachineContext, any, CalendarMachineEvent>;
+  beginDate: ISelectedDate;
+  endDate: ISelectedDate;
 };
 
 type StartEvent        = { type: 'START' };
@@ -68,8 +79,8 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
     id: 'botMachine',
     initial: 'init',
     context: {
-      year: 2020,
-      month: 1
+      beginDate: { year: 2020, month: 0 },
+      endDate: { year: 2020, month: 11 },
     },
     states: {
       init: {
@@ -163,8 +174,7 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
           src: Machine(calendarMachineConfig),
           autoForward: true,
           data: {
-            year: ({ year }: IBotMachineContext) => year,
-            month: ({ month }: IBotMachineContext) => month
+            selectedDate: ({ beginDate }: IBotMachineContext) => beginDate
           },
           onDone: [
             {
@@ -176,10 +186,11 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
               target: '#botMachine.mainMenu',
               actions: [
                 assign({
-                  year: (_, event) => event.data.year,
-                  month: (_, event) => event.data.month,
+                  beginDate: (_, event) => event.data.selectedDate
                 }),
-                ({ year, month }) => console.log(`Выбрана дата: ${month}.${year}`)
+                ({ beginDate }) => beginDate
+                  ? console.log(`Выбрана дата: ${beginDate.month}.${beginDate.year}`)
+                  : console.log(`Нет beginDate!`)
               ]
             }
           ]
