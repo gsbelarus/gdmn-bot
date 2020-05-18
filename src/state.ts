@@ -1,34 +1,75 @@
-import  { assign, interpret, Machine, send } from 'xstate';
+import  { assign, interpret, Machine, Interpreter, MachineConfig } from 'xstate';
+
+interface ICalendarMachineContext {
+  year: number;
+  month: number;
+  canceled: boolean;
+};
+
+type ChangeYearEvent      = { type: 'CHANGE_YEAR';    delta: number; };
+type SelectMonthEvent     = { type: 'SELECT_MONTH';   month: number; };
+type CancelCalendarEvent  = { type: 'CANCEL_CALENDAR' };
+
+type CalendarMachineEvent = ChangeYearEvent | SelectMonthEvent | CancelCalendarEvent;
+
+const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, CalendarMachineEvent> = {
+  id: 'calendarMachine',
+  initial: 'showCalendar',
+  on: {
+    CHANGE_YEAR: {
+      target: 'showCalendar',
+      actions: assign({ year: ({ year }, { delta }: ChangeYearEvent) => year + delta })
+    },
+    SELECT_MONTH: {
+      target: 'finished',
+      actions: assign({ month: (_, { month }: SelectMonthEvent ) => month })
+    },
+    CANCEL_CALENDAR: {
+      target: 'finished',
+      actions: assign({ canceled: (_) => true })
+    }
+  },
+  states: {
+    showCalendar: {
+      entry: ({ year }) => console.log(`Рисуем календарь на ${year} год.`)
+    },
+    finished: {
+      type: 'final',
+      data: (context) => ({...context})
+    }
+  }
+};
 
 interface IBotMachineContext {
   companyId?: string;
   employeeId?: string;
   year?: number;
   month?: number;
+  calendarRef?: Interpreter<ICalendarMachineContext, any, CalendarMachineEvent>;
 };
 
 type StartEvent = { type: 'START' };
 type NextEvent = { type: 'NEXT' };
 type EnterTextEvent = { type: 'ENTER_TEXT'; text: string; };
 type MenuCommandEvent = { type: 'MENU_COMMAND'; command: string; };
-type ChangeYearEvent = { type: 'CHANGE_YEAR'; delta: number; };
+type DateSelectedEvent = { type: 'DATE_SELECTED'; year: number; month: number; };
 type MainMenuEvent = { type: 'MAIN_MENU' };
-type SelectMonthEvent = { type: 'SELECT_MONTH'; month: number; };
 
-type BotMachineEvent = StartEvent
+type BotMachineEvent = CalendarMachineEvent
+  | StartEvent
   | NextEvent
   | EnterTextEvent
   | MenuCommandEvent
-  | ChangeYearEvent
   | MainMenuEvent
-  | SelectMonthEvent;
+  | DateSelectedEvent;
 
 const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
   {
     id: 'botMachine',
     initial: 'init',
     context: {
-      year: 2020
+      year: 2020,
+      month: 1
     },
     states: {
       init: {
@@ -99,7 +140,7 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
             },
             {
               cond: (_, event: MenuCommandEvent) => event.command === 'logout',
-              actions: () => assign({}),
+              actions: assign({}),
               target: 'invitation'
             },
           ]
@@ -117,32 +158,31 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
         entry: () => console.log('Показываем последний расчетный листок на экране')
       },
       payslipForPeriod: {
-        initial: 'showCalendar',
-        on: {
-          CHANGE_YEAR: {
-            target: 'payslipForPeriod',
-            actions: assign({ year: ({ year }, { delta }: ChangeYearEvent) => (year ?? 2020) + delta })
+        invoke: {
+          id: 'calendarMachine',
+          src: Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig),
+          autoForward: true,
+          data: {
+            year: ({ year }: IBotMachineContext) => year,
+            month: ({ month }: IBotMachineContext) => month
           },
-          SELECT_MONTH: {
-            target: '.monthSelected',
-            actions: assign({ month: (_, { month }: SelectMonthEvent ) => month })
-          },
-          MAIN_MENU: {
-            target: 'mainMenu'
-          }
-        },
-        states: {
-          showCalendar: {
-            entry: ({ year }) => console.log(`Рисуем календарь на ${year} год.`)
-          },
-          monthSelected: {
-            on: {
-              '': '#botMachine.mainMenu'
+          onDone: [
+            {
+              cond: (_, event) => event.data.canceled,
+              target: '#botMachine.mainMenu'
             },
-            entry: [
-              ({ year, month }) => console.log(`Выбран месяц и год ${month}.${year}`)
-            ]
-          }
+            {
+              cond: (_, event) => !event.data.canceled,
+              target: '#botMachine.mainMenu',
+              actions: [
+                assign({
+                  year: (_, event) => event.data.year,
+                  month: (_, event) => event.data.month,
+                }),
+                ({ year, month }) => console.log(`Выбрана дата: ${month}.${year}`)
+              ]
+            }
+          ]
         }
       }
     },
@@ -167,16 +207,22 @@ const sequence: BotMachineEvent[] = [
   { type: 'MENU_COMMAND', command: 'payslip' },
   { type: 'MENU_COMMAND', command: 'payslipForPeriod' },
   { type: 'CHANGE_YEAR', delta: -1 },
-  { type: 'MAIN_MENU' },
+  { type: 'CANCEL_CALENDAR' },
   { type: 'MENU_COMMAND', command: 'payslipForPeriod' },
+  { type: 'CHANGE_YEAR', delta: -1 },
   { type: 'SELECT_MONTH', month: 2 },
+  { type: 'MENU_COMMAND', command: 'payslipForPeriod' },
+  { type: 'CANCEL_CALENDAR' },
   { type: 'MENU_COMMAND', command: 'logout' },
 ];
 
 for (const e of sequence) {
   console.log(`${(counter++).toString().padStart(2, '0')} State: ${service.state.toStrings().join(',')}`);
+  if (Object.values(service.state.children).length) {
+    console.log(`Child state: ${Object.values(service.state.children)[0].state.toStrings().join(',')}`);
+  }
   console.log(`Input: ${JSON.stringify(e, undefined, 2)}`);
   service.send(e);
 };
 
-console.log(`Final state: ${service.state.value}`);
+console.log(`Final state: ${service.state.toStrings().join(',')}`);
