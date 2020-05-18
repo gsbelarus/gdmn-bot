@@ -35,7 +35,7 @@ const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, Calenda
     },
     finished: {
       type: 'final',
-      data: (context) => ({...context})
+      data: context => context
     }
   }
 };
@@ -48,12 +48,12 @@ interface IBotMachineContext {
   calendarRef?: Interpreter<ICalendarMachineContext, any, CalendarMachineEvent>;
 };
 
-type StartEvent = { type: 'START' };
-type NextEvent = { type: 'NEXT' };
-type EnterTextEvent = { type: 'ENTER_TEXT'; text: string; };
-type MenuCommandEvent = { type: 'MENU_COMMAND'; command: string; };
+type StartEvent        = { type: 'START' };
+type NextEvent         = { type: 'NEXT' };
+type EnterTextEvent    = { type: 'ENTER_TEXT';    text: string; };
+type MenuCommandEvent  = { type: 'MENU_COMMAND';  command: string; };
 type DateSelectedEvent = { type: 'DATE_SELECTED'; year: number; month: number; };
-type MainMenuEvent = { type: 'MAIN_MENU' };
+type MainMenuEvent     = { type: 'MAIN_MENU' };
 
 type BotMachineEvent = CalendarMachineEvent
   | StartEvent
@@ -89,7 +89,7 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
           ENTER_TEXT: [
             {
               cond: (_, event: EnterTextEvent) => event.text === 'bmkk',
-              actions: assign({ companyId: ({ companyId }, event: EnterTextEvent) => event.text }),
+              actions: assign({ companyId: (_, { text }: EnterTextEvent) => text }),
               target: 'registerEmployee'
             },
             {
@@ -131,15 +131,15 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
         on: {
           MENU_COMMAND: [
             {
-              cond: (_, event: MenuCommandEvent) => event.command === 'payslip',
+              cond: (_, { command }: MenuCommandEvent) => command === 'payslip',
               target: 'payslip'
             },
             {
-              cond: (_, event: MenuCommandEvent) => event.command === 'payslipForPeriod',
+              cond: (_, { command }: MenuCommandEvent) => command === 'payslipForPeriod',
               target: 'payslipForPeriod'
             },
             {
-              cond: (_, event: MenuCommandEvent) => event.command === 'logout',
+              cond: (_, { command }: MenuCommandEvent) => command === 'logout',
               actions: assign({}),
               target: 'invitation'
             },
@@ -160,7 +160,7 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
       payslipForPeriod: {
         invoke: {
           id: 'calendarMachine',
-          src: Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig),
+          src: Machine(calendarMachineConfig),
           autoForward: true,
           data: {
             year: ({ year }: IBotMachineContext) => year,
