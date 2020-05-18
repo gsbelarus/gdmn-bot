@@ -1,4 +1,4 @@
-import  { assign, interpret, Machine, send } from 'xstate';
+import  { assign, interpret, Machine } from 'xstate';
 
 interface IBotMachineContext {
   companyId?: string;
@@ -8,18 +8,12 @@ interface IBotMachineContext {
 type StartEvent = { type: 'START' };
 type NextEvent = { type: 'NEXT' };
 type EnterTextEvent = { type: 'ENTER_TEXT'; text: string; };
-type SetCompanyIdEvent = { type: 'SET_COMPANY_ID'; id: string; };
-type SetEmployeeIdEvent = { type: 'SET_EMPLOYEE_ID'; id: string; };
-type InvalidCompanyNameEvent = { type: 'INVALID_COMPANY_NAME' };
-type InvalidEmployeeIDEvent = { type: 'INVALID_EMPLOYEE_ID' };
+type MenuCommandEvent = { type: 'MENU_COMMAND'; command: string; };
 
 type BotMachineEvent = StartEvent
   | NextEvent
   | EnterTextEvent
-  | SetCompanyIdEvent
-  | SetEmployeeIdEvent
-  | InvalidCompanyNameEvent
-  | InvalidEmployeeIDEvent;
+  | MenuCommandEvent;
 
 const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
   {
@@ -39,81 +33,99 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
         entry: 'sendInvitation'
       },
       registerCompany: {
+        initial: 'question',
         on: {
-          ENTER_TEXT: { actions: 'testCompanyName' },
-          SET_COMPANY_ID: { target: 'registerEmployee', actions: 'setCompanyId' },
-          INVALID_COMPANY_NAME: 'invalidCompany'
+          ENTER_TEXT: [
+            {
+              cond: (_, event: EnterTextEvent) => event.text === 'bmkk',
+              actions: assign({ companyId: ({ companyId }, event: EnterTextEvent) => event.text }),
+              target: 'registerEmployee'
+            },
+            {
+              cond: (_, event: EnterTextEvent) => event.text !== 'bmkk',
+              actions: () => console.log('Введена неверная организация')
+            }
+          ]
         },
-        entry: 'askCompanyName'
-      },
-      invalidCompany: {
-        on: {
-          '': 'registerCompany'
+        states: {
+          question: {
+            entry: 'askCompanyName'
+          }
         },
-        entry: () => console.log('Неверное название компании')
       },
       registerEmployee: {
+        initial: 'question',
         on: {
-          ENTER_TEXT: { actions: 'testEmployeeId' },
-          SET_EMPLOYEE_ID: { target: 'registered', actions: 'setEmployeeId' },
-          INVALID_EMPLOYEE_ID: 'invalidEmployee'
+          ENTER_TEXT: [
+            {
+              cond: (_, event: EnterTextEvent) => event.text === '001',
+              actions: assign({ employeeId: (_, event: EnterTextEvent) => event.text }),
+              target: 'mainMenu'
+            },
+            {
+              cond: (_, event: EnterTextEvent) => event.text !== '001',
+              actions: () => console.log('Введен неверный персональный номер')
+            }
+          ]
         },
-        entry: () => console.log('Введите персональный номер из паспорта:')
+        states: {
+          question: {
+            entry: () => console.log('Введите персональный номер из паспорта:')
+          }
+        },
+        exit: () => console.log('Работник успешно зарегистрирован!')
       },
-      invalidEmployee: {
+      mainMenu: {
+        initial: 'showMenu',
         on: {
-          '': 'registerEmployee'
+          MENU_COMMAND: [
+            {
+              cond: (_, event: MenuCommandEvent) => event.command === 'payslip',
+              target: 'payslip'
+            },
+            {
+              cond: (_, event: MenuCommandEvent) => event.command === 'payslipForPeriod',
+              target: 'payslipForPeriod'
+            },
+            {
+              cond: (_, event: MenuCommandEvent) => event.command === 'logout',
+              actions: () => assign({}),
+              target: 'invitation'
+            },
+          ]
         },
-        entry: () => console.log('Был введен неверный персональный номер сотрудника')
+        states: {
+          showMenu: {
+            entry: () => console.log('[ЛИСТОК][ЗА ПЕРИОД][ВЫХОД]')
+          }
+        }
       },
-      registered: {
-        type: 'final',
-        entry: () => console.log('Работник успешно зарегистрирован!')
+      payslip: {
+        on: {
+          '': 'mainMenu'
+        },
+        entry: () => console.log('Показываем расчетный листок на экране')
+      },
+      payslipForPeriod: {
+        initial: 'showCalendar',
+        context: {
+
+        },
+        on: {
+
+        },
+        states: {
+          showCalendar: {
+            entry: () => {}
+          }
+        }
       }
     },
   },
   {
     actions: {
       sendInvitation: () => console.log('Здравствуйте!'),
-      askCompanyName: () => console.log('Введите наименование организации:'),
-      testCompanyName: send (
-        (_, event) => {
-          if (event.type === 'ENTER_TEXT') {
-            if (event.text === 'bmkk') {
-              return {
-                type: 'SET_COMPANY_ID',
-                id: 'bmkk'
-              }
-            }
-          }
-
-          return {
-            type: 'INVALID_COMPANY_NAME'
-          };
-        }
-      ),
-      testEmployeeId: send (
-        (_, event) => {
-          if (event.type === 'ENTER_TEXT') {
-            if (event.text === '001') {
-              return {
-                type: 'SET_EMPLOYEE_ID',
-                id: '001'
-              }
-            }
-          }
-
-          return {
-            type: 'INVALID_EMPLOYEE_ID'
-          };
-        }
-      ),
-      setCompanyId: assign({
-        companyId: ({ companyId }, event) => event.type === 'SET_COMPANY_ID' ? event.id : companyId
-      }),
-      setEmployeeId: assign({
-        employeeId: ({ employeeId }, event) => event.type === 'SET_EMPLOYEE_ID' ? event.id : employeeId
-      })
+      askCompanyName: () => console.log('Введите наименование организации:')
     }
   }
 );
@@ -126,11 +138,13 @@ const sequence: BotMachineEvent[] = [
   { type: 'ENTER_TEXT', text: 'abc' },
   { type: 'ENTER_TEXT', text: 'bmkk' },
   { type: 'ENTER_TEXT', text: '002' },
-  { type: 'ENTER_TEXT', text: '001' }
+  { type: 'ENTER_TEXT', text: '001' },
+  { type: 'MENU_COMMAND', command: 'payslip' },
+  { type: 'MENU_COMMAND', command: 'logout' },
 ];
 
 for (const e of sequence) {
-  console.log(`${(counter++).toString().padStart(2, '0')} State: ${service.state.value}`);
+  console.log(`${(counter++).toString().padStart(2, '0')} State: ${service.state.toStrings().join(',')}`);
   console.log(`Input: ${JSON.stringify(e, undefined, 2)}`);
   service.send(e);
 };
