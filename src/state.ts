@@ -55,8 +55,8 @@ const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, Calenda
 interface IBotMachineContext {
   companyId?: string;
   employeeId?: string;
-  beginDate: ISelectedDate;
-  endDate: ISelectedDate;
+  dateBegin: ISelectedDate;
+  dateEnd: ISelectedDate;
 };
 
 type StartEvent        = { type: 'START' };
@@ -79,8 +79,8 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
     id: 'botMachine',
     initial: 'init',
     context: {
-      beginDate: { year: 2020, month: 0 },
-      endDate: { year: 2020, month: 11 },
+      dateBegin: { year: 2020, month: 0 },
+      dateEnd: { year: 2020, month: 11 },
     },
     states: {
       init: {
@@ -169,31 +169,54 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
         entry: () => console.log('Показываем последний расчетный листок на экране')
       },
       payslipForPeriod: {
-        invoke: {
-          id: 'calendarMachine',
-          src: Machine(calendarMachineConfig),
-          autoForward: true,
-          data: {
-            selectedDate: ({ beginDate }: IBotMachineContext) => beginDate
-          },
-          onDone: [
-            {
-              cond: (_, event) => event.data.canceled,
-              target: '#botMachine.mainMenu'
-            },
-            {
-              cond: (_, event) => !event.data.canceled,
-              target: '#botMachine.mainMenu',
-              actions: [
-                assign({
-                  beginDate: (_, event) => event.data.selectedDate
-                }),
-                ({ beginDate }) => beginDate
-                  ? console.log(`Выбрана дата: ${beginDate.month}.${beginDate.year}`)
-                  : console.log(`Нет beginDate!`)
+        initial: 'enterDateBegin',
+        states: {
+          enterDateBegin: {
+            invoke: {
+              id: 'calendarMachine',
+              src: Machine(calendarMachineConfig),
+              autoForward: true,
+              data: {
+                selectedDate: ({ dateBegin }: IBotMachineContext) => dateBegin
+              },
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  cond: (_, event) => !event.data.canceled,
+                  target: 'enterDateEnd',
+                  actions: assign({ dateBegin: (_, event) => event.data.selectedDate })
+                }
               ]
             }
-          ]
+          },
+          enterDateEnd: {
+            invoke: {
+              id: 'calendarMachine',
+              src: Machine(calendarMachineConfig),
+              autoForward: true,
+              data: {
+                selectedDate: ({ dateEnd }: IBotMachineContext) => dateEnd
+              },
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  cond: (_, event) => !event.data.canceled,
+                  target: 'showPayslipForPeriod',
+                  actions: assign({ dateEnd: (_, event) => event.data.selectedDate })
+                }
+              ]
+            }
+          },
+          showPayslipForPeriod: {
+            on: { '': '#botMachine.mainMenu' },
+            entry: ({ dateBegin, dateEnd }) => console.log(`Show payslip for ${dateBegin.month}.${dateBegin.year}-${dateEnd.month}.${dateEnd.year}...`)
+          }
         }
       }
     },
@@ -222,6 +245,8 @@ const sequence: BotMachineEvent[] = [
   { type: 'MENU_COMMAND', command: 'payslipForPeriod' },
   { type: 'CHANGE_YEAR', delta: -1 },
   { type: 'SELECT_MONTH', month: 2 },
+  { type: 'CHANGE_YEAR', delta: +1 },
+  { type: 'SELECT_MONTH', month: 6 },
   { type: 'MENU_COMMAND', command: 'payslipForPeriod' },
   { type: 'CANCEL_CALENDAR' },
   { type: 'MENU_COMMAND', command: 'logout' },
