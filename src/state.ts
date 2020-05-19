@@ -1,4 +1,11 @@
-import  { assign, interpret, Machine, Interpreter, MachineConfig } from 'xstate';
+/*
+
+  1. Мы храним связь между chatId и работником. Связь устанавливается и заносится
+
+*/
+
+import  { assign, interpret, Machine, Interpreter, MachineConfig, State } from 'xstate';
+import fs from 'fs';
 
 interface ISelectedDate {
   year: number;
@@ -13,13 +20,15 @@ interface ICalendarMachineContext {
 type ChangeYearEvent      = { type: 'CHANGE_YEAR';    delta: number; };
 type SelectMonthEvent     = { type: 'SELECT_MONTH';   month: number; };
 type CancelCalendarEvent  = { type: 'CANCEL_CALENDAR' };
+type RestoreEvent         = { type: 'RESTORE' };
 
-type CalendarMachineEvent = ChangeYearEvent | SelectMonthEvent | CancelCalendarEvent;
+type CalendarMachineEvent = ChangeYearEvent | SelectMonthEvent | CancelCalendarEvent | RestoreEvent;
 
 const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, CalendarMachineEvent> = {
   id: 'calendarMachine',
   initial: 'showCalendar',
   on: {
+    RESTORE: 'showCalendar',
     CHANGE_YEAR: {
       target: 'showCalendar',
       actions: assign({
@@ -74,7 +83,7 @@ type BotMachineEvent = CalendarMachineEvent
   | MainMenuEvent
   | DateSelectedEvent;
 
-const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
+const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachineEvent> =
   {
     id: 'botMachine',
     initial: 'init',
@@ -220,7 +229,9 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
         }
       }
     },
-  },
+  };
+
+const botMachine = Machine(botMachineConfig,
   {
     actions: {
       sendInvitation: () => console.log('Здравствуйте!'),
@@ -230,7 +241,7 @@ const botMachine = Machine<IBotMachineContext, BotMachineEvent>(
 );
 
 let counter = 0;
-const service = interpret(botMachine).start();
+let service = interpret(botMachine).start();
 
 const sequence: BotMachineEvent[] = [
   { type: 'START' },
@@ -246,6 +257,9 @@ const sequence: BotMachineEvent[] = [
   { type: 'CHANGE_YEAR', delta: -1 },
   { type: 'SELECT_MONTH', month: 2 },
   { type: 'CHANGE_YEAR', delta: +1 },
+];
+
+const sequence2: BotMachineEvent[] = [
   { type: 'SELECT_MONTH', month: 6 },
   { type: 'MENU_COMMAND', command: 'payslipForPeriod' },
   { type: 'CANCEL_CALENDAR' },
@@ -256,6 +270,29 @@ for (const e of sequence) {
   console.log(`${(counter++).toString().padStart(2, '0')} State: ${service.state.toStrings().join(',')}`);
   if (Object.values(service.state.children).length) {
     console.log(`Child state: ${Object.values(service.state.children)[0].state.toStrings().join(',')}`);
+  }
+  console.log(`Input: ${JSON.stringify(e, undefined, 2)}`);
+  service.send(e);
+};
+
+const jsonState = JSON.stringify(service.state.toJSON(), undefined, 2);
+const stateDefinition = JSON.parse(jsonState);
+const previousState = State.create<IBotMachineContext, BotMachineEvent>(stateDefinition);
+const resolvedState = botMachine.resolveState(previousState);
+service = interpret(botMachine).start(resolvedState);
+
+fs.writeFileSync('./state_before.json', jsonState);
+
+//for (const child of Object.values(service.state.children)) {
+  console.log(service.children);
+//}
+
+fs.writeFileSync('./state_after.json', JSON.stringify(service.state.toJSON(), undefined, 2));
+
+for (const e of sequence2) {
+  console.log(`${(counter++).toString().padStart(2, '0')} State: ${service.state.toStrings().join(',')}`);
+  if (Object.values(service.state.children).length) {
+    console.log(`Child state: ${Object.values(service.state.children)[0].state?.toStrings().join(',')}`);
   }
   console.log(`Input: ${JSON.stringify(e, undefined, 2)}`);
   service.send(e);
