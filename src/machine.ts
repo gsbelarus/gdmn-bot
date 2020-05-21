@@ -90,7 +90,8 @@ export const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachine
     states: {
       init: {
         on: {
-          START: 'invitation'
+          START: 'invitation',
+          MAIN_MENU: 'mainMenu'
         }
       },
       invitation: {

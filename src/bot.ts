@@ -1,17 +1,19 @@
 import { FileDB } from "./util/fileDB";
 import { IAccountLink, Platform, IUpdate } from "./types";
-import Telegraf, { Context, Extra, Markup } from "telegraf";
-import { Interpreter, MachineConfig, Machine, StateMachine, interpret } from "xstate";
+import Telegraf, { Context } from "telegraf";
+import { Interpreter, Machine, StateMachine, interpret } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent } from "./machine";
-import { getLocString } from "./stringResources";
+import { getLocString, StringResource } from "./stringResources";
 import path from 'path';
+
+const reply = (s: StringResource) => (_: any, { update }: BotMachineEvent) => update?.reply?.(getLocString(s));
 
 export class Bot {
   private _telegramAccountLink: FileDB<IAccountLink>;
   private _viberAccountLink: FileDB<IAccountLink>;
   private _telegram: Telegraf<Context>;
-  private _service: { [id: string]: Interpreter<any> } = {};
-  private _machine: StateMachine<any, any, any>;
+  private _service: { [id: string]: Interpreter<IBotMachineContext, any, BotMachineEvent> } = {};
+  private _machine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
 
   constructor(telegramToken: string, telegramRoot: string, viberRoot: string) {
     this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, `/accountlink.json`));
@@ -20,8 +22,8 @@ export class Bot {
     this._machine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig,
       {
         actions: {
-          sendInvitation: (_, { update }) => update?.reply?.(getLocString('invitation')),
-          askCompanyName: () => console.log('Введите наименование организации:')
+          sendInvitation: reply('invitation'),
+          askCompanyName: reply('askCompanyName')
         }
       }
     );
@@ -81,36 +83,32 @@ export class Bot {
     this._viberAccountLink.flush();
   }
 
+  createService(machineId: string) {
+    const service = interpret(this._machine)
+      .onTransition( (state, event) => console.log(`State: ${state.toStrings().join('->')}, Event: ${event.type}`) )
+      .start();
+    this._service[machineId] = service;
+    return service;
+  }
+
   /**
    * Сюда поступают все события из чатов пользователей: ввод текста,
    * выбор пункта в меню, вызов команды и т.п.
    * @param update IUpdate
    */
   onUpdate(update: IUpdate) {
-    const { platform, chatId } = update;
+    const { platform, chatId, type, body } = update;
     const machineId = this.getMachineId(platform, chatId);
+    let service = this._service[machineId];
     const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
     let accountLink = accountLinkDB.read(chatId);
 
-    if (accountLink) {
-      let service = this._service[machineId];
-      if (!service) {
-        // чат авторизован, но интерпретатора стэйт машины нет. Сервер перезагрузили
-        // или почистили память. Создадим новый сервис и начнем с главного меню
-        service = interpret(this._machine).start();
-        this._service[machineId] = service;
-
-        // TODO: здесь надо перевести сервис в состояние главного меню
-        // ...
-      } else {
-        // посылаем в сервис событие
-        // если это команда start то надо начать с главного меню
-      }
+    if (body === '/start' || !service) {
+      this.createService(machineId).send({ type: accountLink ? 'MAIN_MENU' : 'START', update });
     } else {
-      // новый пользователь/чат. все создаем и начинаем регистрацию
-      const service = interpret(this._machine).start();
-      this._service[machineId] = service;
-      service.send({ type: 'START' });
+      if (type === 'MESSAGE') {
+        service.send({ type: 'ENTER_TEXT', text: body, update });
+      }
     }
   }
 };
