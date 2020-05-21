@@ -5,9 +5,7 @@ import http from 'http';
 import https from 'https';
 import path from 'path';
 import { upload_employees, upload_accDedRefs, upload_paySlips } from "./util/upload";
-import { TelegramBot } from "./telegram";
 import { initCurrencies } from "./currency";
-import { Viber } from "./viber";
 import * as fs from "fs";
 import { getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser, customers, employeesByCustomer } from "./data";
 import { Logger } from "./log";
@@ -15,6 +13,7 @@ import { Logger } from "./log";
 // if not exists create configuration file using
 // config.ts.sample as an example
 import { config } from "./config";
+import { Bot } from "./bot";
 
 const log = new Logger(config.logger);
 
@@ -60,6 +59,7 @@ if (typeof ZAROBAK_VIBER_BOT_TOKEN !== 'string' || !ZAROBAK_VIBER_BOT_TOKEN) {
   throw new Error('ZAROBAK_VIBER_BOT_TOKEN env variable is not specified.');
 }
 
+/*
 const telegram = new TelegramBot(
   config.telegram.token,
   getCustomers,
@@ -73,6 +73,13 @@ const viber = new Viber(
   getEmployeesByCustomer,
   getAccDeds,
   getPaySlipByUser);
+*/
+
+const bot = new Bot(
+  config.telegram.token,
+  path.resolve(process.cwd(), `data/telegram`),
+  path.resolve(process.cwd(), `data/viber`)
+);
 
 /**
  * Мы используем KOA для организации веб-сервера.
@@ -110,8 +117,10 @@ router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
 
   // TODO: Сделать, чтобы не просто надпись выводилась, а человек сразу получал в чат
   //       краткий расчетный листок.
+  /*
   viber.showPaySlip(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
   telegram.showPaySlip(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
+  */
 
   return next();
 });
@@ -134,8 +143,12 @@ const flushData = () => {
   }
 
   // FIXME: переименовать finalize в flush
+  /*
   telegram.finalize();
   viber.finalize();
+  */
+
+  bot.finalize();
 };
 
 
@@ -157,12 +170,16 @@ const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bun
   .map(cert => cert +'-----END CERTIFICATE-----\r\n')
   .pop();
 
+/*
 const viberCallback = viber.bot.middleware();
+*/
 
 https.createServer({ cert, ca, key },
   (req, res) => {
     if (req.headers['x-viber-content-signature']) {
+      /*
       viberCallback(req, res);
+      */
     } else {
       koaCallback(req, res);
     }
@@ -172,8 +189,10 @@ https.createServer({ cert, ca, key },
     const viberWebhook = `https://${ZAROBAK_VIBER_CALLBACK_HOST}:${HTTPS_PORT}`;
 
     try {
+      /*
       await viber.bot.setWebhook(viberWebhook);
       log.info(`Viber webhook set at ${viberWebhook}`)
+      */
     } catch(e) {
       log.error(`Error setting Viber webhook at ${viberWebhook}: ${e}`);
     }
@@ -183,6 +202,7 @@ https.createServer({ cert, ca, key },
   }
 );
 
+bot.launch();
 
 /**
  * При завершении работы сервера скидываем на диск все данные.

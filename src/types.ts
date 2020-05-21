@@ -1,5 +1,17 @@
 import { IData } from "./util/fileDB";
 
+export type Platform = 'TELEGRAM' | 'VIBER';
+export type UpdateType = 'MESSAGE' | 'ACTION' | 'COMMAND';
+
+export interface IUpdate {
+  platform: Platform;
+  chatId: string;
+  userId?: string;
+  type: UpdateType;
+  body: string;
+  reply?: (text: string) => void;
+};
+
 export interface ICustomer {
   id: string;
   name: string;

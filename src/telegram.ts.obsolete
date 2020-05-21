@@ -1,4 +1,4 @@
-import { Bot, Menu, Template } from "./bot";
+import { Bot, Menu, Template } from "./bot.ts.obsolete";
 import Telegraf, { Context, Extra, Markup } from "telegraf";
 import { getLanguage, getSumByRate } from "./util/utils";
 import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "./types";

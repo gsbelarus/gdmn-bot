@@ -15,7 +15,7 @@ import path from 'path';
 import { Lang, LName } from './types';
 import { FileDB, IData } from './util/fileDB';
 import { getLName, date2str } from './util/utils';
-import { MINDATE } from './bot';
+import { MINDATE } from './constants';
 
 const fetch = require("node-fetch");
 
