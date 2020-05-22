@@ -25,10 +25,10 @@ const stringResources = {
     ru: 'test',
     be: null
   },
-  empty: {
-    en: '',
-    ru: '',
-    be: ''
+  mainMenuCaption: {
+    en: null,
+    ru: 'Выберите команду из меню:',
+    be: null
   },
 };
 

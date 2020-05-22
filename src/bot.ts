@@ -1,13 +1,14 @@
 import { FileDB } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee } from "./types";
-import Telegraf, { Context } from "telegraf";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IReplyParams } from "./types";
+import Telegraf, { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, EnterTextEvent, isEnterTextEvent } from "./machine";
 import { getLocString, StringResource } from "./stringResources";
 import path from 'path';
 import { testNormalizeStr, testIdentStr } from "./util/utils";
+import { Menu, keyboardMenu } from "./menu";
 
-const reply = (s: StringResource) => (_: any, { update }: BotMachineEvent) => update?.reply?.(getLocString(s));
+const reply = (s: StringResource, menu?: Menu) => (_: any, { update }: BotMachineEvent) => update?.reply?.({ text: getLocString(s), menu });
 
 // TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
 //       надо предусмотреть обновление или просто сброс данных после загрузки на сервер
@@ -35,7 +36,7 @@ export class Bot {
           assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ companyId: this._findCompany }),
           assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
           askPersonalNumber: reply('askPersonalNumber'),
-          showMainMenu: reply('test'),
+          showMainMenu: reply('mainMenuCaption', keyboardMenu),
         },
         guards: {
           findCompany: (ctx, event) => !!this._findCompany(ctx, event),
@@ -51,6 +52,17 @@ export class Bot {
       return next?.();
     });
 
+    //const getReply = (ctx: Context) => ({ text, menu }: IReplyParams) => ctx.reply(text)
+    const getReply = (ctx: Context) => ({ text, menu }: IReplyParams) => ctx.reply(text, menu &&
+      Extra.markup(Markup.inlineKeyboard(
+        menu.map(r => r.map(
+          c => c.type === 'BUTTON'
+            ? Markup.callbackButton(c.caption, c.command) as any
+            : Markup.urlButton(c.caption, c.url)
+        ))
+      ))
+    );
+
     this._telegram.start(
       ctx => {
         if (!ctx.chat) {
@@ -61,7 +73,7 @@ export class Bot {
             chatId: ctx.chat.id.toString(),
             type: 'COMMAND',
             body: '/start',
-            reply: ctx.reply
+            reply: getReply(ctx)
           });
         }
       }
@@ -80,7 +92,7 @@ export class Bot {
             chatId: ctx.chat.id.toString(),
             type: 'MESSAGE',
             body: ctx.message.text,
-            reply: ctx.reply
+            reply: getReply(ctx)
           });
         }
       }
