@@ -62,12 +62,12 @@ export interface IBotMachineContext {
   dateEnd: ISelectedDate;
 };
 
-type StartEvent        = { type: 'START' };
-type NextEvent         = { type: 'NEXT' };
-type EnterTextEvent    = { type: 'ENTER_TEXT';    text: string; };
-type MenuCommandEvent  = { type: 'MENU_COMMAND';  command: string; };
-type DateSelectedEvent = { type: 'DATE_SELECTED'; year: number; month: number; };
-type MainMenuEvent     = { type: 'MAIN_MENU' };
+export type StartEvent        = { type: 'START' };
+export type NextEvent         = { type: 'NEXT' };
+export type EnterTextEvent    = { type: 'ENTER_TEXT';    text: string; };
+export type MenuCommandEvent  = { type: 'MENU_COMMAND';  command: string; };
+export type DateSelectedEvent = { type: 'DATE_SELECTED'; year: number; month: number; };
+export type MainMenuEvent     = { type: 'MAIN_MENU' };
 
 type _BotMachineEvent = CalendarMachineEvent
   | StartEvent
@@ -78,6 +78,10 @@ type _BotMachineEvent = CalendarMachineEvent
   | DateSelectedEvent;
 
 export type BotMachineEvent = _BotMachineEvent & { update?: IUpdate };
+
+export function isEnterTextEvent(event: BotMachineEvent): event is EnterTextEvent {
+  return event.type === 'ENTER_TEXT' && typeof event.text === 'string';
+};
 
 export const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachineEvent> =
   {
@@ -90,28 +94,21 @@ export const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachine
     states: {
       init: {
         on: {
-          START: 'invitation',
+          START: 'registerCompany',
           MAIN_MENU: 'mainMenu'
         }
-      },
-      invitation: {
-        on: {
-          '': 'registerCompany'
-        },
-        entry: 'sendInvitation'
       },
       registerCompany: {
         initial: 'question',
         on: {
           ENTER_TEXT: [
             {
-              cond: (_, event: EnterTextEvent) => event.text === 'bmkk',
-              actions: assign({ companyId: (_, { text }: EnterTextEvent) => text }),
+              cond: 'findCompany',
+              actions: 'assignCompanyId',
               target: 'registerEmployee'
             },
             {
-              cond: (_, event: EnterTextEvent) => event.text !== 'bmkk',
-              actions: () => console.log('Введена неверная организация')
+              actions: 'unknownCompanyName'
             }
           ]
         },
@@ -126,22 +123,20 @@ export const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachine
         on: {
           ENTER_TEXT: [
             {
-              cond: (_, event: EnterTextEvent) => event.text === '001',
-              actions: assign({ employeeId: (_, event: EnterTextEvent) => event.text }),
+              cond: 'findEmployee',
+              actions: 'assignEmployeeId',
               target: 'mainMenu'
             },
             {
-              cond: (_, event: EnterTextEvent) => event.text !== '001',
-              actions: () => console.log('Введен неверный персональный номер')
+              actions: 'unknownEmployee'
             }
           ]
         },
         states: {
           question: {
-            entry: () => console.log('Введите персональный номер из паспорта:')
+            entry: 'askPersonalNumber'
           }
         },
-        exit: () => console.log('Работник успешно зарегистрирован!')
       },
       mainMenu: {
         initial: 'showMenu',
@@ -158,13 +153,13 @@ export const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachine
             {
               cond: (_, { command }: MenuCommandEvent) => command === 'logout',
               actions: assign({}),
-              target: 'invitation'
+              target: 'registerCompany'
             },
           ]
         },
         states: {
           showMenu: {
-            entry: () => console.log('[ЛИСТОК][ЗА ПЕРИОД][ВЫХОД]')
+            entry: 'showMainMenu'
           }
         }
       },

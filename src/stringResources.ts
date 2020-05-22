@@ -1,23 +1,36 @@
 interface ILocString {
-  en: string;
-  ru: string;
-  be: string;
+  en: string | null;
+  ru: string | null;
+  be: string | null;
 };
 
 const stringResources = {
-  invitation: {
-    en: 'Hi! To receive payslips you need to sign up.',
-    ru: 'Здравствуйте! Для получения расчетных листков необходимо зарегистрироваться.',
-    be: 'Прывітанне! Для атрымання разліковых лісткоў неабходна зарэгістравацца.'
-  },
   askCompanyName: {
-    en: 'Enter organization name:',
-    ru: 'Введите наименование организации:',
-    be: 'Увядзіце назву арганізацыі:'
-  }
+    en: 'Hi!\n\nTo receive payslips you need to sign up.\n\nEnter organization name:',
+    ru: 'Здравствуйте!\n\nДля получения расчетных листков необходимо зарегистрироваться.\n\nВведите наименование организации:',
+    be: 'Прывітанне!\n\nДля атрымання разліковых лісткоў неабходна зарэгістравацца.\n\nУвядзіце назву арганізацыі:'
+  },
+  unknownCompanyName: {
+    en: null,
+    ru: 'Мы не можем найти организацию с таким именем.\n\nВозможно вы ошиблись при вводе или ваша организация не использует систему "Гедымин: Расчет заработной платы".\n\nПопробуйте ввести еще раз:',
+    be: null
+  },
+  askPersonalNumber: {
+    en: null,
+    ru: 'Введите свой персональный идентификационный номер из паспорта:',
+    be: null
+  },
+  test: {
+    en: null,
+    ru: 'test',
+    be: null
+  },
 };
 
 export type Lang = keyof ILocString;
 export type StringResource = keyof typeof stringResources;
 
-export const getLocString = (id: StringResource, lang?: Lang) => stringResources[id][lang ?? 'ru'];
+export const getLocString = (id: StringResource, lang?: Lang) => stringResources[id][lang ?? 'ru']
+  ?? stringResources[id]['be']
+  ?? stringResources[id]['en']
+  ?? stringResources[id]['ru'];

@@ -1,5 +1,7 @@
 import { Lang, LName } from '../types';
 
+const toIgnore = 'ооо,оао,зао,таа,зат,аат,ип,іп,уп,куп'.split(',');
+
 /**
  * Удаляет из строки кавычки, двойные пробелы и т.п.
  * Приводит к нижнему регистру.
@@ -8,12 +10,14 @@ import { Lang, LName } from '../types';
 export const normalizeStr = (s?: string) => s && s.trim()
   .toLowerCase()
   .split('')
-  .filter( c => c !== '"' && c !== "'" && c !== '`' && c !== '\n' && c !== '\t')
+  .filter( c => c !== '"' && c !== "'" && c !== '`' && c !== '-' && c !== '\n' && c !== '\t' )
   .join('')
   .split(' ')
-  .filter( ss => ss.trim() )
-  .filter( ss => ss !== 'ооо' && ss !== 'оао' )
+  .map( ss => ss.trim() )
+  .filter( ss => ss && !toIgnore.find( ig => ig === ss ) )
   .join(' ');
+
+export const testNormalizeStr = (a: string, b: string) => normalizeStr(a) === normalizeStr(b);
 
 export function getLName(n: LName, langPref: Lang[] = [], getFullName: boolean = false): string {
   for (let i = 0; i < langPref.length; i++) {
@@ -96,5 +100,6 @@ const lmap: { [letter: string]: string } = {
   'Х': 'X'
 };
 
-export const replaceIdentLetters = (s: string) => [...s].map( c => c.toUpperCase() ).map( c => lmap[c] || c ).join('');
+export const replaceIdentLetters = (s: string | undefined) => s && [...s.toUpperCase()].map( c => lmap[c] ?? c ).join('');
 
+export const testIdentStr = (a: string, b: string) => replaceIdentLetters(a) === replaceIdentLetters(b);
