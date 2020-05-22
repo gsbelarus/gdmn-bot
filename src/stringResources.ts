@@ -25,6 +25,11 @@ const stringResources = {
     ru: 'test',
     be: null
   },
+  empty: {
+    en: '',
+    ru: '',
+    be: ''
+  },
 };
 
 export type Lang = keyof ILocString;

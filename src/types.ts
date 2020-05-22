@@ -1,7 +1,13 @@
 import { IData } from "./util/fileDB";
+import { Menu } from "./menu";
 
 export type Platform = 'TELEGRAM' | 'VIBER';
 export type UpdateType = 'MESSAGE' | 'ACTION' | 'COMMAND';
+
+export interface IReplyParams {
+  text: string;
+  menu?: Menu;
+};
 
 export interface IUpdate {
   platform: Platform;
@@ -9,7 +15,7 @@ export interface IUpdate {
   userId?: string;
   type: UpdateType;
   body: string;
-  reply?: (text: string) => void;
+  reply?: (params: IReplyParams) => void;
 };
 
 export interface ICustomer {
