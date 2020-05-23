@@ -37,6 +37,8 @@ export interface IAccountLink {
   employeeId: string;
   currencyId?: string;
   language?: string;
+  state?: any;
+  context?: any;
 };
 
 export interface IDialogStateBase {

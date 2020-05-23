@@ -1,5 +1,5 @@
 import { MachineConfig, Machine, assign } from "xstate";
-import { IUpdate } from "./types";
+import { IUpdate, Platform } from "./types";
 
 interface ISelectedDate {
   year: number;
@@ -56,6 +56,7 @@ const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, Calenda
 };
 
 export interface IBotMachineContext {
+  platform: Platform | undefined;
   companyId?: string;
   employeeId?: string;
   dateBegin: ISelectedDate;
@@ -88,14 +89,21 @@ export const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachine
     id: 'botMachine',
     initial: 'init',
     context: {
+      platform: undefined,
       dateBegin: { year: 2020, month: 0 },
       dateEnd: { year: 2020, month: 11 },
     },
     states: {
       init: {
         on: {
-          START: 'registerCompany',
-          MAIN_MENU: 'mainMenu'
+          START: {
+            target: 'registerCompany',
+            actions: assign({ platform: (_, { update }) => update?.platform })
+          },
+          MAIN_MENU: {
+            target: 'mainMenu',
+            actions: assign({ platform: (_, { update }) => update?.platform })
+          }
         }
       },
       registerCompany: {

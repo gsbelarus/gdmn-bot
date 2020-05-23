@@ -1,6 +1,7 @@
 import { FileDB } from "./util/fileDB";
 import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IReplyParams } from "./types";
-import Telegraf, { Context, Markup, Extra } from "telegraf";
+import Telegraf from "telegraf";
+import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, EnterTextEvent, isEnterTextEvent } from "./machine";
 import { getLocString, StringResource } from "./stringResources";
@@ -24,8 +25,8 @@ export class Bot {
   private _employees: { [companyId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
 
   constructor(telegramToken: string, telegramRoot: string, viberRoot: string) {
-    this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, '/accountlink.json'));
-    this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, '/accountlink.json'));
+    this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'));
+    this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'));
     this._customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'));
 
     this._machine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig,
@@ -48,7 +49,10 @@ export class Bot {
     this._telegram = new Telegraf(telegramToken);
 
     this._telegram.use((ctx, next) => {
-      console.log(`Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
+      console.log(`Telegram Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
+      if (ctx.callbackQuery) {
+        console.log(JSON.stringify(ctx.callbackQuery, undefined, 2));
+      }
       return next?.();
     });
 
@@ -97,6 +101,25 @@ export class Bot {
         }
       }
     );
+
+    this._telegram.on('callback_query',
+      ctx => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        }
+        else if (ctx.callbackQuery?.data === undefined) {
+          console.error('Invalid chat callback query');
+        } else {
+          this.onUpdate({
+            platform: 'TELEGRAM',
+            chatId: ctx.chat.id.toString(),
+            type: 'ACTION',
+            body: ctx.callbackQuery.data,
+            reply: getReply(ctx)
+          });
+        }
+      }
+    );
   }
 
   private _findCompany = (_: any, event: BotMachineEvent) => {
@@ -138,7 +161,7 @@ export class Bot {
     this._telegram.launch();
   }
 
-  getMachineId(platform: Platform, chatId: string) {
+  getServiceId(platform: Platform, chatId: string) {
     return chatId + (platform === 'TELEGRAM' ? 't' : 'v');
   }
 
@@ -147,11 +170,40 @@ export class Bot {
     this._viberAccountLink.flush();
   }
 
-  createService(machineId: string) {
+  createService(platform: Platform, chatId: string) {
     const service = interpret(this._machine)
-      .onTransition( (state, event) => console.log(`State: ${state.toStrings().join('->')}, Event: ${event.type}`) )
+      .onTransition( (state, { type, update }) => {
+        console.log(`State: ${state.toStrings().join('->')}, Event: ${type}`);
+        console.log(`State value: ${JSON.stringify(state.value)}`);
+        console.log(`State context: ${JSON.stringify(state.context)}`);
+
+        // при изменении состояния сохраним его в базе, чтобы
+        // потом вернуться к состоянию после перезагрузки машины
+        if (update) {
+          const accountLinkDB = update.platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+          const accountLink = accountLinkDB.read(update.chatId);
+          const { companyId, employeeId, platform, ...rest } = state.context;
+
+          if (!accountLink) {
+            if (companyId && employeeId) {
+              accountLinkDB.write(update.chatId, {
+                customerId: companyId,
+                employeeId,
+                state: state.value,
+                context: rest
+              });
+            }
+          } else {
+            accountLinkDB.write(update.chatId, {
+              ...accountLink,
+              state: state.value,
+              context: rest
+            });
+          }
+        }
+      } )
       .start();
-    this._service[machineId] = service;
+    this._service[this.getServiceId(platform, chatId)] = service;
     return service;
   }
 
@@ -161,17 +213,29 @@ export class Bot {
    * @param update IUpdate
    */
   onUpdate(update: IUpdate) {
-    const { platform, chatId, type, body } = update;
-    const machineId = this.getMachineId(platform, chatId);
-    let service = this._service[machineId];
+    const { platform, chatId, type, body, reply } = update;
     const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-    let accountLink = accountLinkDB.read(chatId);
+
+    if (type === 'ACTION' && body === 'logout') {
+      accountLinkDB.delete(chatId);
+      delete this._service[this.getServiceId(platform, chatId)];
+      reply?.({ text: getLocString('goodBye') });
+      return;
+    }
+
+    const service = this._service[this.getServiceId(platform, chatId)];
 
     if (body === '/start' || !service) {
-      this.createService(machineId).send({ type: accountLink ? 'MAIN_MENU' : 'START', update });
+      this.createService(platform, chatId).send({ type: accountLinkDB.has(chatId) ? 'MAIN_MENU' : 'START', update });
     } else {
-      if (type === 'MESSAGE') {
-        service.send({ type: 'ENTER_TEXT', text: body, update });
+      switch (type) {
+        case 'MESSAGE':
+          service.send({ type: 'ENTER_TEXT', text: body, update });
+          break;
+
+        case 'ACTION': {
+          break;
+        }
       }
     }
   }

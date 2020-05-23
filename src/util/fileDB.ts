@@ -97,6 +97,11 @@ export class FileDB<T extends Object> {
     }
   }
 
+  public has(key: string) {
+    this._load();
+    return this._data && key in this._data;
+  }
+
   public put(data: IData<T>) {
     this._data = data;
     this._modified = true;

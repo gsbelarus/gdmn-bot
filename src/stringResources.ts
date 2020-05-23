@@ -30,6 +30,11 @@ const stringResources = {
     ru: 'Выберите команду из меню:',
     be: null
   },
+  goodBye: {
+    en: null,
+    ru: 'До свидания! Спасибо, что были с нами.',
+    be: null
+  },
 };
 
 export type Lang = keyof ILocString;
