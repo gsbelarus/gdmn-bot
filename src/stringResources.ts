@@ -35,6 +35,11 @@ const stringResources = {
     ru: 'До свидания! Спасибо, что были с нами.',
     be: null
   },
+  payslip: {
+    en: null,
+    ru: 'Здесь будет расчетный листок...',
+    be: null
+  },
 };
 
 export type Lang = keyof ILocString;

@@ -38,6 +38,7 @@ export class Bot {
           assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
           askPersonalNumber: reply('askPersonalNumber'),
           showMainMenu: reply('mainMenuCaption', keyboardMenu),
+          showPayslip: reply('payslip'),
         },
         guards: {
           findCompany: (ctx, event) => !!this._findCompany(ctx, event),
@@ -234,6 +235,7 @@ export class Bot {
           break;
 
         case 'ACTION': {
+          service.send({ type: 'MENU_COMMAND', command: body, update });
           break;
         }
       }

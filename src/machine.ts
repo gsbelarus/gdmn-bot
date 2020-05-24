@@ -157,12 +157,7 @@ export const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachine
             {
               cond: (_, { command }: MenuCommandEvent) => command === 'payslipForPeriod',
               target: 'payslipForPeriod'
-            },
-            {
-              cond: (_, { command }: MenuCommandEvent) => command === 'logout',
-              actions: assign({}),
-              target: 'registerCompany'
-            },
+            }
           ]
         },
         states: {
@@ -175,7 +170,7 @@ export const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachine
         on: {
           '': 'mainMenu'
         },
-        entry: () => console.log('Показываем последний расчетный листок на экране')
+        entry: 'showPayslip'
       },
       payslipForPeriod: {
         initial: 'enterDateBegin',

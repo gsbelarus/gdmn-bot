@@ -16,12 +16,12 @@ export type Menu = MenuItem[][];
 
 export const keyboardMenu: Menu = [
   [
-    { type: 'BUTTON', caption: '💰 Расчетный листок', command: 'paySlip' },
-    { type: 'BUTTON', caption: '💰 Подробный листок', command: 'detailPaySlip' }
+    { type: 'BUTTON', caption: '💰 Расчетный листок', command: 'payslip' },
+    { type: 'BUTTON', caption: '💰 Подробный листок', command: 'detailPayslip' }
   ],
   [
-    { type: 'BUTTON', caption: '💰 Листок за период', command: 'concisePaySlip' },
-    { type: 'BUTTON', caption: '💰 Сравнить..', command: 'comparePaySlip' }
+    { type: 'BUTTON', caption: '💰 Листок за период', command: 'concisePayslip' },
+    { type: 'BUTTON', caption: '💰 Сравнить..', command: 'comparePayslip' }
   ],
   [
     { type: 'BUTTON', caption: '🔧 Параметры', command: 'settings' },

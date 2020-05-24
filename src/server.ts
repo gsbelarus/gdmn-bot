@@ -4,7 +4,7 @@ import Router from 'koa-router';
 import http from 'http';
 import https from 'https';
 import path from 'path';
-import { upload_employees, upload_accDedRefs, upload_paySlips } from "./util/upload";
+import { upload_employees, upload_accDedRefs, upload_payslips } from "./util/upload";
 import { initCurrencies } from "./currency";
 import * as fs from "fs";
 import { getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser, customers, employeesByCustomer } from "./data";
@@ -113,7 +113,7 @@ router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
 // например: /zarobak/v1/upload_paySlips?employeeId=445566
 // тогда сразу будет видно на каком именно сотруднике произошла ошибка
 router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
-  upload_paySlips(ctx);
+  upload_payslips(ctx);
 
   // TODO: Сделать, чтобы не просто надпись выводилась, а человек сразу получал в чат
   //       краткий расчетный листок.

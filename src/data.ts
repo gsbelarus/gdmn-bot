@@ -4,7 +4,7 @@ import path from 'path';
 
 export const DATA_ROOT = `data/`;
 export const customersFile = `${DATA_ROOT}customers.json`;
-export const paySlipRoot = `${DATA_ROOT}/payslip`;
+export const payslipRoot = `${DATA_ROOT}/payslip`;
 export const emploeeFileName = 'employee.json';
 export const accDedRefFileName = 'accdedref.json';
 
@@ -25,11 +25,11 @@ export const customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
  * 3) массив начислений/удержаний
  *
  * Данные с диска загружаются по мере требования. Когда нам из чата приходит
- * команда показать расчетный листок, мы смотрим в объект paySlips по employeeId.
+ * команда показать расчетный листок, мы смотрим в объект payslips по employeeId.
  * Если там нет записи, то создаем новый экземпляр FileDB и загружаем данные
- * с диска и помещаем в объект paySlips. Если есть -- берем данные.
+ * с диска и помещаем в объект payslips. Если есть -- берем данные.
  */
-export const paySlips: { [employeeId: string]: FileDB<IPaySlip> } = {};
+export const payslips: { [employeeId: string]: FileDB<IPaySlip> } = {};
 
 
 export const getCustomers = (): ICustomers => {
@@ -39,27 +39,26 @@ export const getCustomers = (): ICustomers => {
 export const getEmployeesByCustomer = (customerId: string): IEmploeeByCustomer => {
   let employees = employeesByCustomer[customerId];
   if (!employees) {
-    employees = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `${paySlipRoot}/${customerId}/${emploeeFileName}`), {});
+    employees = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${emploeeFileName}`), {});
     employeesByCustomer[customerId] = employees;
   }
   return employees.getMutable(false);
 }
 
 export const getPaySlipByUser = (customerId: string, userID: string): IPaySlip | undefined => {
-  let paySlip = paySlips[userID];
-  if (!paySlip) {
-    paySlip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `${paySlipRoot}/${customerId}/${userID}.json`), {});
-    paySlips[userID] = paySlip;
+  let payslip = payslips[userID];
+  if (!payslip) {
+    payslip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${userID}.json`), {});
+    payslips[userID] = payslip;
   };
-  return paySlip.read(userID);
+  return payslip.read(userID);
 }
 
 export const getAccDeds = (customerId: string): IData<IAccDed> => {
   let accDed = customerAccDeds[customerId];
   if (!accDed) {
-    accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${paySlipRoot}/${customerId}/${accDedRefFileName}`), {});
+    accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`), {});
     customerAccDeds[customerId] = accDed;
   };
   return accDed.getMutable(false);
 };
-
