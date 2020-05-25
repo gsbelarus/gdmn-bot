@@ -5,7 +5,7 @@ export type Platform = 'TELEGRAM' | 'VIBER';
 export type UpdateType = 'MESSAGE' | 'ACTION' | 'COMMAND';
 
 export interface IReplyParams {
-  text: string;
+  text?: string;
   menu?: Menu;
 };
 
@@ -36,9 +36,12 @@ export interface IAccountLink {
   customerId: string;
   employeeId: string;
   currencyId?: string;
+  //TODO: надо ли хранить здесь язык, если он передается из мессенджера?
   language?: string;
   state?: any;
   context?: any;
+  //TODO: надо для телеграма, чтобы подменять инлайн меню
+  lastMenuId?: number;
 };
 
 export interface IDialogStateBase {

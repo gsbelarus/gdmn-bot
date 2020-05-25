@@ -36,8 +36,9 @@ export class Bot {
     this._calendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
       {
         actions: {
-          showCalendar: ({ selectedDate, initialUpdate }, { update }) =>
-            (update ?? initialUpdate)?.reply?.({ text: getLocString('selectFromCalendar'), menu: keyboardCalendar('ru', selectedDate.year) })
+          showCalendar: ({ selectedDate, initialUpdate }, { update }) => update
+            ? update.reply?.({ menu: keyboardCalendar('ru', selectedDate.year) })
+            : initialUpdate.reply?.({ text: getLocString('selectFromCalendar'), menu: keyboardCalendar('ru', selectedDate.year) })
             // FIXME: язык прописан!
         }
       }
@@ -70,16 +71,67 @@ export class Bot {
       return next?.();
     });
 
-    //const getReply = (ctx: Context) => ({ text, menu }: IReplyParams) => ctx.reply(text)
-    const getReply = (ctx: Context) => ({ text, menu }: IReplyParams) => ctx.reply(text, menu &&
-      Extra.markup(Markup.inlineKeyboard(
+    const getReply = (ctx: Context) => async ({ text, menu }: IReplyParams) => {
+      const chatId = ctx.chat?.id;
+
+      if (!chatId) {
+        console.log('Invalid chatId');
+        return;
+      }
+
+      const accountLink = this._telegramAccountLink.read(chatId.toString());
+
+      if (!accountLink) {
+        console.log('Invalid account link');
+        return;
+      }
+
+      const keyboard = menu && Markup.inlineKeyboard(
         menu.map(r => r.map(
           c => c.type === 'BUTTON'
             ? Markup.callbackButton(c.caption, c.command) as any
             : Markup.urlButton(c.caption, c.url)
         ))
-      ))
-    );
+      );
+
+      const { lastMenuId, ...rest } = accountLink;
+
+      const editMessageReplyMarkup = async () => {
+        try {
+          await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId, undefined, keyboard && JSON.stringify(keyboard));
+        } catch (e) {
+          //
+        }
+      };
+
+      if (lastMenuId) {
+        if (text && keyboard) {
+          await editMessageReplyMarkup();
+          const message = await ctx.reply(text, Extra.markup(keyboard));
+          this._telegramAccountLink.write(chatId.toString(), { ...rest, lastMenuId: message.message_id });
+        }
+        else if (text && !keyboard) {
+          await editMessageReplyMarkup();
+          await ctx.reply(text);
+          this._telegramAccountLink.write(chatId.toString(), rest);
+        }
+        else if (!text && keyboard) {
+          await editMessageReplyMarkup();
+        }
+      } else {
+        if (text && keyboard) {
+          const message = await ctx.reply(text, Extra.markup(keyboard));
+          this._telegramAccountLink.write(chatId.toString(), { ...rest, lastMenuId: message.message_id });
+        }
+        else if (text && !keyboard) {
+          await ctx.reply(text);
+        }
+        else if (!text && keyboard) {
+          const message = await ctx.reply('<<<Empty message>>>', Extra.markup(keyboard));
+          this._telegramAccountLink.write(chatId.toString(), { ...rest, lastMenuId: message.message_id });
+        }
+      }
+    };
 
     this._telegram.start(
       ctx => {
@@ -191,7 +243,7 @@ export class Bot {
         console.log(`State value: ${JSON.stringify(state.value)}`);
         console.log(`State context: ${JSON.stringify(state.context)}`);
         if (Object.keys(state.children).length) {
-          console.log(`State children: ${Object.values(state.children)[0].toJSON()}`);
+          console.log(`State children: ${JSON.stringify(Object.values(state.children)[0].state.value)}`);
         }
 
         // при изменении состояния сохраним его в базе, чтобы
