@@ -14,6 +14,7 @@
 
 */
 
+/*
 import  { assign, interpret, Machine, Interpreter, MachineConfig, State } from 'xstate';
 import fs from 'fs';
 import { BotMachineEvent, IBotMachineContext, botMachineConfig } from './machine';
@@ -96,3 +97,5 @@ for (const e of sequence2) {
 };
 
 console.log(`Final state: ${service.state.toStrings().join(',')}`);
+
+*/

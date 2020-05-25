@@ -3,13 +3,16 @@ import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IReplyParams } f
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
-import { botMachineConfig, IBotMachineContext, BotMachineEvent, EnterTextEvent, isEnterTextEvent } from "./machine";
+import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, StringResource } from "./stringResources";
 import path from 'path';
 import { testNormalizeStr, testIdentStr } from "./util/utils";
-import { Menu, keyboardMenu } from "./menu";
+import { Menu, keyboardMenu, keyboardCalendar } from "./menu";
 
-const reply = (s: StringResource, menu?: Menu) => (_: any, { update }: BotMachineEvent) => update?.reply?.({ text: getLocString(s), menu });
+// TODO: добавить lang непосредственно в update?
+const reply = (s: StringResource, menu?: Menu) =>
+  (_: any, { update }: BotMachineEvent) =>
+  update?.reply?.({ text: getLocString(s), menu });
 
 // TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
 //       надо предусмотреть обновление или просто сброс данных после загрузки на сервер
@@ -21,6 +24,7 @@ export class Bot {
   private _customers: FileDB<Omit<ICustomer, 'id'>>;
   private _telegram: Telegraf<Context>;
   private _service: { [id: string]: Interpreter<IBotMachineContext, any, BotMachineEvent> } = {};
+  private _calendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
   private _machine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
   private _employees: { [companyId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
 
@@ -29,7 +33,17 @@ export class Bot {
     this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'));
     this._customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'));
 
-    this._machine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig,
+    this._calendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
+      {
+        actions: {
+          showCalendar: ({ selectedDate, initialUpdate }, { update }) =>
+            (update ?? initialUpdate)?.reply?.({ text: getLocString('selectFromCalendar'), menu: keyboardCalendar('ru', selectedDate.year) })
+            // FIXME: язык прописан!
+        }
+      }
+    );
+
+    this._machine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._calendarMachine),
       {
         actions: {
           askCompanyName: reply('askCompanyName'),
@@ -39,6 +53,8 @@ export class Bot {
           askPersonalNumber: reply('askPersonalNumber'),
           showMainMenu: reply('mainMenuCaption', keyboardMenu),
           showPayslip: reply('payslip'),
+          //showCalendar: ({ selectedDate }: any, { update }) =>
+          //  update?.reply?.({ text: getLocString('selectFromCalendar'), menu: keyboardCalendar('ru', selectedDate.year) })
         },
         guards: {
           findCompany: (ctx, event) => !!this._findCompany(ctx, event),
@@ -51,9 +67,6 @@ export class Bot {
 
     this._telegram.use((ctx, next) => {
       console.log(`Telegram Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
-      if (ctx.callbackQuery) {
-        console.log(JSON.stringify(ctx.callbackQuery, undefined, 2));
-      }
       return next?.();
     });
 
@@ -177,6 +190,9 @@ export class Bot {
         console.log(`State: ${state.toStrings().join('->')}, Event: ${type}`);
         console.log(`State value: ${JSON.stringify(state.value)}`);
         console.log(`State context: ${JSON.stringify(state.context)}`);
+        if (Object.keys(state.children).length) {
+          console.log(`State children: ${Object.values(state.children)[0].toJSON()}`);
+        }
 
         // при изменении состояния сохраним его в базе, чтобы
         // потом вернуться к состоянию после перезагрузки машины
@@ -235,7 +251,11 @@ export class Bot {
           break;
 
         case 'ACTION': {
-          service.send({ type: 'MENU_COMMAND', command: body, update });
+          if (body.slice(0, 1) === '{') {
+            service.send({ ...JSON.parse(body), update });
+          } else {
+            service.send({ type: 'MENU_COMMAND', command: body, update });
+          }
           break;
         }
       }

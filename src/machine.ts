@@ -1,4 +1,4 @@
-import { MachineConfig, Machine, assign } from "xstate";
+import { MachineConfig, assign, StateMachine } from "xstate";
 import { IUpdate, Platform } from "./types";
 
 interface ISelectedDate {
@@ -6,9 +6,10 @@ interface ISelectedDate {
   month: number;
 };
 
-interface ICalendarMachineContext {
+export interface ICalendarMachineContext {
   selectedDate: ISelectedDate;
   canceled: boolean;
+  initialUpdate: IUpdate;
 };
 
 type ChangeYearEvent      = { type: 'CHANGE_YEAR';    delta: number; };
@@ -16,20 +17,24 @@ type SelectMonthEvent     = { type: 'SELECT_MONTH';   month: number; };
 type CancelCalendarEvent  = { type: 'CANCEL_CALENDAR' };
 type RestoreEvent         = { type: 'RESTORE' };
 
-type CalendarMachineEvent = ChangeYearEvent | SelectMonthEvent | CancelCalendarEvent | RestoreEvent;
+type _CalendarMachineEvent = ChangeYearEvent | SelectMonthEvent | CancelCalendarEvent | RestoreEvent;
 
-const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, CalendarMachineEvent> = {
+export type CalendarMachineEvent = _CalendarMachineEvent & { update: IUpdate };
+
+export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, CalendarMachineEvent> = {
   id: 'calendarMachine',
   initial: 'showCalendar',
   on: {
-    RESTORE: 'showCalendar',
     CHANGE_YEAR: {
       target: 'showCalendar',
-      actions: assign({
-        selectedDate: ({ selectedDate }, { delta }: ChangeYearEvent) => ({
-          ...selectedDate, year: selectedDate.year + delta
-        })
-      })
+      actions: [
+        assign({
+          selectedDate: ({ selectedDate }, { delta }: ChangeYearEvent) => ({
+            ...selectedDate, year: selectedDate.year + delta
+          })
+        }),
+        'showCalendar'
+      ]
     },
     SELECT_MONTH: {
       target: 'finished',
@@ -46,7 +51,7 @@ const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, Calenda
   },
   states: {
     showCalendar: {
-      entry: ({ selectedDate: { year } }) => console.log(`Рисуем календарь на ${year} год.`)
+      entry: 'showCalendar'
     },
     finished: {
       type: 'final',
@@ -84,8 +89,8 @@ export function isEnterTextEvent(event: BotMachineEvent): event is EnterTextEven
   return event.type === 'ENTER_TEXT' && typeof event.text === 'string';
 };
 
-export const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachineEvent> =
-  {
+export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>): MachineConfig<IBotMachineContext, any, BotMachineEvent> =>
+  ({
     id: 'botMachine',
     initial: 'init',
     context: {
@@ -178,11 +183,13 @@ export const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachine
           enterDateBegin: {
             invoke: {
               id: 'calendarMachine',
-              src: Machine(calendarMachineConfig),
+              src: calendarMachine,
               autoForward: true,
-              data: {
-                selectedDate: ({ dateBegin }: IBotMachineContext) => dateBegin
-              },
+              data: ({ dateBegin }: IBotMachineContext, { update }: BotMachineEvent) => ({
+                selectedDate: dateBegin,
+                canceled: false,
+                initialUpdate: update
+              }),
               onDone: [
                 {
                   cond: (_, event) => event.data.canceled,
@@ -199,11 +206,13 @@ export const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachine
           enterDateEnd: {
             invoke: {
               id: 'calendarMachine',
-              src: Machine(calendarMachineConfig),
+              src: calendarMachine,
               autoForward: true,
-              data: {
-                selectedDate: ({ dateEnd }: IBotMachineContext) => dateEnd
-              },
+              data: ({ dateBegin }: IBotMachineContext, { update }: BotMachineEvent) => ({
+                selectedDate: dateBegin,
+                canceled: false,
+                initialUpdate: update
+              }),
               onDone: [
                 {
                   cond: (_, event) => event.data.canceled,
@@ -224,4 +233,4 @@ export const botMachineConfig: MachineConfig<IBotMachineContext, any, BotMachine
         }
       }
     },
-  };
+  });

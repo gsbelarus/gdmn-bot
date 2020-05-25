@@ -40,6 +40,71 @@ const stringResources = {
     ru: 'Здесь будет расчетный листок...',
     be: null
   },
+  shortMonth0: {
+    en: 'jan',
+    ru: 'янв',
+    be: 'сту'
+  },
+  shortMonth1: {
+    en: 'jan',
+    ru: 'янв',
+    be: 'сту'
+  },
+  shortMonth2: {
+    en: 'jan',
+    ru: 'янв',
+    be: 'сту'
+  },
+  shortMonth3: {
+    en: 'jan',
+    ru: 'янв',
+    be: 'сту'
+  },
+  shortMonth4: {
+    en: 'jan',
+    ru: 'янв',
+    be: 'сту'
+  },
+  shortMonth5: {
+    en: 'jan',
+    ru: 'янв',
+    be: 'сту'
+  },
+  shortMonth6: {
+    en: 'jan',
+    ru: 'янв',
+    be: 'сту'
+  },
+  shortMonth7: {
+    en: 'jan',
+    ru: 'янв',
+    be: 'сту'
+  },
+  shortMonth8: {
+    en: 'jan',
+    ru: 'янв',
+    be: 'сту'
+  },
+  shortMonth9: {
+    en: 'jan',
+    ru: 'янв',
+    be: 'сту'
+  },
+  shortMonth10: {
+    en: 'jan',
+    ru: 'янв',
+    be: 'сту'
+  },
+  shortMonth11: {
+    en: 'jan',
+    ru: 'янв',
+    be: 'сту'
+  },
+  selectFromCalendar: {
+    en: null,
+    ru: 'Выберите дату:',
+    be: null
+  },
 };
 
 export type Lang = keyof ILocString;
