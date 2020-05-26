@@ -1,10 +1,10 @@
 import {
-  DialogState, IAccountLink, IDialogStateLoggingIn, IAccDed, IPaySlip, LName, Lang, TypePaySlip,
+  DialogState, IAccountLink, IDialogStateLoggingIn, IAccDed, IPaySlip, Lang, TypePaySlip,
   ICustomers, IEmploeeByCustomer, IDialogStateGettingConcise, monthList, IDialogStateGettingCompare, IDialogStateGettingCurrency, addName, IDepartment, IPosition
 } from "./types";
 import { FileDB, IData } from "./util/fileDB";
 import path from 'path';
-import { normalizeStr, getYears, getLName, getSumByRate, date2str, replaceIdentLetters, getLanguage } from "./util/utils";
+import { normalizeStr, getLName, getSumByRate, date2str, replaceIdentLetters } from "./util/utils";
 import { getCurrencyNameById, getCurrencyAbbreviationById, getCurrRate } from "./currency";
 
 export const MINDATE = new Date(2018, 0, 1);
@@ -41,7 +41,7 @@ export const keyboardMenu: Menu = [
   ],
   [
     { type: 'BUTTON', caption: '💰 Листок за период', command: 'concisePaySlip' },
-    { type: 'BUTTON', caption: '💰 Сравнить..', command: 'comparePaySlip' }
+    { type: 'BUTTON', caption: '⚖ Сравнить', command: 'comparePaySlip' }
   ],
   [
     { type: 'BUTTON', caption: '🔧 Параметры', command: 'settings' },
@@ -221,7 +221,7 @@ export class Bot {
         if (found) {
           employee.customerId = found[0];
         } else {
-          await this.sendMessage(chatId, '😕 Такого предприятия нет в базе данных!', keyboardLogin);
+          await this.sendMessage(chatId, '😕 Такой организации нет в базе данных!', keyboardLogin);
           this._dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() }, ['employee']);
           return;
         }
@@ -270,7 +270,7 @@ export class Bot {
 Обратитесь в отдел кадров или повторите регистрацию.
 
 Были введены следующие данные:
-Предприятие: ${this.getCustomers()[employee.customerId].name}
+Организация: ${this.getCustomers()[employee.customerId].name}
 Фамилия: ${employee.lastName}
 Имя: ${employee.firstName}
 Отчество: ${employee.patrName}
@@ -281,7 +281,7 @@ export class Bot {
       }
     } else {
       if (!employee.customerId) {
-        this.sendMessage(chatId, 'Введите название предприятия:');
+        this.sendMessage(chatId, 'Введите название организации:');
       }
       else if (!employee.lastName) {
         this.sendMessage(chatId, 'Введите фамилию:');
@@ -358,7 +358,7 @@ export class Bot {
           de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
           await this.sendMessage(chatId, date2str(de));
           this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), de });
-          const cListok = await this.getPaySlip(chatId, 'DETAIL', lng, db, de);
+          const cListok = await this.getPaySlip(chatId, 'CONCISE', lng, db, de);
           if (cListok !== '') {
             await this.sendMessage(chatId, cListok, keyboardMenu, true);
           } else {
