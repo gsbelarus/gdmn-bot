@@ -41,11 +41,17 @@ export const keyboardCalendar = (lng: Lang, year: number): Menu => {
     [8, 9, 10, 11]
   ];
 
-  return mm.map(mr => mr.map(m => ({ type: 'BUTTON', caption: getLocString(`shortMonth${m}` as StringResource, lng), command: `month;${year};${m}` } as IMenuButton)))
+  return mm.map( mr => mr.map( m => (
+    {
+      type: 'BUTTON',
+      caption: getLocString(`shortMonth${m}` as StringResource, lng),
+      command: `{ "type": "SELECT_MONTH", "month": ${m} }`
+    } as IMenuButton
+  )))
     .concat([[
       { type: 'BUTTON', caption: ' < ', command: '{ "type": "CHANGE_YEAR", "delta": -1 }' },
-      { type: 'BUTTON', caption: `${year}`, command: `otherYear;${year}` },
-      { type: 'BUTTON', caption: ' > ', command: '{ "type": "CHANGE_YEAR", "delta": -1 }' }
+      { type: 'BUTTON', caption: `${year}`, command: 'noop' },
+      { type: 'BUTTON', caption: ' > ', command: '{ "type": "CHANGE_YEAR", "delta": +1 }' }
     ]])
-    .concat([[{ type: 'BUTTON', caption: 'Меню', command: 'menu' }]]);
+    .concat([[{ type: 'BUTTON', caption: 'Меню', command: '{ "type": "CANCEL_CALENDAR" }' }]]);
 };

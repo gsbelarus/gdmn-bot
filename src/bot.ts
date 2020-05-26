@@ -36,9 +36,9 @@ export class Bot {
     this._calendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
       {
         actions: {
-          showCalendar: ({ selectedDate, initialUpdate }, { update }) => update
-            ? update.reply?.({ menu: keyboardCalendar('ru', selectedDate.year) })
-            : initialUpdate.reply?.({ text: getLocString('selectFromCalendar'), menu: keyboardCalendar('ru', selectedDate.year) })
+          showCalendar: (ctx, event) => event.type === 'CHANGE_YEAR'
+            ? ctx.update?.reply?.({ menu: keyboardCalendar('ru', ctx.selectedDate.year) })
+            : ctx.update?.reply?.({ text: getLocString(ctx.dateKind === 'PERIOD_1_DB' ? 'selectDB' : 'selectDE'), menu: keyboardCalendar('ru', ctx.selectedDate.year) })
             // FIXME: язык прописан!
         }
       }
@@ -54,8 +54,7 @@ export class Bot {
           askPersonalNumber: reply('askPersonalNumber'),
           showMainMenu: reply('mainMenuCaption', keyboardMenu),
           showPayslip: reply('payslip'),
-          //showCalendar: ({ selectedDate }: any, { update }) =>
-          //  update?.reply?.({ text: getLocString('selectFromCalendar'), menu: keyboardCalendar('ru', selectedDate.year) })
+          showPayslipForPeriod: (ctx, event) => (event.update ?? ctx.update)?.reply?.({ text: 'Показываем листок за период...' }),
         },
         guards: {
           findCompany: (ctx, event) => !!this._findCompany(ctx, event),
@@ -96,9 +95,13 @@ export class Bot {
 
       const { lastMenuId, ...rest } = accountLink;
 
-      const editMessageReplyMarkup = async () => {
+      const editMessageReplyMarkup = async (remove = false) => {
         try {
-          await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId, undefined, keyboard && JSON.stringify(keyboard));
+          if (remove || !keyboard) {
+            await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId);
+          } else {
+            await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId, undefined, keyboard && JSON.stringify(keyboard));
+          }
         } catch (e) {
           //
         }
@@ -106,12 +109,12 @@ export class Bot {
 
       if (lastMenuId) {
         if (text && keyboard) {
-          await editMessageReplyMarkup();
+          await editMessageReplyMarkup(true);
           const message = await ctx.reply(text, Extra.markup(keyboard));
           this._telegramAccountLink.write(chatId.toString(), { ...rest, lastMenuId: message.message_id });
         }
         else if (text && !keyboard) {
-          await editMessageReplyMarkup();
+          await editMessageReplyMarkup(true);
           await ctx.reply(text);
           this._telegramAccountLink.write(chatId.toString(), rest);
         }

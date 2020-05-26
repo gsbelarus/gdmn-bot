@@ -9,7 +9,8 @@ interface ISelectedDate {
 export interface ICalendarMachineContext {
   selectedDate: ISelectedDate;
   canceled: boolean;
-  initialUpdate: IUpdate;
+  update: IUpdate | undefined;
+  dateKind: 'PERIOD_1_DB' | 'PERIOD_1_DE' | 'PERIOD_2_DB';
 };
 
 type ChangeYearEvent      = { type: 'CHANGE_YEAR';    delta: number; };
@@ -66,6 +67,7 @@ export interface IBotMachineContext {
   employeeId?: string;
   dateBegin: ISelectedDate;
   dateEnd: ISelectedDate;
+  update: IUpdate | undefined;
 };
 
 export type StartEvent        = { type: 'START' };
@@ -97,6 +99,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       platform: undefined,
       dateBegin: { year: 2020, month: 0 },
       dateEnd: { year: 2020, month: 11 },
+      update: undefined
     },
     states: {
       init: {
@@ -179,16 +182,18 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       },
       payslipForPeriod: {
         initial: 'enterDateBegin',
+        entry: assign({ update: (_, event: BotMachineEvent) => event.update }),
         states: {
           enterDateBegin: {
             invoke: {
               id: 'calendarMachine',
               src: calendarMachine,
               autoForward: true,
-              data: ({ dateBegin }: IBotMachineContext, { update }: BotMachineEvent) => ({
-                selectedDate: dateBegin,
+              data: (ctx: IBotMachineContext, event: BotMachineEvent) => ({
+                selectedDate: ctx.dateBegin,
                 canceled: false,
-                initialUpdate: update
+                update: event.update ?? ctx.update,
+                dateKind: 'PERIOD_1_DB'
               }),
               onDone: [
                 {
@@ -196,7 +201,6 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
                   target: '#botMachine.mainMenu'
                 },
                 {
-                  cond: (_, event) => !event.data.canceled,
                   target: 'enterDateEnd',
                   actions: assign({ dateBegin: (_, event) => event.data.selectedDate })
                 }
@@ -208,10 +212,11 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
               id: 'calendarMachine',
               src: calendarMachine,
               autoForward: true,
-              data: ({ dateBegin }: IBotMachineContext, { update }: BotMachineEvent) => ({
-                selectedDate: dateBegin,
+              data: (ctx: IBotMachineContext, event: BotMachineEvent) => ({
+                selectedDate: ctx.dateBegin,
                 canceled: false,
-                initialUpdate: update
+                update: event.update ?? ctx.update,
+                dateKind: 'PERIOD_1_DE'
               }),
               onDone: [
                 {
@@ -219,7 +224,6 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
                   target: '#botMachine.mainMenu'
                 },
                 {
-                  cond: (_, event) => !event.data.canceled,
                   target: 'showPayslipForPeriod',
                   actions: assign({ dateEnd: (_, event) => event.data.selectedDate })
                 }
@@ -228,7 +232,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           },
           showPayslipForPeriod: {
             on: { '': '#botMachine.mainMenu' },
-            entry: ({ dateBegin, dateEnd }) => console.log(`Show payslip for ${dateBegin.month}.${dateBegin.year}-${dateEnd.month}.${dateEnd.year}...`)
+            entry: 'showPayslipForPeriod'
           }
         }
       }

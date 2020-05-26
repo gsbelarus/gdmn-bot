@@ -6,18 +6,18 @@ interface ILocString {
 
 const stringResources = {
   askCompanyName: {
-    en: 'Hi!\n\nTo receive payslips you need to sign up.\n\nEnter organization name:',
-    ru: 'Здравствуйте!\n\nДля получения расчетных листков необходимо зарегистрироваться.\n\nВведите наименование организации:',
-    be: 'Прывітанне!\n\nДля атрымання разліковых лісткоў неабходна зарэгістравацца.\n\nУвядзіце назву арганізацыі:'
+    en: 'Hi!\n\nTo receive payslips you need to sign up.\n\nEnter organization name.',
+    ru: 'Здравствуйте!\n\nДля получения расчетных листков необходимо зарегистрироваться.\n\nВведите наименование организации.',
+    be: 'Прывітанне!\n\nДля атрымання разліковых лісткоў неабходна зарэгістравацца.\n\nУвядзіце назву арганізацыі.'
   },
   unknownCompanyName: {
     en: null,
-    ru: 'Мы не можем найти организацию с таким именем.\n\nВозможно вы ошиблись при вводе или ваша организация не использует систему "Гедымин: Расчет заработной платы".\n\nПопробуйте ввести еще раз:',
+    ru: 'Мы не можем найти организацию с таким именем.\n\nВозможно вы ошиблись при вводе или ваша организация не использует систему "Гедымин: Расчет заработной платы".\n\nПопробуйте ввести еще раз.',
     be: null
   },
   askPersonalNumber: {
     en: null,
-    ru: 'Введите свой персональный идентификационный номер из паспорта:',
+    ru: 'Введите свой персональный идентификационный номер из паспорта.',
     be: null
   },
   test: {
@@ -27,7 +27,7 @@ const stringResources = {
   },
   mainMenuCaption: {
     en: null,
-    ru: 'Выберите команду из меню:',
+    ru: 'Выберите команду из меню.',
     be: null
   },
   goodBye: {
@@ -46,63 +46,68 @@ const stringResources = {
     be: 'сту'
   },
   shortMonth1: {
-    en: 'jan',
-    ru: 'янв',
-    be: 'сту'
+    en: 'feb',
+    ru: 'фев',
+    be: 'лют'
   },
   shortMonth2: {
-    en: 'jan',
-    ru: 'янв',
-    be: 'сту'
+    en: 'mar',
+    ru: 'мар',
+    be: 'сак'
   },
   shortMonth3: {
-    en: 'jan',
-    ru: 'янв',
-    be: 'сту'
+    en: 'apr',
+    ru: 'апр',
+    be: 'кра'
   },
   shortMonth4: {
-    en: 'jan',
-    ru: 'янв',
-    be: 'сту'
+    en: 'may',
+    ru: 'май',
+    be: 'тра'
   },
   shortMonth5: {
-    en: 'jan',
-    ru: 'янв',
-    be: 'сту'
+    en: 'jun',
+    ru: 'июн',
+    be: 'чэр'
   },
   shortMonth6: {
-    en: 'jan',
-    ru: 'янв',
-    be: 'сту'
+    en: 'jul',
+    ru: 'июл',
+    be: 'лiп'
   },
   shortMonth7: {
-    en: 'jan',
-    ru: 'янв',
-    be: 'сту'
+    en: 'aug',
+    ru: 'авг',
+    be: 'жнi'
   },
   shortMonth8: {
-    en: 'jan',
-    ru: 'янв',
-    be: 'сту'
+    en: 'sep',
+    ru: 'сен',
+    be: 'вер'
   },
   shortMonth9: {
-    en: 'jan',
-    ru: 'янв',
-    be: 'сту'
+    en: 'oct',
+    ru: 'окт',
+    be: 'кас'
   },
   shortMonth10: {
-    en: 'jan',
-    ru: 'янв',
-    be: 'сту'
+    en: 'nov',
+    ru: 'ноя',
+    be: 'ліс'
   },
   shortMonth11: {
-    en: 'jan',
-    ru: 'янв',
-    be: 'сту'
+    en: 'dec',
+    ru: 'дек',
+    be: 'сне'
   },
-  selectFromCalendar: {
+  selectDB: {
     en: null,
-    ru: 'Выберите дату:',
+    ru: 'Выберите дату начала периода.',
+    be: null
+  },
+  selectDE: {
+    en: null,
+    ru: 'Выберите дату окончания периода.',
     be: null
   },
 };
