@@ -50,10 +50,8 @@ initCurrencies().then( () => log.info('Currencies have been loaded...') );
  * Вайбер надо связать с нашим веб сервером вручную.
  */
 
-const ZAROBAK_TELEGRAM_BOT_TOKEN = process.env.ZAROBAK_TELEGRAM_BOT_TOKEN;
-
-if (typeof ZAROBAK_TELEGRAM_BOT_TOKEN !== 'string' || !ZAROBAK_TELEGRAM_BOT_TOKEN) {
-  throw new Error('ZAROBAK_TELEGRAM_BOT_TOKEN env variable is not specified.');
+if (!config.telegram.token) {
+  throw new Error('Telegram bot token isn\'t specified.');
 }
 
 const ZAROBAK_VIBER_BOT_TOKEN = process.env.ZAROBAK_VIBER_BOT_TOKEN;
@@ -63,7 +61,7 @@ if (typeof ZAROBAK_VIBER_BOT_TOKEN !== 'string' || !ZAROBAK_VIBER_BOT_TOKEN) {
 }
 
 const telegram = new TelegramBot(
-  ZAROBAK_TELEGRAM_BOT_TOKEN,
+  config.telegram.token,
   getCustomers,
   getEmployeesByCustomer,
   getAccDeds,
