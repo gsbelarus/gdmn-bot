@@ -1,5 +1,5 @@
 import { FileDB } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IReplyParams } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
@@ -8,11 +8,7 @@ import { getLocString, StringResource } from "./stringResources";
 import path from 'path';
 import { testNormalizeStr, testIdentStr } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar } from "./menu";
-
-// TODO: добавить lang непосредственно в update?
-const reply = (s: StringResource, menu?: Menu) =>
-  (_: any, { update }: BotMachineEvent) =>
-  update?.reply?.({ text: getLocString(s), menu });
+import { Semaphore } from "./semaphore";
 
 // TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
 //       надо предусмотреть обновление или просто сброс данных после загрузки на сервер
@@ -33,12 +29,95 @@ export class Bot {
     this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'));
     this._customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'));
 
+    const reply = (s: StringResource | undefined, menu?: Menu) => async ({ platform, chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+      if (!semaphore) {
+        console.log('No semaphore');
+        return;
+      }
+
+      if (!chatId) {
+        console.log('Invalid chatId');
+        return;
+      }
+
+      if (platform === 'TELEGRAM') {
+        const accountLink = this._telegramAccountLink.read(chatId);
+
+        const keyboard = menu && Markup.inlineKeyboard(
+          menu.map(r => r.map(
+            c => c.type === 'BUTTON'
+              ? Markup.callbackButton(c.caption, c.command) as any
+              : Markup.urlButton(c.caption, c.url)
+          ))
+        );
+
+        // TODO: язык!
+        const text = s && getLocString(s);
+
+        await semaphore.acquire();
+        try {
+          if (!accountLink) {
+            await this._telegram.telegram.sendMessage(chatId, text ?? '<<Empty message>>', Extra.markup(keyboard));
+            return;
+          }
+
+          const { lastMenuId, ...rest } = accountLink;
+
+          const editMessageReplyMarkup = async (remove = false) => {
+            try {
+              if (remove || !keyboard) {
+                await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId);
+              } else {
+                await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId, undefined, keyboard && JSON.stringify(keyboard));
+              }
+            } catch (e) {
+              //
+            }
+          };
+
+          if (lastMenuId) {
+            if (text && keyboard) {
+              await editMessageReplyMarkup(true);
+              const message = await this._telegram.telegram.sendMessage(chatId, text, Extra.markup(keyboard));
+              this._telegramAccountLink.write(chatId, { ...rest, lastMenuId: message.message_id });
+            }
+            else if (text && !keyboard) {
+              await editMessageReplyMarkup(true);
+              await this._telegram.telegram.sendMessage(chatId, text);
+              this._telegramAccountLink.write(chatId, rest);
+            }
+            else if (!text && keyboard) {
+              await editMessageReplyMarkup();
+            }
+          } else {
+            if (text && keyboard) {
+              const message = await this._telegram.telegram.sendMessage(chatId, text, Extra.markup(keyboard));
+              this._telegramAccountLink.write(chatId, { ...rest, lastMenuId: message.message_id });
+            }
+            else if (text && !keyboard) {
+              await this._telegram.telegram.sendMessage(chatId, text);
+            }
+            else if (!text && keyboard) {
+              const message = await this._telegram.telegram.sendMessage(chatId, '<<<Empty message>>>', Extra.markup(keyboard));
+              this._telegramAccountLink.write(chatId, { ...rest, lastMenuId: message.message_id });
+            }
+          }
+        } catch (e) {
+          console.log(e);
+          semaphore.release();
+        } finally {
+          semaphore.release();
+        }
+      }
+    };
+
     this._calendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
       {
         actions: {
-          showCalendar: (ctx, event) => event.type === 'CHANGE_YEAR'
-            ? ctx.update?.reply?.({ menu: keyboardCalendar('ru', ctx.selectedDate.year) })
-            : ctx.update?.reply?.({ text: getLocString(ctx.dateKind === 'PERIOD_1_DB' ? 'selectDB' : 'selectDE'), menu: keyboardCalendar('ru', ctx.selectedDate.year) })
+          showSelectedDate: reply('showSelectedDate'),
+          showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
+            ? reply(undefined, keyboardCalendar('ru', selectedDate.year))({ platform, chatId, semaphore })
+            : reply(dateKind === 'PERIOD_1_DB' ? 'selectDB' : 'selectDE', keyboardCalendar('ru', selectedDate.year))({ platform, chatId, semaphore })
             // FIXME: язык прописан!
         }
       }
@@ -54,7 +133,15 @@ export class Bot {
           askPersonalNumber: reply('askPersonalNumber'),
           showMainMenu: reply('mainMenuCaption', keyboardMenu),
           showPayslip: reply('payslip'),
-          showPayslipForPeriod: (ctx, event) => (event.update ?? ctx.update)?.reply?.({ text: 'Показываем листок за период...' }),
+          showPayslipForPeriod: reply('payslipForPeriod'),
+          sayGoodbye: reply('sayGoodbye'),
+          logout: ({ platform, chatId }) => {
+            if (platform && chatId) {
+              const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+              accountLinkDB.delete(chatId);
+              delete this._service[this.getServiceId(platform, chatId)];
+            }
+          }
         },
         guards: {
           findCompany: (ctx, event) => !!this._findCompany(ctx, event),
@@ -70,72 +157,6 @@ export class Bot {
       return next?.();
     });
 
-    const getReply = (ctx: Context) => async ({ text, menu }: IReplyParams) => {
-      const chatId = ctx.chat?.id;
-
-      if (!chatId) {
-        console.log('Invalid chatId');
-        return;
-      }
-
-      const accountLink = this._telegramAccountLink.read(chatId.toString());
-
-      if (!accountLink) {
-        console.log('Invalid account link');
-        return;
-      }
-
-      const keyboard = menu && Markup.inlineKeyboard(
-        menu.map(r => r.map(
-          c => c.type === 'BUTTON'
-            ? Markup.callbackButton(c.caption, c.command) as any
-            : Markup.urlButton(c.caption, c.url)
-        ))
-      );
-
-      const { lastMenuId, ...rest } = accountLink;
-
-      const editMessageReplyMarkup = async (remove = false) => {
-        try {
-          if (remove || !keyboard) {
-            await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId);
-          } else {
-            await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId, undefined, keyboard && JSON.stringify(keyboard));
-          }
-        } catch (e) {
-          //
-        }
-      };
-
-      if (lastMenuId) {
-        if (text && keyboard) {
-          await editMessageReplyMarkup(true);
-          const message = await ctx.reply(text, Extra.markup(keyboard));
-          this._telegramAccountLink.write(chatId.toString(), { ...rest, lastMenuId: message.message_id });
-        }
-        else if (text && !keyboard) {
-          await editMessageReplyMarkup(true);
-          await ctx.reply(text);
-          this._telegramAccountLink.write(chatId.toString(), rest);
-        }
-        else if (!text && keyboard) {
-          await editMessageReplyMarkup();
-        }
-      } else {
-        if (text && keyboard) {
-          const message = await ctx.reply(text, Extra.markup(keyboard));
-          this._telegramAccountLink.write(chatId.toString(), { ...rest, lastMenuId: message.message_id });
-        }
-        else if (text && !keyboard) {
-          await ctx.reply(text);
-        }
-        else if (!text && keyboard) {
-          const message = await ctx.reply('<<<Empty message>>>', Extra.markup(keyboard));
-          this._telegramAccountLink.write(chatId.toString(), { ...rest, lastMenuId: message.message_id });
-        }
-      }
-    };
-
     this._telegram.start(
       ctx => {
         if (!ctx.chat) {
@@ -145,8 +166,7 @@ export class Bot {
             platform: 'TELEGRAM',
             chatId: ctx.chat.id.toString(),
             type: 'COMMAND',
-            body: '/start',
-            reply: getReply(ctx)
+            body: '/start'
           });
         }
       }
@@ -164,8 +184,7 @@ export class Bot {
             platform: 'TELEGRAM',
             chatId: ctx.chat.id.toString(),
             type: 'MESSAGE',
-            body: ctx.message.text,
-            reply: getReply(ctx)
+            body: ctx.message.text
           });
         }
       }
@@ -183,8 +202,7 @@ export class Bot {
             platform: 'TELEGRAM',
             chatId: ctx.chat.id.toString(),
             type: 'ACTION',
-            body: ctx.callbackQuery.data,
-            reply: getReply(ctx)
+            body: ctx.callbackQuery.data
           });
         }
       }
@@ -241,7 +259,7 @@ export class Bot {
 
   createService(platform: Platform, chatId: string) {
     const service = interpret(this._machine)
-      .onTransition( (state, { type, update }) => {
+      .onTransition( (state, { type }) => {
         console.log(`State: ${state.toStrings().join('->')}, Event: ${type}`);
         console.log(`State value: ${JSON.stringify(state.value)}`);
         console.log(`State context: ${JSON.stringify(state.context)}`);
@@ -251,14 +269,15 @@ export class Bot {
 
         // при изменении состояния сохраним его в базе, чтобы
         // потом вернуться к состоянию после перезагрузки машины
-        if (update) {
-          const accountLinkDB = update.platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-          const accountLink = accountLinkDB.read(update.chatId);
-          const { companyId, employeeId, platform, ...rest } = state.context;
+        const { companyId, employeeId, platform, chatId, semaphore, ...rest } = state.context;
+
+        if (platform && chatId) {
+          const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+          const accountLink = accountLinkDB.read(chatId);
 
           if (!accountLink) {
             if (companyId && employeeId) {
-              accountLinkDB.write(update.chatId, {
+              accountLinkDB.write(chatId, {
                 customerId: companyId,
                 employeeId,
                 state: state.value,
@@ -266,7 +285,7 @@ export class Bot {
               });
             }
           } else {
-            accountLinkDB.write(update.chatId, {
+            accountLinkDB.write(chatId, {
               ...accountLink,
               state: state.value,
               context: rest
@@ -285,31 +304,24 @@ export class Bot {
    * @param update IUpdate
    */
   onUpdate(update: IUpdate) {
-    const { platform, chatId, type, body, reply } = update;
+    const { platform, chatId, type, body } = update;
     const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-
-    if (type === 'ACTION' && body === 'logout') {
-      accountLinkDB.delete(chatId);
-      delete this._service[this.getServiceId(platform, chatId)];
-      reply?.({ text: getLocString('goodBye') });
-      return;
-    }
 
     const service = this._service[this.getServiceId(platform, chatId)];
 
     if (body === '/start' || !service) {
-      this.createService(platform, chatId).send({ type: accountLinkDB.has(chatId) ? 'MAIN_MENU' : 'START', update });
+      this.createService(platform, chatId).send({ type: accountLinkDB.has(chatId) ? 'MAIN_MENU' : 'START', platform, chatId, semaphore: new Semaphore() });
     } else {
       switch (type) {
         case 'MESSAGE':
-          service.send({ type: 'ENTER_TEXT', text: body, update });
+          service.send({ type: 'ENTER_TEXT', text: body });
           break;
 
         case 'ACTION': {
           if (body.slice(0, 1) === '{') {
             service.send({ ...JSON.parse(body), update });
           } else {
-            service.send({ type: 'MENU_COMMAND', command: body, update });
+            service.send({ type: 'MENU_COMMAND', command: body });
           }
           break;
         }

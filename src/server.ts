@@ -7,7 +7,7 @@ import path from 'path';
 import { upload_employees, upload_accDedRefs, upload_payslips } from "./util/upload";
 import { initCurrencies } from "./currency";
 import * as fs from "fs";
-import { getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser, customers, employeesByCustomer } from "./data";
+import { customers, employeesByCustomer } from "./data";
 import { Logger } from "./log";
 
 // if not exists create configuration file using

@@ -1,13 +1,14 @@
 import { IData } from "./util/fileDB";
-import { Menu } from "./menu";
 
 export type Platform = 'TELEGRAM' | 'VIBER';
 export type UpdateType = 'MESSAGE' | 'ACTION' | 'COMMAND';
 
+/*
 export interface IReplyParams {
   text?: string;
   menu?: Menu;
 };
+*/
 
 export interface IUpdate {
   platform: Platform;
@@ -15,7 +16,6 @@ export interface IUpdate {
   userId?: string;
   type: UpdateType;
   body: string;
-  reply?: (params: IReplyParams) => void;
 };
 
 export interface ICustomer {
@@ -44,6 +44,7 @@ export interface IAccountLink {
   lastMenuId?: number;
 };
 
+/*
 export interface IDialogStateBase {
   type: 'INITIAL' | 'LOGGING_IN' | 'LOGGED_IN' | 'GETTING_CONCISE' | 'GETTING_COMPARE' | 'GETTING_CURRENCY' | 'GETTING_SETTINGS';
   lastUpdated: number;
@@ -88,6 +89,7 @@ export type DialogState = IDialogStateInitial
   | IDialogStateGettingConcise
   | IDialogStateGettingCompare
   | IDialogStateGettingCurrency;
+*/
 
 export interface IAccDeds {
  [id: string]: IAccDed
@@ -153,6 +155,7 @@ export interface IPaySlipItem {
  * этот код и заменить на импорт пакета
  */
 
+// TODO: осторожно! у нас принято by для беларускай мовы, но в телеграме используется код be
 export type Lang = 'ru' | 'by' | 'en';
 
 export interface ITName {
@@ -164,8 +167,10 @@ export type LName = {
   [lang in Lang]?: ITName;
 };
 
+/*
 export const monthList: LName[] = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
   .map( name => ({ ru: { name }}) );
+*/
 
 export type ICustomers = IData<Omit<ICustomer, 'id'>>
 export type IEmploeeByCustomer = IData<Omit<IEmployee, 'id'>>

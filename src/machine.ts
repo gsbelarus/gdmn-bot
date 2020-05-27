@@ -1,15 +1,21 @@
 import { MachineConfig, assign, StateMachine } from "xstate";
-import { IUpdate, Platform } from "./types";
+import { Platform } from "./types";
+import { Semaphore } from "./semaphore";
+
+interface IMachineContextBase {
+  platform?: Platform;
+  chatId?: string;
+  semaphore?: Semaphore;
+}
 
 interface ISelectedDate {
   year: number;
   month: number;
 };
 
-export interface ICalendarMachineContext {
+export interface ICalendarMachineContext extends IMachineContextBase {
   selectedDate: ISelectedDate;
   canceled: boolean;
-  update: IUpdate | undefined;
   dateKind: 'PERIOD_1_DB' | 'PERIOD_1_DE' | 'PERIOD_2_DB';
 };
 
@@ -18,9 +24,7 @@ type SelectMonthEvent     = { type: 'SELECT_MONTH';   month: number; };
 type CancelCalendarEvent  = { type: 'CANCEL_CALENDAR' };
 type RestoreEvent         = { type: 'RESTORE' };
 
-type _CalendarMachineEvent = ChangeYearEvent | SelectMonthEvent | CancelCalendarEvent | RestoreEvent;
-
-export type CalendarMachineEvent = _CalendarMachineEvent & { update: IUpdate };
+export type CalendarMachineEvent = ChangeYearEvent | SelectMonthEvent | CancelCalendarEvent | RestoreEvent;
 
 export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, CalendarMachineEvent> = {
   id: 'calendarMachine',
@@ -38,7 +42,7 @@ export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, 
       ]
     },
     SELECT_MONTH: {
-      target: 'finished',
+      target: 'showSelectedDate',
       actions: assign({
         selectedDate: ({ selectedDate }, { month }: SelectMonthEvent) => ({
           ...selectedDate, month
@@ -54,38 +58,38 @@ export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, 
     showCalendar: {
       entry: 'showCalendar'
     },
+    showSelectedDate: {
+      on: { '': 'finished' },
+      entry: 'showSelectedDate'
+    },
     finished: {
       type: 'final',
-      data: context => context
+      data: context => context,
     }
   }
 };
 
-export interface IBotMachineContext {
-  platform: Platform | undefined;
+export interface IBotMachineContext extends IMachineContextBase {
   companyId?: string;
   employeeId?: string;
   dateBegin: ISelectedDate;
   dateEnd: ISelectedDate;
-  update: IUpdate | undefined;
 };
 
-export type StartEvent        = { type: 'START' };
+export type StartEvent        = { type: 'START' } & Required<IMachineContextBase>;
+export type MainMenuEvent     = { type: 'MAIN_MENU' } & Required<IMachineContextBase>;
 export type NextEvent         = { type: 'NEXT' };
 export type EnterTextEvent    = { type: 'ENTER_TEXT';    text: string; };
 export type MenuCommandEvent  = { type: 'MENU_COMMAND';  command: string; };
 export type DateSelectedEvent = { type: 'DATE_SELECTED'; year: number; month: number; };
-export type MainMenuEvent     = { type: 'MAIN_MENU' };
 
-type _BotMachineEvent = CalendarMachineEvent
+export type BotMachineEvent = CalendarMachineEvent
   | StartEvent
   | NextEvent
   | EnterTextEvent
   | MenuCommandEvent
   | MainMenuEvent
   | DateSelectedEvent;
-
-export type BotMachineEvent = _BotMachineEvent & { update?: IUpdate };
 
 export function isEnterTextEvent(event: BotMachineEvent): event is EnterTextEvent {
   return event.type === 'ENTER_TEXT' && typeof event.text === 'string';
@@ -96,21 +100,27 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
     id: 'botMachine',
     initial: 'init',
     context: {
-      platform: undefined,
       dateBegin: { year: 2020, month: 0 },
       dateEnd: { year: 2020, month: 11 },
-      update: undefined
     },
     states: {
       init: {
         on: {
           START: {
             target: 'registerCompany',
-            actions: assign({ platform: (_, { update }) => update?.platform })
+            actions: assign({
+              platform: (_, { platform }: StartEvent) => platform,
+              chatId: (_, { chatId }: StartEvent) => chatId,
+              semaphore: (_, { semaphore }: StartEvent) => semaphore
+            })
           },
           MAIN_MENU: {
             target: 'mainMenu',
-            actions: assign({ platform: (_, { update }) => update?.platform })
+            actions: assign({
+              platform: (_, { platform }: MainMenuEvent) => platform,
+              chatId: (_, { chatId }: MainMenuEvent) => chatId,
+              semaphore: (_, { semaphore }: MainMenuEvent) => semaphore
+            })
           }
         }
       },
@@ -165,6 +175,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             {
               cond: (_, { command }: MenuCommandEvent) => command === 'payslipForPeriod',
               target: 'payslipForPeriod'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === 'logout',
+              target: 'logout'
             }
           ]
         },
@@ -180,20 +194,25 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
         },
         entry: 'showPayslip'
       },
+      logout: {
+        type: 'final',
+        entry: 'sayGoodbye'
+      },
       payslipForPeriod: {
         initial: 'enterDateBegin',
-        entry: assign({ update: (_, event: BotMachineEvent) => event.update }),
         states: {
           enterDateBegin: {
             invoke: {
               id: 'calendarMachine',
               src: calendarMachine,
               autoForward: true,
-              data: (ctx: IBotMachineContext, event: BotMachineEvent) => ({
+              data: (ctx: IBotMachineContext) => ({
                 selectedDate: ctx.dateBegin,
                 canceled: false,
-                update: event.update ?? ctx.update,
-                dateKind: 'PERIOD_1_DB'
+                dateKind: 'PERIOD_1_DB',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
               }),
               onDone: [
                 {
@@ -212,11 +231,13 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
               id: 'calendarMachine',
               src: calendarMachine,
               autoForward: true,
-              data: (ctx: IBotMachineContext, event: BotMachineEvent) => ({
+              data: (ctx: IBotMachineContext) => ({
                 selectedDate: ctx.dateBegin,
                 canceled: false,
-                update: event.update ?? ctx.update,
-                dateKind: 'PERIOD_1_DE'
+                dateKind: 'PERIOD_1_DE',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
               }),
               onDone: [
                 {

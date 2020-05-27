@@ -51,7 +51,7 @@ export const keyboardCalendar = (lng: Lang, year: number): Menu => {
     .concat([[
       { type: 'BUTTON', caption: ' < ', command: '{ "type": "CHANGE_YEAR", "delta": -1 }' },
       { type: 'BUTTON', caption: `${year}`, command: 'noop' },
-      { type: 'BUTTON', caption: ' > ', command: '{ "type": "CHANGE_YEAR", "delta": +1 }' }
+      { type: 'BUTTON', caption: ' > ', command: '{ "type": "CHANGE_YEAR", "delta": 1 }' }
     ]])
     .concat([[{ type: 'BUTTON', caption: 'Меню', command: '{ "type": "CANCEL_CALENDAR" }' }]]);
 };

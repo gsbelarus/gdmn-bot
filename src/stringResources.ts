@@ -40,6 +40,21 @@ const stringResources = {
     ru: 'Здесь будет расчетный листок...',
     be: null
   },
+  payslipForPeriod: {
+    en: null,
+    ru: 'Здесь будет расчетный листок за период...',
+    be: null
+  },
+  sayGoodbye: {
+    en: null,
+    ru: 'До свидания! Спасибо, что использовали наш чат-бот.',
+    be: null
+  },
+  showSelectedDate: {
+    en: null,
+    ru: 'Выбрана дата...',
+    be: null
+  },
   shortMonth0: {
     en: 'jan',
     ru: 'янв',
