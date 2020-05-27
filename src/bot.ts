@@ -4,7 +4,7 @@ import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
-import { getLocString, StringResource } from "./stringResources";
+import { getLocString, StringResource, str2Language, Language } from "./stringResources";
 import path from 'path';
 import { testNormalizeStr, testIdentStr } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar } from "./menu";
@@ -17,6 +17,7 @@ import { Semaphore } from "./semaphore";
 export class Bot {
   private _telegramAccountLink: FileDB<IAccountLink>;
   private _viberAccountLink: FileDB<IAccountLink>;
+  private _accountLanguage: { [id: string]: Language } = {};
   private _customers: FileDB<Omit<ICustomer, 'id'>>;
   private _telegram: Telegraf<Context>;
   private _service: { [id: string]: Interpreter<IBotMachineContext, any, BotMachineEvent> } = {};
@@ -42,17 +43,19 @@ export class Bot {
 
       if (platform === 'TELEGRAM') {
         const accountLink = this._telegramAccountLink.read(chatId);
+        const language = this._accountLanguage[this.getUniqId(platform, chatId)];
 
         const keyboard = menu && Markup.inlineKeyboard(
           menu.map(r => r.map(
             c => c.type === 'BUTTON'
-              ? Markup.callbackButton(c.caption, c.command) as any
-              : Markup.urlButton(c.caption, c.url)
+              ? Markup.callbackButton(getLocString(c.caption, language), c.command) as any
+              : c.type === 'LINK'
+              ? Markup.urlButton(getLocString(c.caption, language), c.url)
+              : Markup.callbackButton(c.label, 'noop') as any
           ))
         );
 
-        // TODO: язык!
-        const text = s && getLocString(s);
+        const text = s && getLocString(s, language);
 
         await semaphore.acquire();
         try {
@@ -116,9 +119,8 @@ export class Bot {
         actions: {
           showSelectedDate: reply('showSelectedDate'),
           showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
-            ? reply(undefined, keyboardCalendar('ru', selectedDate.year))({ platform, chatId, semaphore })
-            : reply(dateKind === 'PERIOD_1_DB' ? 'selectDB' : 'selectDE', keyboardCalendar('ru', selectedDate.year))({ platform, chatId, semaphore })
-            // FIXME: язык прописан!
+            ? reply(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
+            : reply(dateKind === 'PERIOD_1_DB' ? 'selectDB' : 'selectDE', keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
         }
       }
     );
@@ -128,7 +130,7 @@ export class Bot {
         actions: {
           askCompanyName: reply('askCompanyName'),
           unknownCompanyName: reply('unknownCompanyName'),
-          assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ companyId: this._findCompany }),
+          assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
           assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
           askPersonalNumber: reply('askPersonalNumber'),
           showMainMenu: reply('mainMenuCaption', keyboardMenu),
@@ -139,7 +141,7 @@ export class Bot {
             if (platform && chatId) {
               const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
               accountLinkDB.delete(chatId);
-              delete this._service[this.getServiceId(platform, chatId)];
+              delete this._service[this.getUniqId(platform, chatId)];
             }
           }
         },
@@ -166,7 +168,8 @@ export class Bot {
             platform: 'TELEGRAM',
             chatId: ctx.chat.id.toString(),
             type: 'COMMAND',
-            body: '/start'
+            body: '/start',
+            language: str2Language(ctx.from?.language_code)
           });
         }
       }
@@ -184,7 +187,8 @@ export class Bot {
             platform: 'TELEGRAM',
             chatId: ctx.chat.id.toString(),
             type: 'MESSAGE',
-            body: ctx.message.text
+            body: ctx.message.text,
+            language: str2Language(ctx.from?.language_code)
           });
         }
       }
@@ -202,7 +206,8 @@ export class Bot {
             platform: 'TELEGRAM',
             chatId: ctx.chat.id.toString(),
             type: 'ACTION',
-            body: ctx.callbackQuery.data
+            body: ctx.callbackQuery.data,
+            language: str2Language(ctx.from?.language_code)
           });
         }
       }
@@ -221,7 +226,7 @@ export class Bot {
     return undefined;
   }
 
-  private _findEmployee = ({ companyId }: IBotMachineContext, event: BotMachineEvent) => {
+  private _findEmployee = ({ customerId: companyId }: IBotMachineContext, event: BotMachineEvent) => {
     if (isEnterTextEvent(event) && companyId) {
       let employees = this._employees[companyId];
 
@@ -248,7 +253,13 @@ export class Bot {
     this._telegram.launch();
   }
 
-  getServiceId(platform: Platform, chatId: string) {
+  /**
+   * Прибавляет к идентификатору чата идентификатор платформы.
+   * На всякий случай, чтобы не пересеклись идентификаторы из разных мессенджеров.
+   * @param platform
+   * @param chatId
+   */
+  getUniqId(platform: Platform, chatId: string) {
     return chatId + (platform === 'TELEGRAM' ? 't' : 'v');
   }
 
@@ -257,7 +268,9 @@ export class Bot {
     this._viberAccountLink.flush();
   }
 
-  createService(platform: Platform, chatId: string) {
+  createService(inPlatform: Platform, inChatId: string) {
+    const uniqId = this.getUniqId(inPlatform, inChatId);
+    const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
     const service = interpret(this._machine)
       .onTransition( (state, { type }) => {
         console.log(`State: ${state.toStrings().join('->')}, Event: ${type}`);
@@ -269,32 +282,31 @@ export class Bot {
 
         // при изменении состояния сохраним его в базе, чтобы
         // потом вернуться к состоянию после перезагрузки машины
-        const { companyId, employeeId, platform, chatId, semaphore, ...rest } = state.context;
+        const language = this._accountLanguage[uniqId];
+        const accountLink = accountLinkDB.read(inChatId);
+        const { customerId, employeeId, platform, chatId, semaphore, ...rest } = state.context;
 
-        if (platform && chatId) {
-          const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-          const accountLink = accountLinkDB.read(chatId);
-
-          if (!accountLink) {
-            if (companyId && employeeId) {
-              accountLinkDB.write(chatId, {
-                customerId: companyId,
-                employeeId,
-                state: state.value,
-                context: rest
-              });
-            }
-          } else {
-            accountLinkDB.write(chatId, {
-              ...accountLink,
-              state: state.value,
+        if (!accountLink) {
+          if (customerId && employeeId) {
+            accountLinkDB.write(inChatId, {
+              customerId,
+              employeeId,
+              language,
+              state: state.value instanceof Object ? { ...state.value } : state.value,
               context: rest
             });
           }
+        } else {
+          accountLinkDB.write(inChatId, {
+            ...accountLink,
+            language,
+            state: state.value instanceof Object ? { ...state.value } : state.value,
+            context: rest
+          });
         }
-      } )
+      })
       .start();
-    this._service[this.getServiceId(platform, chatId)] = service;
+    this._service[uniqId] = service;
     return service;
   }
 
@@ -304,13 +316,35 @@ export class Bot {
    * @param update IUpdate
    */
   onUpdate(update: IUpdate) {
-    const { platform, chatId, type, body } = update;
+    const { platform, chatId, type, body, language } = update;
     const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+    const uniqId = this.getUniqId(platform, chatId);
+    const service = this._service[uniqId];
 
-    const service = this._service[this.getServiceId(platform, chatId)];
+    if (this._accountLanguage[uniqId] !== language) {
+      this._accountLanguage[uniqId] = language;
+    }
 
     if (body === '/start' || !service) {
-      this.createService(platform, chatId).send({ type: accountLinkDB.has(chatId) ? 'MAIN_MENU' : 'START', platform, chatId, semaphore: new Semaphore() });
+      const accountLink = accountLinkDB.read(chatId);
+      if (accountLink) {
+        const { customerId, employeeId, } = accountLink;
+        this.createService(platform, chatId).send({
+          type: 'MAIN_MENU',
+          platform,
+          chatId,
+          customerId,
+          employeeId,
+          semaphore: new Semaphore()
+        });
+      } else {
+        this.createService(platform, chatId).send({
+          type: 'START',
+          platform,
+          chatId,
+          semaphore: new Semaphore()
+        });
+      }
     } else {
       switch (type) {
         case 'MESSAGE':

@@ -121,12 +121,6 @@ const flushData = () => {
     ec.flush();
   }
 
-  // FIXME: переименовать finalize в flush
-  /*
-  telegram.finalize();
-  viber.finalize();
-  */
-
   bot.finalize();
 };
 

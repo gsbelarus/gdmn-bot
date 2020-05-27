@@ -70,14 +70,14 @@ export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, 
 };
 
 export interface IBotMachineContext extends IMachineContextBase {
-  companyId?: string;
+  customerId?: string;
   employeeId?: string;
   dateBegin: ISelectedDate;
   dateEnd: ISelectedDate;
 };
 
 export type StartEvent        = { type: 'START' } & Required<IMachineContextBase>;
-export type MainMenuEvent     = { type: 'MAIN_MENU' } & Required<IMachineContextBase>;
+export type MainMenuEvent     = { type: 'MAIN_MENU' } & Required<IMachineContextBase> & { customerId: string; employeeId: string; };
 export type NextEvent         = { type: 'NEXT' };
 export type EnterTextEvent    = { type: 'ENTER_TEXT';    text: string; };
 export type MenuCommandEvent  = { type: 'MENU_COMMAND';  command: string; };
@@ -100,8 +100,8 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
     id: 'botMachine',
     initial: 'init',
     context: {
-      dateBegin: { year: 2020, month: 0 },
-      dateEnd: { year: 2020, month: 11 },
+      dateBegin: { year: new Date().getFullYear(), month: 0 },
+      dateEnd: { year: new Date().getFullYear(), month: 11 },
     },
     states: {
       init: {
@@ -119,6 +119,8 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             actions: assign({
               platform: (_, { platform }: MainMenuEvent) => platform,
               chatId: (_, { chatId }: MainMenuEvent) => chatId,
+              customerId: (_, { customerId }: MainMenuEvent) => customerId,
+              employeeId: (_, { employeeId }: MainMenuEvent) => employeeId,
               semaphore: (_, { semaphore }: MainMenuEvent) => semaphore
             })
           }

@@ -1,40 +1,45 @@
-import { Lang, StringResource, getLocString } from "./stringResources";
+import { StringResource } from "./stringResources";
 
 export interface IMenuButton {
   type: 'BUTTON';
-  caption: string;
+  caption: StringResource;
   command: string;
+};
+
+export interface IMenuStatic {
+  type: 'STATIC';
+  label: string;
 };
 
 export interface IMenuLink {
   type: 'LINK';
-  caption: string;
+  caption: StringResource;
   url: string;
 };
 
-export type MenuItem = IMenuButton | IMenuLink;
+export type MenuItem = IMenuButton | IMenuLink | IMenuStatic;
 
 export type Menu = MenuItem[][];
 
 export const keyboardMenu: Menu = [
   [
-    { type: 'BUTTON', caption: '💰 Расчетный листок', command: 'payslip' },
-    { type: 'BUTTON', caption: '💰 Подробный листок', command: 'detailPayslip' }
+    { type: 'BUTTON', caption: 'menuPayslip', command: 'payslip' },
+    { type: 'BUTTON', caption: 'menuDetailedPayslip', command: 'detailPayslip' }
   ],
   [
-    { type: 'BUTTON', caption: '💰 Листок за период', command: 'payslipForPeriod' },
-    { type: 'BUTTON', caption: '💰 Сравнить..', command: 'comparePayslip' }
+    { type: 'BUTTON', caption: 'menuPayslipForPeriod', command: 'payslipForPeriod' },
+    { type: 'BUTTON', caption: 'menuComparePayslip', command: 'comparePayslip' }
   ],
   [
-    { type: 'BUTTON', caption: '🔧 Параметры', command: 'settings' },
-    { type: 'BUTTON', caption: '🚪 Выйти', command: 'logout' }
+    { type: 'BUTTON', caption: 'menuSettings', command: 'settings' },
+    { type: 'BUTTON', caption: 'menuLogout', command: 'logout' }
   ],
   [
-    { type: 'LINK', caption: '❓', url: 'http://gsbelarus.com' }
+    { type: 'LINK', caption: 'menuHelp', url: 'http://gsbelarus.com' }
   ]
 ];
 
-export const keyboardCalendar = (lng: Lang, year: number): Menu => {
+export const keyboardCalendar = (year: number): Menu => {
   const mm = [
     [0, 1, 2, 3],
     [4, 5, 6, 7],
@@ -44,14 +49,14 @@ export const keyboardCalendar = (lng: Lang, year: number): Menu => {
   return mm.map( mr => mr.map( m => (
     {
       type: 'BUTTON',
-      caption: getLocString(`shortMonth${m}` as StringResource, lng),
+      caption: `shortMonth${m}` as StringResource,
       command: `{ "type": "SELECT_MONTH", "month": ${m} }`
-    } as IMenuButton
+    } as MenuItem
   )))
     .concat([[
-      { type: 'BUTTON', caption: ' < ', command: '{ "type": "CHANGE_YEAR", "delta": -1 }' },
-      { type: 'BUTTON', caption: `${year}`, command: 'noop' },
-      { type: 'BUTTON', caption: ' > ', command: '{ "type": "CHANGE_YEAR", "delta": 1 }' }
+      { type: 'BUTTON', caption: 'btnPrevYear', command: '{ "type": "CHANGE_YEAR", "delta": -1 }' },
+      { type: 'STATIC', label: `${year}` },
+      { type: 'BUTTON', caption: 'btnNextYear', command: '{ "type": "CHANGE_YEAR", "delta": 1 }' }
     ]])
-    .concat([[{ type: 'BUTTON', caption: 'Меню', command: '{ "type": "CANCEL_CALENDAR" }' }]]);
+    .concat([[{ type: 'BUTTON', caption: 'btnBackToMenu', command: '{ "type": "CANCEL_CALENDAR" }' }]]);
 };

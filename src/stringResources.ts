@@ -125,12 +125,71 @@ const stringResources = {
     ru: 'Выберите дату окончания периода.',
     be: null
   },
+  menuPayslip: {
+    en: null,
+    ru: '💰 Расчетный листок',
+    be: null
+  },
+  menuDetailedPayslip: {
+    en: null,
+    ru: '💰 Подробный листок',
+    be: null
+  },
+  menuPayslipForPeriod: {
+    en: null,
+    ru: '💰 Листок за период',
+    be: null
+  },
+  menuComparePayslip: {
+    en: null,
+    ru: '💰 Сравнить...',
+    be: null
+  },
+  menuSettings: {
+    en: null,
+    ru: '🔧 Параметры',
+    be: null
+  },
+  menuLogout: {
+    en: null,
+    ru: '🚪 Выйти',
+    be: null
+  },
+  menuHelp: {
+    en: null,
+    ru: '❓',
+    be: null
+  },
+  btnPrevYear: {
+    en: null,
+    ru: ' < ',
+    be: null
+  },
+  btnNextYear: {
+    en: null,
+    ru: ' > ',
+    be: null
+  },
+  btnBackToMenu: {
+    en: null,
+    ru: 'Меню',
+    be: null
+  },
 };
 
-export type Lang = keyof ILocString;
+export type Language = keyof ILocString;
 export type StringResource = keyof typeof stringResources;
 
-export const getLocString = (id: StringResource, lang?: Lang) => stringResources[id][lang ?? 'ru']
+export const getLocString = (id: StringResource, lang?: Language) => stringResources[id][lang ?? 'ru']
   ?? stringResources[id]['be']
   ?? stringResources[id]['en']
   ?? stringResources[id]['ru'];
+
+export const str2Language = (s?: string): Language => {
+  switch (s) {
+    case 'be': return 'be';
+    case 'en': return 'en';
+  default:
+    return 'ru';
+  }
+};
