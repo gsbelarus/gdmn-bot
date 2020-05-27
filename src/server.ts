@@ -18,25 +18,6 @@ import { Bot } from "./bot";
 const log = new Logger(config.logger);
 
 /**
- * Port number our HTTP server is accessible at.
- */
-const HTTP_PORT = 3000;
-
-/**
- * Port number our HTTPS server is accessible at.
- */
-const HTTPS_PORT = 8084; //443
-
-/**
- * Host name for Viber callback.
- */
-const ZAROBAK_VIBER_CALLBACK_HOST = process.env.ZAROBAK_VIBER_CALLBACK_HOST;
-
-if (typeof ZAROBAK_VIBER_CALLBACK_HOST !== 'string' || !ZAROBAK_VIBER_CALLBACK_HOST) {
-  throw new Error('ZAROBAK_VIBER_CALLBACK_HOST env variable is not specified.');
-}
-
-/**
  * Подгружаем некоторые справочники.
  */
 
@@ -53,10 +34,8 @@ if (!config.telegram.token) {
   throw new Error('Telegram bot token isn\'t specified.');
 }
 
-const ZAROBAK_VIBER_BOT_TOKEN = process.env.ZAROBAK_VIBER_BOT_TOKEN;
-
-if (typeof ZAROBAK_VIBER_BOT_TOKEN !== 'string' || !ZAROBAK_VIBER_BOT_TOKEN) {
-  throw new Error('ZAROBAK_VIBER_BOT_TOKEN env variable is not specified.');
+if (!config.viber.token) {
+  throw new Error('Viber bot token isn\'t specified.');
 }
 
 /*
@@ -156,7 +135,7 @@ const flushData = () => {
 
 const httpServer = http.createServer(koaCallback);
 
-httpServer.listen(HTTP_PORT, () => log.info(`>>> SERVER: Сервер запущен: http://localhost:${HTTP_PORT}`) );
+httpServer.listen(config.httpPort, () => log.info(`>>> SERVER: Сервер запущен: http://localhost:${config.httpPort}`) );
 
 /**
  * HTTPS сервер с платным сертификатом нам нужен для подключения
@@ -184,9 +163,9 @@ https.createServer({ cert, ca, key },
       koaCallback(req, res);
     }
   }
-).listen(HTTPS_PORT,
+).listen(config.httpsPort,
   async () => {
-    const viberWebhook = `https://${ZAROBAK_VIBER_CALLBACK_HOST}:${HTTPS_PORT}`;
+    const viberWebhook = `https://${config.viber.callbackHost}`;
 
     try {
       /*
