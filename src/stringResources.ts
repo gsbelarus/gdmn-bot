@@ -45,6 +45,11 @@ const stringResources = {
     ru: 'Здесь будет расчетный листок за период...',
     be: null
   },
+  comparePayslip: {
+    en: null,
+    ru: 'Здесь будет сравнение расчетных листков...',
+    be: null
+  },
   sayGoodbye: {
     en: null,
     ru: 'До свидания! Спасибо, что использовали наш чат-бот.',
@@ -123,6 +128,11 @@ const stringResources = {
   selectDE: {
     en: null,
     ru: 'Выберите дату окончания периода.',
+    be: null
+  },
+  selectDB2: {
+    en: null,
+    ru: 'Выберите дату начала второго периода.',
     be: null
   },
   menuPayslip: {

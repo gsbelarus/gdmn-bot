@@ -74,6 +74,7 @@ export interface IBotMachineContext extends IMachineContextBase {
   employeeId?: string;
   dateBegin: ISelectedDate;
   dateEnd: ISelectedDate;
+  dateBegin2: ISelectedDate;
 };
 
 export type StartEvent        = { type: 'START' } & Required<IMachineContextBase>;
@@ -102,6 +103,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
     context: {
       dateBegin: { year: new Date().getFullYear(), month: 0 },
       dateEnd: { year: new Date().getFullYear(), month: 11 },
+      dateBegin2: { year: new Date().getFullYear() - 1, month: 0 },
     },
     states: {
       init: {
@@ -177,6 +179,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             {
               cond: (_, { command }: MenuCommandEvent) => command === 'payslipForPeriod',
               target: 'payslipForPeriod'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === 'comparePayslip',
+              target: 'comparePayslip'
             },
             {
               cond: (_, { command }: MenuCommandEvent) => command === 'logout',
@@ -258,6 +264,90 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             entry: 'showPayslipForPeriod'
           }
         }
+      },
+      comparePayslip: {
+        initial: 'enterDateBegin',
+        states: {
+          enterDateBegin: {
+            invoke: {
+              id: 'calendarMachine',
+              src: calendarMachine,
+              autoForward: true,
+              data: (ctx: IBotMachineContext) => ({
+                selectedDate: ctx.dateBegin,
+                canceled: false,
+                dateKind: 'PERIOD_1_DB',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
+              }),
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  target: 'enterDateEnd',
+                  actions: assign({ dateBegin: (_, event) => event.data.selectedDate })
+                }
+              ]
+            }
+          },
+          enterDateEnd: {
+            invoke: {
+              id: 'calendarMachine',
+              src: calendarMachine,
+              autoForward: true,
+              data: (ctx: IBotMachineContext) => ({
+                selectedDate: ctx.dateBegin,
+                canceled: false,
+                dateKind: 'PERIOD_1_DE',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
+              }),
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  target: 'enterDateBegin2',
+                  actions: assign({ dateEnd: (_, event) => event.data.selectedDate })
+                }
+              ]
+            }
+          },
+          enterDateBegin2: {
+            invoke: {
+              id: 'calendarMachine',
+              src: calendarMachine,
+              autoForward: true,
+              data: (ctx: IBotMachineContext) => ({
+                selectedDate: ctx.dateBegin2,
+                canceled: false,
+                dateKind: 'PERIOD_2_DB',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
+              }),
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  target: 'showComparePayslip',
+                  actions: assign({ dateBegin2: (_, event) => event.data.selectedDate })
+                }
+              ]
+            }
+          },
+          showComparePayslip: {
+            on: { '': '#botMachine.mainMenu' },
+            entry: 'showComparePayslip'
+          }
+        }
       }
-    },
+    }
   });

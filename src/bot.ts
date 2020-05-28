@@ -123,7 +123,12 @@ export class Bot {
           showSelectedDate: reply('showSelectedDate'),
           showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
             ? reply(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
-            : reply(dateKind === 'PERIOD_1_DB' ? 'selectDB' : 'selectDE', keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
+            : reply(dateKind === 'PERIOD_1_DB'
+              ? 'selectDB'
+              : dateKind === 'PERIOD_1_DE'
+              ? 'selectDE'
+              : 'selectDB2', keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore }
+            )
         }
       }
     );
@@ -139,6 +144,7 @@ export class Bot {
           showMainMenu: reply('mainMenuCaption', keyboardMenu),
           showPayslip: reply('payslip'),
           showPayslipForPeriod: reply('payslipForPeriod'),
+          showComparePayslip: reply('comparePayslip'),
           sayGoodbye: reply('sayGoodbye'),
           logout: ({ platform, chatId }) => {
             if (platform && chatId) {
