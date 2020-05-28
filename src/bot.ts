@@ -24,6 +24,8 @@ export class Bot {
   private _calendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
   private _machine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
   private _employees: { [companyId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
+  private _botStarted = new Date();
+  private _callbacksReceived = 0;
 
   constructor(telegramToken: string, telegramRoot: string, viberRoot: string) {
     this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'));
@@ -42,7 +44,6 @@ export class Bot {
       }
 
       if (platform === 'TELEGRAM') {
-        const accountLink = this._telegramAccountLink.read(chatId);
         const language = this._accountLanguage[this.getUniqId(platform, chatId)];
 
         const keyboard = menu && Markup.inlineKeyboard(
@@ -59,12 +60,14 @@ export class Bot {
 
         await semaphore.acquire();
         try {
+          const accountLink = this._telegramAccountLink.read(chatId);
+
           if (!accountLink) {
             await this._telegram.telegram.sendMessage(chatId, text ?? '<<Empty message>>', Extra.markup(keyboard));
             return;
           }
 
-          const { lastMenuId, ...rest } = accountLink;
+          const { lastMenuId } = accountLink;
 
           const editMessageReplyMarkup = async (remove = false) => {
             try {
@@ -82,12 +85,12 @@ export class Bot {
             if (text && keyboard) {
               await editMessageReplyMarkup(true);
               const message = await this._telegram.telegram.sendMessage(chatId, text, Extra.markup(keyboard));
-              this._telegramAccountLink.write(chatId, { ...rest, lastMenuId: message.message_id });
+              this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
             }
             else if (text && !keyboard) {
               await editMessageReplyMarkup(true);
               await this._telegram.telegram.sendMessage(chatId, text);
-              this._telegramAccountLink.write(chatId, rest);
+              this._telegramAccountLink.merge(chatId, {}, ['lastMenuId']);
             }
             else if (!text && keyboard) {
               await editMessageReplyMarkup();
@@ -95,14 +98,14 @@ export class Bot {
           } else {
             if (text && keyboard) {
               const message = await this._telegram.telegram.sendMessage(chatId, text, Extra.markup(keyboard));
-              this._telegramAccountLink.write(chatId, { ...rest, lastMenuId: message.message_id });
+              this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
             }
             else if (text && !keyboard) {
               await this._telegram.telegram.sendMessage(chatId, text);
             }
             else if (!text && keyboard) {
               const message = await this._telegram.telegram.sendMessage(chatId, '<<<Empty message>>>', Extra.markup(keyboard));
-              this._telegramAccountLink.write(chatId, { ...rest, lastMenuId: message.message_id });
+              this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
             }
           }
         } catch (e) {
@@ -155,6 +158,7 @@ export class Bot {
     this._telegram = new Telegraf(telegramToken);
 
     this._telegram.use((ctx, next) => {
+      this._callbacksReceived++;
       console.log(`Telegram Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
       return next?.();
     });
@@ -348,6 +352,22 @@ export class Bot {
     } else {
       switch (type) {
         case 'MESSAGE':
+          if (body === 'diagnostics') {
+            this.finalize();
+            const data = [
+              `Server started: ${this._botStarted}`,
+              `Node version: ${process.versions.node}`,
+              'Memory usage:',
+              JSON.stringify(process.memoryUsage(), undefined, 2),
+              `Services are running: ${Object.values(this._service).length}`,
+              `Callbacks received: ${this._callbacksReceived}`
+            ];
+            if (platform === 'TELEGRAM') {
+              this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
+            }
+            return;
+          }
+
           service.send({ type: 'ENTER_TEXT', text: body });
           break;
 

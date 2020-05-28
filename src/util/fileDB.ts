@@ -107,7 +107,7 @@ export class FileDB<T extends Object> {
     this._modified = true;
   }
 
-  public merge(key: string, data: Partial<T>, omit?: string[]) {
+  public merge(key: string, data: Partial<T>, omit?: (keyof T)[]) {
     const prev = this._load()[key];
     this._data![key] = {...prev, ...data};
     if (omit) {
