@@ -21,7 +21,7 @@ const log = new Logger(config.logger);
  * Подгружаем некоторые справочники.
  */
 
-initCurrencies().then( () => log.info('Currencies have been loaded...') );
+initCurrencies().then( () => log.info(undefined, undefined, 'Currencies have been loaded...') );
 
 /**
  * Создаем объекты наших ботов.
@@ -79,6 +79,8 @@ router.get('/', (ctx, next) => {
 });
 
 router.post('/zarobak/v1/upload_employees', (ctx, next) => {
+  //TODO: после загрузки данных, надо послать сигнал в объект Бот
+  //чтобы скинуть там закэшированные данные
   upload_employees(ctx);
   return next();
 });
@@ -129,7 +131,7 @@ const flushData = () => {
 
 const httpServer = http.createServer(koaCallback);
 
-httpServer.listen(config.httpPort, () => log.info(`>>> SERVER: Сервер запущен: http://localhost:${config.httpPort}`) );
+httpServer.listen(config.httpPort, () => log.info(undefined, undefined, `>>> SERVER: Сервер запущен: http://localhost:${config.httpPort}`) );
 
 /**
  * HTTPS сервер с платным сертификатом нам нужен для подключения
@@ -167,7 +169,7 @@ https.createServer({ cert, ca, key },
       log.info(`Viber webhook set at ${viberWebhook}`)
       */
     } catch(e) {
-      log.error(`Error setting Viber webhook at ${viberWebhook}: ${e}`);
+      log.error(undefined, undefined, `Error setting Viber webhook at ${viberWebhook}: ${e}`);
     }
 
     // раз в час пишем на диск все несохраненные данные
@@ -184,7 +186,7 @@ bot.launch();
 process
   .on('exit', async (code) => {
     flushData();
-    await log.info(`Process exit event with code: ${code}`);
+    await log.info(undefined, undefined, `Process exit event with code: ${code}`);
     await log.shutdown();
   })
   .on('SIGINT', () => process.exit())

@@ -185,6 +185,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
               target: 'comparePayslip'
             },
             {
+              cond: (_, { command }: MenuCommandEvent) => command === 'settings',
+              target: 'settings'
+            },
+            {
               cond: (_, { command }: MenuCommandEvent) => command === 'logout',
               target: 'logout'
             }
@@ -201,6 +205,12 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           '': 'mainMenu'
         },
         entry: 'showPayslip'
+      },
+      settings: {
+        on: {
+          '': 'mainMenu'
+        },
+        entry: 'showSettings'
       },
       logout: {
         type: 'final',

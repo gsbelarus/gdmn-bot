@@ -32,7 +32,7 @@ export class Bot {
     this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'));
     this._customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'));
 
-    const reply = (s: StringResource | undefined, menu?: Menu) => async ({ platform, chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+    const reply = (s: StringResource | undefined, t?: string, menu?: Menu) => async ({ platform, chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
         console.log('No semaphore');
         return;
@@ -56,7 +56,7 @@ export class Bot {
           ))
         );
 
-        const text = s && getLocString(s, language);
+        const text = t ?? (s && getLocString(s, language));
 
         await semaphore.acquire();
         try {
@@ -122,12 +122,12 @@ export class Bot {
         actions: {
           showSelectedDate: reply('showSelectedDate'),
           showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
-            ? reply(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
+            ? reply(undefined, undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
             : reply(dateKind === 'PERIOD_1_DB'
               ? 'selectDB'
               : dateKind === 'PERIOD_1_DE'
               ? 'selectDE'
-              : 'selectDB2', keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore }
+              : 'selectDB2', undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore }
             )
         }
       }
@@ -141,10 +141,28 @@ export class Bot {
           assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
           assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
           askPersonalNumber: reply('askPersonalNumber'),
-          showMainMenu: reply('mainMenuCaption', keyboardMenu),
+          showMainMenu: reply('mainMenuCaption', undefined, keyboardMenu),
           showPayslip: reply('payslip'),
           showPayslipForPeriod: reply('payslipForPeriod'),
           showComparePayslip: reply('comparePayslip'),
+          showSettings: ({ platform, chatId, semaphore }) => {
+            if (!platform) {
+              throw new Error('No platform set');
+            }
+
+            if (!chatId) {
+              throw new Error('No chatId');
+            }
+
+            const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+            const accountLink = accountLinkDB.read(chatId);
+
+            if (!accountLink) {
+              throw new Error('No account link');
+            }
+
+            reply(undefined, 'Показываем текущие настройки...')({ platform, chatId, semaphore });
+          },
           sayGoodbye: reply('sayGoodbye'),
           logout: ({ platform, chatId }) => {
             if (platform && chatId) {
