@@ -133,6 +133,27 @@ export class Bot {
       }
     );
 
+    const checkAccountLink = (ctx: IBotMachineContext) => {
+      const { platform, chatId, semaphore } = ctx;
+
+      if (!platform) {
+        throw new Error('No platform set');
+      }
+
+      if (!chatId) {
+        throw new Error('No chatId');
+      }
+
+      const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+      const accountLink = accountLinkDB.read(chatId);
+
+      if (!accountLink) {
+        throw new Error('No account link');
+      }
+
+      return { platform, chatId, semaphore, accountLink };
+    };
+
     this._machine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._calendarMachine),
       {
         actions: {
@@ -145,23 +166,9 @@ export class Bot {
           showPayslip: reply('payslip'),
           showPayslipForPeriod: reply('payslipForPeriod'),
           showComparePayslip: reply('comparePayslip'),
-          showSettings: ({ platform, chatId, semaphore }) => {
-            if (!platform) {
-              throw new Error('No platform set');
-            }
-
-            if (!chatId) {
-              throw new Error('No chatId');
-            }
-
-            const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-            const accountLink = accountLinkDB.read(chatId);
-
-            if (!accountLink) {
-              throw new Error('No account link');
-            }
-
-            reply(undefined, 'Показываем текущие настройки...')({ platform, chatId, semaphore });
+          showSettings: ctx => {
+            const { accountLink, ...rest } = checkAccountLink(ctx);
+            reply(undefined, 'Показываем текущие настройки...')(rest);
           },
           sayGoodbye: reply('sayGoodbye'),
           logout: ({ platform, chatId }) => {
