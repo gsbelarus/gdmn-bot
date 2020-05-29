@@ -70,13 +70,15 @@ export interface IAccDeds {
  [id: string]: IAccDed
 };
 
+type AccDedType = 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' | 'PRIVILAGE' | 'INCOME_TAX' | 'PENSION_TAX' | 'TRADE_UNION_TAX' | 'TAX' | 'REFERENCE' | 'SALDO';
+
 /**
  * Информация о начислении/удержании.
  * Наименование и тип.
  */
 export interface IAccDed {
   name: LName;
-  type: 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' | 'PRIVILAGE' | 'INCOME_TAX' | 'PENSION_TAX' | 'TRADE_UNION_TAX' | 'TAX' | 'REFERENCE';
+  type: AccDedType;
 };
 
 export interface IPosition {
@@ -100,9 +102,15 @@ export interface IHourRate {
   d: Date;
 };
 
+export interface IDet {
+  days?: number,
+  hours?: number,
+  incMonth?: number,
+  incYear?: number
+}
+
 export interface IPaySlip {
   emplId: string;
-  hiringDate: Date;
   dept: IDepartment[];
   pos: IPosition[];
   salary: ISalary[];
@@ -112,15 +120,9 @@ export interface IPaySlip {
     db: Date;
     de: Date;
     s: number;
-    det?: any;
+    det?: IDet;
   }[];
   dismissalDate?: Date;
-};
-
-export interface IPaySlipItem {
-  name: string;
-  type: 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' | 'PRIVILAGE' | 'INCOME_TAX' | 'PENSION_TAX' | 'TRADE_UNION_TAX' | 'TAX' | 'REFERENCE';
-  s: number;
 };
 
  export type TypePaySlip = 'DETAIL' | 'CONCISE' | 'COMPARE'
@@ -150,4 +152,27 @@ export type IEmploeeByCustomer = IData<Omit<IEmployee, 'id'>>
 export const addName = {
   'days': { ru: { name: 'дн' }},
   'hours': { ru: { name: 'ч' }}
+}
+
+export interface IPaySlipItem {
+  name: LName;
+  s: number;
+  type?: AccDedType;
+  det?: IDet;
+};
+
+export interface IPaySlipData {
+  //emplName: string;
+  department: LName;
+  position: LName;
+  saldo?: IPaySlipItem,
+  tax?: IPaySlipItem[],
+  advance?: IPaySlipItem[],
+  deduction?: IPaySlipItem[],
+  accrual?: IPaySlipItem[],
+  tax_deduction?: IPaySlipItem[],
+  privilage?: IPaySlipItem[],
+  salary?: number;
+  hourrate?: number;
+  rate?: number;
 }

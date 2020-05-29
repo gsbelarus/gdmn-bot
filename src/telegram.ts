@@ -169,7 +169,7 @@ export class TelegramBot extends Bot {
     );
   }
 
-  paySlipView(template: Template, rate: number) {
+  paySlipView1(template: Template, rate: number) {
     const lenS = 10;
     const len = 19;
     const res = template.filter( t => t[0] !== '' && (t[1] !== 0 || t[1] === undefined )).map(t =>
@@ -178,6 +178,21 @@ export class TelegramBot extends Bot {
         : t[2] !== undefined
           ? `${t[0].toString().padEnd(len)} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(getSumByRate(t[1], rate)).padStart(lenS)}`
           : `${t[0].toString().padEnd(len)} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1]).padStart(lenS)}`
+    ).join('\n');
+    return (
+      `${'`'}${'`'}${'`'}ini
+${res}
+${'`'}${'`'}${'`'}`
+    );
+  }
+
+  paySlipView(template: Template) {
+    const lenS = 10;
+    const len = 19;
+    const res = template.filter( t => t[0] !== '' && (t[1] !== 0 || t[1] === undefined )).map(t =>
+      t[1] === undefined
+        ? `${t[0] === '=' ? '==============================' : t[0]}`
+        : `${t[0].toString().padEnd(len)} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1]).padStart(lenS)}`
     ).join('\n');
     return (
       `${'`'}${'`'}${'`'}ini

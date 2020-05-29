@@ -256,12 +256,10 @@ export class Viber extends Bot {
     }
   }
 
-  paySlipView(template: Template, rate: number) {
+  paySlipView(template: Template) {
     const res = template.filter( t => t[0] !== '' && (t[1] !== 0 || t[1] === undefined )).map( t =>
       t[1] == undefined
         ? `${t[0] === '=' ? '===========================' : t[0]}`
-        : t[2] !== undefined
-          ? `${t[0]} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(getSumByRate(t[1], rate))}`
           : `${t[0]} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1])}`
     ).join('\n');
     return res;
