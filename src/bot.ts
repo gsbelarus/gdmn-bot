@@ -4,7 +4,7 @@ import {
 } from "./types";
 import { FileDB, IData } from "./util/fileDB";
 import path from 'path';
-import { normalizeStr, getLName, getSumByRate, date2str, replaceIdentLetters } from "./util/utils";
+import { normalizeStr, getLName, getSumByRate, date2str, replaceIdentLetters, funcDate } from "./util/utils";
 import { getCurrencyNameById, getCurrencyAbbreviationById, getCurrRate } from "./currency";
 
 export const MINDATE = new Date(2018, 0, 1);
@@ -468,15 +468,17 @@ export class Bot {
 
   /**
   * Разделяем длинную строку на несколько
-   * @param prevStr
-   * @param name
-   * @param s
    */
-  getPaySlipString(prevStr: string, name: string, s?: number) {
+  getPaySlipString(t: IPaySlipItem, lng: Lang) {
     return ''
   }
 
-  getPaySlipData(paySlip: IPaySlip, customerId: string, db: Date, de: Date): IPaySlipData | undefined {
+  getPaySlipData(customerId: string, employeeId: string, db: Date, de: Date): IPaySlipData | undefined {
+    let paySlip = this.getPaySlipByUser(customerId, employeeId);
+
+    if (!paySlip) {
+      return undefined;
+    }
     const accDedObj = this.getAccDeds(customerId);
 
     const data: IPaySlipData = {
@@ -487,39 +489,40 @@ export class Bot {
     // Подразделение получаем из массива подразделений dept,
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
     // Аналогично с должностью из массива pos
-    let maxDate: Date = paySlip.dept[0].d;
-    paySlip.dept.forEach( deptItem => {
-      if (maxDate.getTime() < deptItem.d.getTime() && deptItem.d.getTime() <= de.getTime()) {
-        maxDate = deptItem.d;
-        data.department = deptItem.name;
+    //let maxDate: Date = paySlip.dept[0].d;
+    paySlip.dept.reduce((prev, cur) => {
+      if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
+        data.department = cur.name;
+        return cur.d;
       }
-    })
+      return prev;
+    }, paySlip.dept[0].d);
 
-    maxDate = paySlip.pos[0].d;
-    paySlip.pos.forEach( posItem => {
-      if (maxDate.getTime() < posItem.d.getTime() && posItem.d.getTime() <= de.getTime()) {
-        maxDate = posItem.d;
-        data.position = posItem.name;
+    paySlip.pos.reduce((prev, cur) => {
+      if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
+        data.position = cur.name;
+        return cur.d;
       }
-    })
+      return prev;
+    }, paySlip.pos[0].d);
 
-    maxDate = paySlip.salary[0].d;
-    paySlip.salary.forEach( salaryItem => {
-      if (maxDate.getTime() < salaryItem.d.getTime() && salaryItem.d.getTime() <= de.getTime()) {
-        maxDate = salaryItem.d;
-        data.salary = salaryItem.s;
+    paySlip.salary.reduce((prev, cur) => {
+      if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
+        data.salary = cur.s;
+        return cur.d;
       }
-    })
+      return prev;
+    }, paySlip.salary[0].d);
 
     if (paySlip.hourrate) {
-      maxDate = paySlip.hourrate[0].d;
-      paySlip.hourrate?.forEach( hourRateItem => {
-        if (maxDate.getTime() < hourRateItem.d.getTime() && hourRateItem.d.getTime() <= de.getTime()) {
-          maxDate = hourRateItem.d;
-          data.hourrate = hourRateItem.s;
+      paySlip.hourrate.reduce((prev, cur) => {
+        if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
+          data.hourrate = cur.s;
+          return cur.d
         }
-      })
-    }
+        return prev;
+      }, paySlip.hourrate[0].d)
+    };
 
     let isHavingData = false;
     //Цикл по всем записям начислений-удержаний
@@ -652,9 +655,9 @@ export class Bot {
               ['='],
               [`Информация на ${date2str(de)}:`],
               ['Подразделение:'],
-              [this.getPaySlipString('', getLName(data.department, [lng, 'ru']))],
+              //[this.getPaySlipString('', getLName(data.department, [lng, 'ru']))],
               ['Должность:'],
-              [this.getPaySlipString('', getLName(data.position, [lng, 'ru']))],
+              //[this.getPaySlipString('', getLName(data.position, [lng, 'ru']))],
               ['Оклад:', data.salary, true],
               ['ЧТС:', data.hourrate, true]
             ];
@@ -675,12 +678,15 @@ export class Bot {
     const advances = data.advance?.reduce((prev, cur) => prev + cur.s, 0);
     const privilages = data.privilage?.reduce((prev, cur) => prev + cur.s, 0);
 
-    const strAccruals = data.accrual?.reduce((prev, cur) => this.getPaySlipString(prev, getLName(cur.name, [lng, 'ru']), cur.s), '') || ''
-    const strDeductions = data.deduction?.reduce((prev, cur) => this.getPaySlipString(prev, getLName(cur.name, [lng, 'ru']), cur.s), '') || ''
-    const strAdvances = data.advance?.reduce((prev, cur) => this.getPaySlipString(prev, getLName(cur.name, [lng, 'ru']), cur.s), '') || ''
-    const strTaxes = data.tax?.reduce((prev, cur) => this.getPaySlipString(prev, getLName(cur.name, [lng, 'ru']), cur.s), '') || ''
-    const strTaxDeds = data.tax_deduction?.reduce((prev, cur) => this.getPaySlipString(prev, getLName(cur.name, [lng, 'ru']), cur.s), '') || ''
-    const strPrivilages = data.privilage?.reduce((prev, cur) => this.getPaySlipString(prev, getLName(cur.name, [lng, 'ru']), cur.s), '') || ''
+    const strAccruals = data.accrual?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
+    const strDeductions = data.deduction?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
+    const strAdvances = data.advance?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
+
+    //const strTaxes = data.tax?.map( t => `${getLName(t.name)} ${t.s}` ).join('\n');
+
+    const strTaxes = data.tax?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') ?? ''
+    const strTaxDeds = data.tax_deduction?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
+    const strPrivilages = data.privilage?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
 
     return  [
               ['Расчетный листок'],
@@ -715,9 +721,9 @@ export class Bot {
               [privilages ? '=' : ''],
               [`Информация на ${date2str(de)}:`],
               ['Подразделение:'],
-              [this.getPaySlipString('', getLName(data.department, [lng, 'ru']))],
+              //[this.getPaySlipString('', getLName(data.department, [lng, 'ru']))],
               ['Должность:'],
-              [this.getPaySlipString('', getLName(data.position, [lng, 'ru']))],
+              //[this.getPaySlipString('', getLName(data.position, [lng, 'ru']))],
               ['Оклад:', data.salary, true],
               ['ЧТС:', data.hourrate, true]
             ];
@@ -745,7 +751,6 @@ export class Bot {
     const incomeTaxII = dataII.tax?.reduce((prev, cur) => prev + (cur.type === 'INCOME_TAX' ? cur.s : 0), 0) || 0;
     const pensionTaxII = dataII.tax?.reduce((prev, cur) => prev + (cur.type === 'PENSION_TAX' ? cur.s : 0), 0) || 0;
     const tradeUnionTaxII = dataII.tax?.reduce((prev, cur) => prev + (cur.type === 'TRADE_UNION_TAX' ? cur.s : 0), 0) || 0;
-
 
     return  [
               ['Сравнение расчетных листков'],
@@ -789,15 +794,15 @@ export class Bot {
               [taxesI || taxesII ? '=' : ''],
               [`Информация на ${date2str(deI)}:`],
               ['Подразделение:'],
-              [this.getPaySlipString('', getLName(dataI.department, [lng, 'ru']))],
+             // [this.getPaySlipString('', getLName(dataI.department, [lng, 'ru']))],
               ['Должность:'],
-               [this.getPaySlipString('', getLName(dataI.position, [lng, 'ru']))],
+            //   [this.getPaySlipString('', getLName(dataI.position, [lng, 'ru']))],
               ['='],
               [`Информация на ${date2str(deII)}:`],
               ['Подразделение:'],
-              [this.getPaySlipString('', getLName(dataII.department, [lng, 'ru']))],
+             // [this.getPaySlipString('', getLName(dataII.department, [lng, 'ru']))],
               ['Должность:'],
-              [this.getPaySlipString('', getLName(dataII.position, [lng, 'ru']))],
+              //[this.getPaySlipString('', getLName(dataII.position, [lng, 'ru']))],
               ['='],
               [`Оклад на ${date2str(deI)}:`, dataI.salary, true],
               [`Оклад на ${date2str(deII)}:`, dataII.salary, true],
@@ -820,7 +825,7 @@ export class Bot {
       if (!paySlip) {
           //continue;
       } else {
-        let dataI = this.getPaySlipData(paySlip, customerId, db, de);
+        let dataI = this.getPaySlipData(customerId, employeeId, db, de);
         if (!dataI) {
           return ''
         }
@@ -842,7 +847,7 @@ export class Bot {
           }
           case 'COMPARE': {
             if (dbII && deII) {
-              let dataII = this.getPaySlipData(paySlip, customerId, dbII, deII);
+              let dataII = this.getPaySlipData(customerId, employeeId, dbII, deII);
               if (!dataII) {
                 return ''
               }
@@ -863,326 +868,326 @@ export class Bot {
   }
 
 
-  async getPaySlip1(chatId: string, typePaySlip: TypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date): Promise<string> {
-    const link = this._accountLink.read(chatId);
+  // async getPaySlip1(chatId: string, typePaySlip: TypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date): Promise<string> {
+  //   const link = this._accountLink.read(chatId);
 
-    if (link?.customerId && link.employeeId) {
-      const { customerId, employeeId, currencyId } = link;
-      const rate = currencyId && currencyId !== '0' ? await getCurrRate(db, currencyId) : 1;
-      const currencyAbbreviation = currencyId && currencyId !== '0' ? getCurrencyAbbreviationById(currencyId) : 'BYN';
+  //   if (link?.customerId && link.employeeId) {
+  //     const { customerId, employeeId, currencyId } = link;
+  //     const rate = currencyId && currencyId !== '0' ? await getCurrRate(db, currencyId) : 1;
+  //     const currencyAbbreviation = currencyId && currencyId !== '0' ? getCurrencyAbbreviationById(currencyId) : 'BYN';
 
-      if (!rate) {
-        return ('Курс валюты не был загружен')
-      }
+  //     if (!rate) {
+  //       return ('Курс валюты не был загружен')
+  //     }
 
-      const empls = this.getEmployeesByCustomer(customerId);
-      const accDedObj = this.getAccDeds(customerId);
+  //     const empls = this.getEmployeesByCustomer(customerId);
+  //     const accDedObj = this.getAccDeds(customerId);
 
-      let allTaxes = [0, 0];
+  //     let allTaxes = [0, 0];
 
-      const accrual = [0, 0], salary = [0, 0], hourrate =[0, 0], tax = [0, 0], ded = [0, 0], saldo = [0, 0],
-        incomeTax = [0, 0], pensionTax = [0, 0], tradeUnionTax = [0, 0], advance = [0, 0], tax_ded = [0, 0], privilage = [0, 0];
+  //     const accrual = [0, 0], salary = [0, 0], hourrate =[0, 0], tax = [0, 0], ded = [0, 0], saldo = [0, 0],
+  //       incomeTax = [0, 0], pensionTax = [0, 0], tradeUnionTax = [0, 0], advance = [0, 0], tax_ded = [0, 0], privilage = [0, 0];
 
-      // const data = {
-      //   accrual: {
-      //     caption: '',
-      //     values: [0, 0],
-      //     needDblLine: true
-      //   }
-      // };
+  //     // const data = {
+  //     //   accrual: {
+  //     //     caption: '',
+  //     //     values: [0, 0],
+  //     //     needDblLine: true
+  //     //   }
+  //     // };
 
-      let strAccruals = '', strAdvances = '', strDeductions = '', strTaxes = '', strPrivilages = '', strTaxDeds = '';
+  //     let strAccruals = '', strAdvances = '', strDeductions = '', strTaxes = '', strPrivilages = '', strTaxDeds = '';
 
-      let deptName = ['', ''];
-      let posName = ['', ''];
-      const dbMonthName = db.toLocaleDateString(lng, { month: 'long', year: 'numeric' });
-      let isHavingData = false;
+  //     let deptName = ['', ''];
+  //     let posName = ['', ''];
+  //     const dbMonthName = db.toLocaleDateString(lng, { month: 'long', year: 'numeric' });
+  //     let isHavingData = false;
 
-      /** */
+  //     /** */
 
-      /**
-       * Получаем информацию по расчетным листкам за период
-       * @param fromDb - дата начала периода
-       * @param fromDe - дата окончания периода
-       * @param i
-       */
-      const getAccDedsByPeriod = (fromDb: Date, fromDe: Date, i: number) => {
-        let paySlip = this.getPaySlipByUser(customerId, employeeId);
+  //     /**
+  //      * Получаем информацию по расчетным листкам за период
+  //      * @param fromDb - дата начала периода
+  //      * @param fromDe - дата окончания периода
+  //      * @param i
+  //      */
+  //     const getAccDedsByPeriod = (fromDb: Date, fromDe: Date, i: number) => {
+  //       let paySlip = this.getPaySlipByUser(customerId, employeeId);
 
-        if (!paySlip) {
-          //continue;
-        } else {
-          //Подразделение получаем из массива подразделений dept,
-          //как первый элемент с максимальной датой, но меньший даты начала расч. листка
-          //Аналогично с должностью из массива pos
-          const dept = paySlip.dept
-            .filter(deptItem => new Date(deptItem.d) <= fromDe)
-            .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
+  //       if (!paySlip) {
+  //         //continue;
+  //       } else {
+  //         //Подразделение получаем из массива подразделений dept,
+  //         //как первый элемент с максимальной датой, но меньший даты начала расч. листка
+  //         //Аналогично с должностью из массива pos
+  //         const dept = paySlip.dept
+  //           .filter(deptItem => new Date(deptItem.d) <= fromDe)
+  //           .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
 
-          deptName[i] = dept[0] && getLName(dept[0].name, [lng, 'ru']);
+  //         deptName[i] = dept[0] && getLName(dept[0].name, [lng, 'ru']);
 
-          const pos = paySlip.pos
-            .filter(posItem => new Date(posItem.d) <= fromDe)
-            .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
+  //         const pos = paySlip.pos
+  //           .filter(posItem => new Date(posItem.d) <= fromDe)
+  //           .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
 
-          posName[i] = pos[0] && getLName(pos[0].name, [lng, 'ru']);
+  //         posName[i] = pos[0] && getLName(pos[0].name, [lng, 'ru']);
 
-          const sal = paySlip.salary
-            .filter(posItem => new Date(posItem.d) <= fromDe)
-            .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
-          if (sal?.length) {
-            salary[i] = sal[0]?.s
-          }
+  //         const sal = paySlip.salary
+  //           .filter(posItem => new Date(posItem.d) <= fromDe)
+  //           .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
+  //         if (sal?.length) {
+  //           salary[i] = sal[0]?.s
+  //         }
 
-          const hr = paySlip.hourrate
-            ?.filter(posItem => new Date(posItem.d) <= fromDe)
-            .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
-          if (hr?.length) {
-            hourrate[i] = hr[0]?.s;
-          }
+  //         const hr = paySlip.hourrate
+  //           ?.filter(posItem => new Date(posItem.d) <= fromDe)
+  //           .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
+  //         if (hr?.length) {
+  //           hourrate[i] = hr[0]?.s;
+  //         }
 
-          //Цикл по всем записям начислений-удержаний
-          for (const [key, value] of Object.entries(paySlip.data)) {
-            if (new Date(value?.db) >= fromDb && new Date(value?.de) <= fromDe) {
-              isHavingData = true;
+  //         //Цикл по всем записям начислений-удержаний
+  //         for (const [key, value] of Object.entries(paySlip.data)) {
+  //           if (new Date(value?.db) >= fromDb && new Date(value?.de) <= fromDe) {
+  //             isHavingData = true;
 
-              if (value.typeId === 'saldo') {
-                saldo[i] = saldo[i] + value.s;
-              } else if (accDedObj[value.typeId]) {
+  //             if (value.typeId === 'saldo') {
+  //               saldo[i] = saldo[i] + value.s;
+  //             } else if (accDedObj[value.typeId]) {
 
-                let accDedName = getLName(accDedObj[value.typeId].name, [lng, 'ru']);
-                let det = '';
+  //               let accDedName = getLName(accDedObj[value.typeId].name, [lng, 'ru']);
+  //               let det = '';
 
-                det = value?.det?.days ? `${value.det.days}${getLName(addName['days'], [lng, 'ru'])}` : ''
-                if (value?.det?.hours) {
-                  det = `${det}${det ?  ', ' : ''}`;
-                  det = `${value.det.hours}${getLName(addName['hours'], [lng, 'ru'])}`;
-                }
-                if (value?.det?.incMonth || value?.det?.incYear) {
-                  det = `${det}${det ?  ', ' : ''}`;
-                  det = `${value.det.incMonth}.${value.det.incYear}`;
-                }
-                if (det) {
-                  accDedName = `${accDedName} (${det})`
-                }
+  //               det = value?.det?.days ? `${value.det.days}${getLName(addName['days'], [lng, 'ru'])}` : ''
+  //               if (value?.det?.hours) {
+  //                 det = `${det}${det ?  ', ' : ''}`;
+  //                 det = `${value.det.hours}${getLName(addName['hours'], [lng, 'ru'])}`;
+  //               }
+  //               if (value?.det?.incMonth || value?.det?.incYear) {
+  //                 det = `${det}${det ?  ', ' : ''}`;
+  //                 det = `${value.det.incMonth}.${value.det.incYear}`;
+  //               }
+  //               if (det) {
+  //                 accDedName = `${accDedName} (${det})`
+  //               }
 
-                switch (accDedObj[value.typeId].type) {
-                  case 'INCOME_TAX': {
-                    incomeTax[i] = incomeTax[i] + value.s;
-                    strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, getSumByRate(value.s, rate)) : ''
-                    break;
-                  }
-                  case 'PENSION_TAX': {
-                    pensionTax[i] = pensionTax[i] + value.s;
-                    strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, getSumByRate(value.s, rate)) : ''
-                    break;
-                  }
-                  case 'TRADE_UNION_TAX': {
-                    tradeUnionTax[i] = tradeUnionTax[i] + value.s;
-                    strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, getSumByRate(value.s, rate)) : ''
-                    break;
-                  }
-                  case 'ADVANCE': {
-                    advance[i] = advance[i] + value.s;
-                    strAdvances = typePaySlip === 'DETAIL' ? this.getPaySlipString(strAdvances, accDedName, getSumByRate(value.s, rate)) : ''
-                    break;
-                  }
-                  case 'DEDUCTION': {
-                    ded[i] = ded[i] + value.s;
-                    strDeductions = typePaySlip === 'DETAIL' ? this.getPaySlipString(strDeductions, accDedName, getSumByRate(value.s, rate)) : ''
-                    break;
-                  }
-                  case 'TAX': {
-                    tax[i] = tax[i] + value.s;
-                    break;
-                  }
-                  case 'ACCRUAL': {
-                    accrual[i] = accrual[i] + value.s;
-                    strAccruals = typePaySlip === 'DETAIL' ? this.getPaySlipString(strAccruals, accDedName, getSumByRate(value.s, rate)) : ''
-                    break;
-                  }
-                  case 'TAX_DEDUCTION': {
-                    tax_ded[i] = tax_ded[i] + value.s;
-                    strTaxDeds = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxDeds, accDedName, getSumByRate(value.s, rate)) : ''
-                    break;
-                  }
-                  case 'PRIVILAGE': {
-                    privilage[i] = privilage[i] + value.s;
-                    strPrivilages = typePaySlip === 'DETAIL' ? this.getPaySlipString(strPrivilages, accDedName, getSumByRate(value.s, rate)) : ''
-                    break;
-                  }
-                }
-              }
-            }
-          };
+  //               switch (accDedObj[value.typeId].type) {
+  //                 case 'INCOME_TAX': {
+  //                   incomeTax[i] = incomeTax[i] + value.s;
+  //                   strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, getSumByRate(value.s, rate)) : ''
+  //                   break;
+  //                 }
+  //                 case 'PENSION_TAX': {
+  //                   pensionTax[i] = pensionTax[i] + value.s;
+  //                   strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString2(strTaxes, accDedName, getSumByRate(value.s, rate)) : ''
+  //                   break;
+  //                 }
+  //                 case 'TRADE_UNION_TAX': {
+  //                   tradeUnionTax[i] = tradeUnionTax[i] + value.s;
+  //                   strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, getSumByRate(value.s, rate)) : ''
+  //                   break;
+  //                 }
+  //                 case 'ADVANCE': {
+  //                   advance[i] = advance[i] + value.s;
+  //                   strAdvances = typePaySlip === 'DETAIL' ? this.getPaySlipString(strAdvances, accDedName, getSumByRate(value.s, rate)) : ''
+  //                   break;
+  //                 }
+  //                 case 'DEDUCTION': {
+  //                   ded[i] = ded[i] + value.s;
+  //                   strDeductions = typePaySlip === 'DETAIL' ? this.getPaySlipString(strDeductions, accDedName, getSumByRate(value.s, rate)) : ''
+  //                   break;
+  //                 }
+  //                 case 'TAX': {
+  //                   tax[i] = tax[i] + value.s;
+  //                   break;
+  //                 }
+  //                 case 'ACCRUAL': {
+  //                   accrual[i] = accrual[i] + value.s;
+  //                   strAccruals = typePaySlip === 'DETAIL' ? this.getPaySlipString(strAccruals, accDedName, getSumByRate(value.s, rate)) : ''
+  //                   break;
+  //                 }
+  //                 case 'TAX_DEDUCTION': {
+  //                   tax_ded[i] = tax_ded[i] + value.s;
+  //                   strTaxDeds = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxDeds, accDedName, getSumByRate(value.s, rate)) : ''
+  //                   break;
+  //                 }
+  //                 case 'PRIVILAGE': {
+  //                   privilage[i] = privilage[i] + value.s;
+  //                   strPrivilages = typePaySlip === 'DETAIL' ? this.getPaySlipString(strPrivilages, accDedName, getSumByRate(value.s, rate)) : ''
+  //                   break;
+  //                 }
+  //               }
+  //             }
+  //           }
+  //         };
 
-          allTaxes[i] = getSumByRate(incomeTax[i], rate) + getSumByRate(pensionTax[i], rate) + getSumByRate(tradeUnionTax[i], rate);
-        }
-      };
+  //         allTaxes[i] = getSumByRate(incomeTax[i], rate) + getSumByRate(pensionTax[i], rate) + getSumByRate(tradeUnionTax[i], rate);
+  //       }
+  //     };
 
-      //Данные по листку заносятся в массивы с индектом = 0
-      getAccDedsByPeriod(db, de, 0);
+  //     //Данные по листку заносятся в массивы с индектом = 0
+  //     getAccDedsByPeriod(db, de, 0);
 
-      if (isHavingData || typePaySlip === 'COMPARE') {
-        let template: Template = [];
-        const emplName = `${empls[employeeId].lastName} ${empls[employeeId].firstName.slice(0, 1)}. ${empls[employeeId].patrName.slice(0, 1)}.`;
+  //     if (isHavingData || typePaySlip === 'COMPARE') {
+  //       let template: Template = [];
+  //       const emplName = `${empls[employeeId].lastName} ${empls[employeeId].firstName.slice(0, 1)}. ${empls[employeeId].patrName.slice(0, 1)}.`;
 
-        switch (typePaySlip) {
-          case 'DETAIL': {
-          /**
-            * Массив массивов следущего типа:
-            * Один элемент -- просто строка.
-            * Два элемента: строка и число. Название параметра и его значение.
-            * Три элемента: строка, число, true. Название параметра и значение. Будет пересчитано по курсу.
-            */
-            template = [
-              ['Расчетный листок'],
-              [emplName],
-              [`Период: ${dbMonthName}`],
-              [`Валюта: ${currencyAbbreviation}`],
-              ['='],
-              ['Начисления:', accrual[0], true],
-              [accrual[0] ? '=' : ''],
-              [strAccruals],
-              [accrual[0] ? '=' : ''],
-              ['Удержания:', ded[0], true],
-              [ded[0] ? '=' : ''],
-              [strDeductions],
-              [ded[0] ? '=' : ''],
-              ['Аванс:', advance[0], true],
-              [advance[0] ? '=' : ''],
-              [strAdvances],
-              [advance[0] ? '=' : ''],
-              ['Налоги:', allTaxes[0], true],
-              [allTaxes[0] ? '=' : ''],
-              [strTaxes],
-              [allTaxes[0] ? '=' : ''],
-              ['Вычеты:', tax_ded[0], true],
-              [tax_ded[0] ? '=' : ''],
-              [strTaxDeds],
-              [tax_ded[0] ? '=' : ''],
-              ['Льготы:', privilage[0], true],
-              [privilage[0] ? '=' : ''],
-              [strPrivilages],
-              [privilage[0] ? '=' : ''],
-              [`Информация на ${date2str(de)}:`],
-              ['Подразделение:'],
-              [this.getPaySlipString('', deptName[0])],
-              ['Должность:'],
-              [this.getPaySlipString('', posName[0])],
-              ['Оклад:', salary[0], true],
-              ['ЧТС:', hourrate[0], true]
-            ];
-            break;
-          }
-          case 'CONCISE': {
-            const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `${date2str(db)}-${date2str(de)}` : `${dbMonthName}`;
-            template = [
-              ['Расчетный листок'],
-              [emplName],
-              [`Период: ${m}`],
-              [`Валюта: ${currencyAbbreviation}`],
-              ['='],
-              ['Начислено:', accrual[0], true],
-              ['='],
-              ['Зарплата чистыми:', getSumByRate(accrual[0], rate) - allTaxes[0]],
-              ['  Удержания:', ded[0], true],
-              ['  Аванс:', advance[0], true],
-              ['  К выдаче:', saldo[0], true],
-              ['='],
-              ['Налоги:', allTaxes[0]],
-              ['  Подоходный:', incomeTax[0], true],
-              ['  Пенсионный:', pensionTax[0], true],
-              ['  Профсоюзный:', tradeUnionTax[0], true],
-              ['='],
-              [`Информация на ${date2str(de)}:`],
-              ['Подразделение:'],
-              [this.getPaySlipString('', deptName[0])],
-              ['Должность:'],
-              [this.getPaySlipString('', posName[0])],
-              ['Оклад:', salary[0], true],
-              ['ЧТС:', hourrate[0], true]
-            ];
-            break;
-          }
-          case 'COMPARE': {
-            if (toDb && toDe) {
-              //Данные по листку за второй период заносятся в массивы с индектом = 1
-              getAccDedsByPeriod(toDb, toDe, 1);
-              if (!isHavingData) {
-                return ''
-              };
-              template = [
-                ['Сравнение расчетных листков'],
-                [emplName],
-                [`Валюта: ${currencyAbbreviation}`],
-                [` I: ${date2str(db)}-${date2str(de)}`],
-                [`II: ${date2str(toDb)}-${date2str(toDe)}`],
-                ['='],
-                ['Начислено  I:', accrual[0], true],
-                ['Начислено II:', accrual[1], true],
-                ['Разница:', (getSumByRate(accrual[1], rate) - getSumByRate(accrual[0], rate))],
-                ['='],
-                ['Чистыми  I:', getSumByRate(accrual[0], rate) - allTaxes[0]],
-                ['Чистыми II:', getSumByRate(accrual[1], rate) - allTaxes[1]],
-                ['Разница:', getSumByRate(accrual[1], rate) - allTaxes[1] - (getSumByRate(accrual[0], rate) - allTaxes[0])],
-                ['  К выдаче  I:', saldo[0], true],
-                ['  К выдаче II:', saldo[1], true],
-                ['  Разница:', getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)],
-                [(getSumByRate(accrual[0], rate) - allTaxes[0]) || (getSumByRate(accrual[1], rate) - allTaxes[1]) ? '=' : ''],
-                ['  Удержания  I:', ded[0], true],
-                ['  Удержания II:', ded[1], true],
-                ['  Разница:', getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate)],
-                ['  Аванс  I:', advance[0], true],
-                ['  Аванс II:', advance[1], true],
-                ['  Разница:', getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)],
-                [ded[0] || ded[1] ? '=' : ''],
-                ['Налоги  I:', allTaxes[0], true],
-                ['Налоги II:', allTaxes[1], true],
-                ['Разница:', allTaxes[1] - allTaxes[0]],
-                ['  Подоходный  I:', incomeTax[0], true],
-                ['  Подоходный II:', incomeTax[1], true],
-                ['  Разница:', getSumByRate(incomeTax[1], rate) - getSumByRate(incomeTax[0], rate)],
-                ['  Пенсионный  I:', pensionTax[0], true],
-                ['  Пенсионный II:', pensionTax[1], true],
-                ['  Разница:', getSumByRate(pensionTax[1], rate) - getSumByRate(pensionTax[0], rate)],
-                ['  Профсоюзный  I:', tradeUnionTax[0], true],
-                ['  Профсоюзный II:', tradeUnionTax[1], true],
-                ['  Разница:', getSumByRate(tradeUnionTax[1], rate) - getSumByRate(tradeUnionTax[0], rate)],
-                [allTaxes[0] || allTaxes[1] ? '=' : ''],
-                [`Информация на ${date2str(de)}:`],
-                ['Подразделение:'],
-                [this.getPaySlipString('', deptName[0])],
-                ['Должность:'],
-                [this.getPaySlipString('', posName[0])],
-                ['='],
-                [`Информация на ${date2str(toDe)}:`],
-                ['Подразделение:'],
-                [this.getPaySlipString('', deptName[1])],
-                ['Должность:'],
-                [this.getPaySlipString('', posName[1])],
-                ['='],
-                [`Оклад на ${date2str(de)}:`, salary[0], true],
-                [`Оклад на ${date2str(toDe)}:`, salary[1], true],
-                ['Разница:', getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)],
-                [`ЧТС на ${date2str(de)}:`, hourrate[0], true],
-                [`ЧТС на ${date2str(toDe)}:`, hourrate[1], true],
-                ['Разница:', getSumByRate(hourrate[1], rate) - getSumByRate(hourrate[0], rate)]
-              ]
-              break;
-            }
-          }
-        }
-        if (currencyId && currencyId !== '0') {
-          template = [...template, [`Курс на ${date2str(db)}:`, rate]]
-        }
-        return this.paySlipView(template)
-      } else {
-        return ''
-      }
-    }
-    return ''
-  }
+  //       switch (typePaySlip) {
+  //         case 'DETAIL': {
+  //         /**
+  //           * Массив массивов следущего типа:
+  //           * Один элемент -- просто строка.
+  //           * Два элемента: строка и число. Название параметра и его значение.
+  //           * Три элемента: строка, число, true. Название параметра и значение. Будет пересчитано по курсу.
+  //           */
+  //           template = [
+  //             ['Расчетный листок'],
+  //             [emplName],
+  //             [`Период: ${dbMonthName}`],
+  //             [`Валюта: ${currencyAbbreviation}`],
+  //             ['='],
+  //             ['Начисления:', accrual[0], true],
+  //             [accrual[0] ? '=' : ''],
+  //             [strAccruals],
+  //             [accrual[0] ? '=' : ''],
+  //             ['Удержания:', ded[0], true],
+  //             [ded[0] ? '=' : ''],
+  //             [strDeductions],
+  //             [ded[0] ? '=' : ''],
+  //             ['Аванс:', advance[0], true],
+  //             [advance[0] ? '=' : ''],
+  //             [strAdvances],
+  //             [advance[0] ? '=' : ''],
+  //             ['Налоги:', allTaxes[0], true],
+  //             [allTaxes[0] ? '=' : ''],
+  //             [strTaxes],
+  //             [allTaxes[0] ? '=' : ''],
+  //             ['Вычеты:', tax_ded[0], true],
+  //             [tax_ded[0] ? '=' : ''],
+  //             [strTaxDeds],
+  //             [tax_ded[0] ? '=' : ''],
+  //             ['Льготы:', privilage[0], true],
+  //             [privilage[0] ? '=' : ''],
+  //             [strPrivilages],
+  //             [privilage[0] ? '=' : ''],
+  //             [`Информация на ${date2str(de)}:`],
+  //             ['Подразделение:'],
+  //             [this.getPaySlipString('', deptName[0])],
+  //             ['Должность:'],
+  //             [this.getPaySlipString('', posName[0])],
+  //             ['Оклад:', salary[0], true],
+  //             ['ЧТС:', hourrate[0], true]
+  //           ];
+  //           break;
+  //         }
+  //         case 'CONCISE': {
+  //           const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `${date2str(db)}-${date2str(de)}` : `${dbMonthName}`;
+  //           template = [
+  //             ['Расчетный листок'],
+  //             [emplName],
+  //             [`Период: ${m}`],
+  //             [`Валюта: ${currencyAbbreviation}`],
+  //             ['='],
+  //             ['Начислено:', accrual[0], true],
+  //             ['='],
+  //             ['Зарплата чистыми:', getSumByRate(accrual[0], rate) - allTaxes[0]],
+  //             ['  Удержания:', ded[0], true],
+  //             ['  Аванс:', advance[0], true],
+  //             ['  К выдаче:', saldo[0], true],
+  //             ['='],
+  //             ['Налоги:', allTaxes[0]],
+  //             ['  Подоходный:', incomeTax[0], true],
+  //             ['  Пенсионный:', pensionTax[0], true],
+  //             ['  Профсоюзный:', tradeUnionTax[0], true],
+  //             ['='],
+  //             [`Информация на ${date2str(de)}:`],
+  //             ['Подразделение:'],
+  //             [this.getPaySlipString('', deptName[0])],
+  //             ['Должность:'],
+  //             [this.getPaySlipString('', posName[0])],
+  //             ['Оклад:', salary[0], true],
+  //             ['ЧТС:', hourrate[0], true]
+  //           ];
+  //           break;
+  //         }
+  //         case 'COMPARE': {
+  //           if (toDb && toDe) {
+  //             //Данные по листку за второй период заносятся в массивы с индектом = 1
+  //             getAccDedsByPeriod(toDb, toDe, 1);
+  //             if (!isHavingData) {
+  //               return ''
+  //             };
+  //             template = [
+  //               ['Сравнение расчетных листков'],
+  //               [emplName],
+  //               [`Валюта: ${currencyAbbreviation}`],
+  //               [` I: ${date2str(db)}-${date2str(de)}`],
+  //               [`II: ${date2str(toDb)}-${date2str(toDe)}`],
+  //               ['='],
+  //               ['Начислено  I:', accrual[0], true],
+  //               ['Начислено II:', accrual[1], true],
+  //               ['Разница:', (getSumByRate(accrual[1], rate) - getSumByRate(accrual[0], rate))],
+  //               ['='],
+  //               ['Чистыми  I:', getSumByRate(accrual[0], rate) - allTaxes[0]],
+  //               ['Чистыми II:', getSumByRate(accrual[1], rate) - allTaxes[1]],
+  //               ['Разница:', getSumByRate(accrual[1], rate) - allTaxes[1] - (getSumByRate(accrual[0], rate) - allTaxes[0])],
+  //               ['  К выдаче  I:', saldo[0], true],
+  //               ['  К выдаче II:', saldo[1], true],
+  //               ['  Разница:', getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)],
+  //               [(getSumByRate(accrual[0], rate) - allTaxes[0]) || (getSumByRate(accrual[1], rate) - allTaxes[1]) ? '=' : ''],
+  //               ['  Удержания  I:', ded[0], true],
+  //               ['  Удержания II:', ded[1], true],
+  //               ['  Разница:', getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate)],
+  //               ['  Аванс  I:', advance[0], true],
+  //               ['  Аванс II:', advance[1], true],
+  //               ['  Разница:', getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)],
+  //               [ded[0] || ded[1] ? '=' : ''],
+  //               ['Налоги  I:', allTaxes[0], true],
+  //               ['Налоги II:', allTaxes[1], true],
+  //               ['Разница:', allTaxes[1] - allTaxes[0]],
+  //               ['  Подоходный  I:', incomeTax[0], true],
+  //               ['  Подоходный II:', incomeTax[1], true],
+  //               ['  Разница:', getSumByRate(incomeTax[1], rate) - getSumByRate(incomeTax[0], rate)],
+  //               ['  Пенсионный  I:', pensionTax[0], true],
+  //               ['  Пенсионный II:', pensionTax[1], true],
+  //               ['  Разница:', getSumByRate(pensionTax[1], rate) - getSumByRate(pensionTax[0], rate)],
+  //               ['  Профсоюзный  I:', tradeUnionTax[0], true],
+  //               ['  Профсоюзный II:', tradeUnionTax[1], true],
+  //               ['  Разница:', getSumByRate(tradeUnionTax[1], rate) - getSumByRate(tradeUnionTax[0], rate)],
+  //               [allTaxes[0] || allTaxes[1] ? '=' : ''],
+  //               [`Информация на ${date2str(de)}:`],
+  //               ['Подразделение:'],
+  //               [this.getPaySlipString('', deptName[0])],
+  //               ['Должность:'],
+  //               [this.getPaySlipString('', posName[0])],
+  //               ['='],
+  //               [`Информация на ${date2str(toDe)}:`],
+  //               ['Подразделение:'],
+  //               [this.getPaySlipString('', deptName[1])],
+  //               ['Должность:'],
+  //               [this.getPaySlipString('', posName[1])],
+  //               ['='],
+  //               [`Оклад на ${date2str(de)}:`, salary[0], true],
+  //               [`Оклад на ${date2str(toDe)}:`, salary[1], true],
+  //               ['Разница:', getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)],
+  //               [`ЧТС на ${date2str(de)}:`, hourrate[0], true],
+  //               [`ЧТС на ${date2str(toDe)}:`, hourrate[1], true],
+  //               ['Разница:', getSumByRate(hourrate[1], rate) - getSumByRate(hourrate[0], rate)]
+  //             ]
+  //             break;
+  //           }
+  //         }
+  //       }
+  //       if (currencyId && currencyId !== '0') {
+  //         template = [...template, [`Курс на ${date2str(db)}:`, rate]]
+  //       }
+  //       return this.paySlipView(template)
+  //     } else {
+  //       return ''
+  //     }
+  //   }
+  //   return ''
+  // }
 
   /**
    * Обработка поступившего текста или команды из чата.

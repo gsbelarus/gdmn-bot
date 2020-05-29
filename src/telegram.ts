@@ -1,7 +1,7 @@
 import { Bot, Menu, Template } from "./bot";
 import Telegraf, { Context, Extra, Markup } from "telegraf";
-import { getLanguage, getSumByRate } from "./util/utils";
-import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed } from "./types";
+import { getLanguage, getSumByRate, getLName } from "./util/utils";
+import { ICustomers, IEmploeeByCustomer, IPaySlip, IAccDed, IPaySlipItem, LName, Lang } from "./types";
 import { IData } from "./util/fileDB";
 
 export class TelegramBot extends Bot {
@@ -279,7 +279,24 @@ ${'`'}${'`'}${'`'}`
     }
   }
 
- getPaySlipString(prevStr: string, name: string, s?: number) {
+  getPaySlipString(t: IPaySlipItem, lng: Lang) {
+    const s = getLName(t.name, [lng, 'ru']);
+    const arr: string[] = [];
+    let currS = '';
+
+    for(const w of s.split(' ').filter( n => n.trim() )) {
+      if (currS.length + 1 + w.length < 28 ) {
+        currS += (currS ? ' ' : '') + w;
+      } else {
+        arr.push(currS);
+        currS = '';
+      }
+    }
+    //добавить сумму
+    return arr.join('\n');
+  };
+
+ getPaySlipStringOld(prevStr: string, name: string, s?: number) {
     const mas: string[] = [''];
     let i = 0;
     name.split(' ').filter(n => n !== '').forEach((s, xid) => {

@@ -98,3 +98,7 @@ const lmap: { [letter: string]: string } = {
 
 export const replaceIdentLetters = (s: string) => [...s].map( c => c.toUpperCase() ).map( c => lmap[c] || c ).join('');
 
+export const funcDate = (d1: Date, d2: Date) => {
+  return d1.getTime() > d2.getTime();
+}
+
