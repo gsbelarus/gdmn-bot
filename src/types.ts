@@ -162,7 +162,6 @@ export interface IPaySlipItem {
 };
 
 export interface IPaySlipData {
-  //emplName: string;
   department: LName;
   position: LName;
   saldo?: IPaySlipItem,

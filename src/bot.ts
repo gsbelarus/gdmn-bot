@@ -476,7 +476,7 @@ export class Bot {
     return ''
   }
 
-  getPaySlipData(paySlip: IPaySlip, customerId: string, db: Date, de: Date): IPaySlipData {
+  getPaySlipData(paySlip: IPaySlip, customerId: string, db: Date, de: Date): IPaySlipData | undefined {
     const accDedObj = this.getAccDeds(customerId);
 
     const data: IPaySlipData = {
@@ -489,7 +489,7 @@ export class Bot {
     // Аналогично с должностью из массива pos
     let maxDate: Date = paySlip.dept[0].d;
     paySlip.dept.forEach( deptItem => {
-      if (maxDate.getMilliseconds() < deptItem.d.getMilliseconds() && deptItem.d.getMilliseconds() <= de.getMilliseconds()) {
+      if (maxDate.getTime() < deptItem.d.getTime() && deptItem.d.getTime() <= de.getTime()) {
         maxDate = deptItem.d;
         data.department = deptItem.name;
       }
@@ -497,7 +497,7 @@ export class Bot {
 
     maxDate = paySlip.pos[0].d;
     paySlip.pos.forEach( posItem => {
-      if (maxDate.getMilliseconds() < posItem.d.getMilliseconds() && posItem.d.getMilliseconds() <= de.getMilliseconds()) {
+      if (maxDate.getTime() < posItem.d.getTime() && posItem.d.getTime() <= de.getTime()) {
         maxDate = posItem.d;
         data.position = posItem.name;
       }
@@ -505,7 +505,7 @@ export class Bot {
 
     maxDate = paySlip.salary[0].d;
     paySlip.salary.forEach( salaryItem => {
-      if (maxDate.getMilliseconds() < salaryItem.d.getMilliseconds() && salaryItem.d.getMilliseconds() <= de.getMilliseconds()) {
+      if (maxDate.getTime() < salaryItem.d.getTime() && salaryItem.d.getTime() <= de.getTime()) {
         maxDate = salaryItem.d;
         data.salary = salaryItem.s;
       }
@@ -514,19 +514,21 @@ export class Bot {
     if (paySlip.hourrate) {
       maxDate = paySlip.hourrate[0].d;
       paySlip.hourrate?.forEach( hourRateItem => {
-        if (maxDate.getMilliseconds() < hourRateItem.d.getMilliseconds() && hourRateItem.d.getMilliseconds() <= de.getMilliseconds()) {
+        if (maxDate.getTime() < hourRateItem.d.getTime() && hourRateItem.d.getTime() <= de.getTime()) {
           maxDate = hourRateItem.d;
           data.hourrate = hourRateItem.s;
         }
       })
     }
 
+    let isHavingData = false;
     //Цикл по всем записям начислений-удержаний
     for (const value of Object.values(paySlip.data)) {
-      if (new Date(value?.db) >= db && new Date(value?.de) <= db) {
+      if (value && value.db.getTime() >= db.getTime() && value.de.getTime() <= db.getTime()) {
 
         const name = accDedObj[value.typeId].name;
         const det = value.det;
+        isHavingData = true;
 
         switch (accDedObj[value.typeId].type) {
           case 'SALDO':
@@ -588,7 +590,7 @@ export class Bot {
         }
       }
     };
-    return data
+    return isHavingData ? data : undefined;
   }
 
   async getPaySlipByRate(data: IPaySlipData, currencyId: string, date: Date): Promise<IPaySlipData> {
@@ -819,12 +821,14 @@ export class Bot {
           //continue;
       } else {
         let dataI = this.getPaySlipData(paySlip, customerId, db, de);
-        if (dataI)
+        if (!dataI) {
+          return ''
+        }
         if (currencyId) {
           dataI = await this.getPaySlipByRate(dataI, currencyId, db);
-        }
-        if (!dataI.rate) {
-          return ('Курс валюты не был загружен')
+          if (!dataI.rate) {
+            return ('Курс валюты не был загружен')
+          }
         }
 
         let template: Template = [];
@@ -839,8 +843,14 @@ export class Bot {
           case 'COMPARE': {
             if (dbII && deII) {
               let dataII = this.getPaySlipData(paySlip, customerId, dbII, deII);
+              if (!dataII) {
+                return ''
+              }
               if (currencyId) {
                 dataII = await this.getPaySlipByRate(dataII, currencyId, dbII);
+                if (!dataII.rate) {
+                  return ('Курс валюты не был загружен')
+                }
               }
               template = this.getComparePaySlip(dataI, dataII, customerId, employeeId, db, de, dbII, deII, lng, currencyId);
             }
