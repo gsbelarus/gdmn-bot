@@ -1,5 +1,5 @@
 import { FileDB } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IPaySlipData, IPaySlip, IAccDed } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
@@ -9,6 +9,7 @@ import path from 'path';
 import { testNormalizeStr, testIdentStr } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
 import { Semaphore } from "./semaphore";
+import { payslipRoot, accDedRefFileName } from "./data";
 
 // TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
 //       надо предусмотреть обновление или просто сброс данных после загрузки на сервер
@@ -26,6 +27,7 @@ export class Bot {
   private _employees: { [companyId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
   private _botStarted = new Date();
   private _callbacksReceived = 0;
+  private _customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
 
   constructor(telegramToken: string, telegramRoot: string, viberRoot: string) {
     this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'));
@@ -313,12 +315,21 @@ export class Bot {
   }
 
   private _getPaySlipData(customerId: string, employeeId: string, db: Date, de: Date): IPaySlipData | undefined {
-    let paySlip = this.getPaySlipByUser(customerId, employeeId);
+    const payslip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`))
+      .read(employeeId);
 
-    if (!paySlip) {
+    if (!payslip) {
       return undefined;
     }
-    const accDedObj = this.getAccDeds(customerId);
+
+    let accDed = this._customerAccDeds[customerId];
+
+    if (!accDed) {
+      accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`), {});
+      this._customerAccDeds[customerId] = accDed;
+    };
+
+    const accDedObj = accDed.getMutable(false);
 
     const data: IPaySlipData = {
       department: {},
@@ -329,43 +340,43 @@ export class Bot {
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
     // Аналогично с должностью из массива pos
     //let maxDate: Date = paySlip.dept[0].d;
-    paySlip.dept.reduce((prev, cur) => {
+    payslip.dept.reduce((prev, cur) => {
       if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
         data.department = cur.name;
         return cur.d;
       }
       return prev;
-    }, paySlip.dept[0].d);
+    }, payslip.dept[0].d);
 
-    paySlip.pos.reduce((prev, cur) => {
+    payslip.pos.reduce((prev, cur) => {
       if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
         data.position = cur.name;
         return cur.d;
       }
       return prev;
-    }, paySlip.pos[0].d);
+    }, payslip.pos[0].d);
 
-    paySlip.salary.reduce((prev, cur) => {
+    payslip.salary.reduce((prev, cur) => {
       if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
         data.salary = cur.s;
         return cur.d;
       }
       return prev;
-    }, paySlip.salary[0].d);
+    }, payslip.salary[0].d);
 
-    if (paySlip.hourrate) {
-      paySlip.hourrate.reduce((prev, cur) => {
+    if (payslip.hourrate) {
+      payslip.hourrate.reduce((prev, cur) => {
         if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
           data.hourrate = cur.s;
           return cur.d
         }
         return prev;
-      }, paySlip.hourrate[0].d)
+      }, payslip.hourrate[0].d)
     };
 
     let isHavingData = false;
     //Цикл по всем записям начислений-удержаний
-    for (const value of Object.values(paySlip.data)) {
+    for (const value of Object.values(payslip.data)) {
       if (value && value.db.getTime() >= db.getTime() && value.de.getTime() <= db.getTime()) {
 
         const name = accDedObj[value.typeId].name;

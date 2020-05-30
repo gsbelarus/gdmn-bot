@@ -15,7 +15,7 @@ export const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee,
  * справочники начислений/удержаний для каждого клиента.
  * ключем объекта выступает РУИД записи из базы Гедымина.
  */
-export const customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
+//export const customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
 
 /**
  * На каждого сотрудника мы заводим на диске отдельный файл, который хранит
@@ -29,9 +29,9 @@ export const customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
  * Если там нет записи, то создаем новый экземпляр FileDB и загружаем данные
  * с диска и помещаем в объект payslips. Если есть -- берем данные.
  */
-export const payslips: { [employeeId: string]: FileDB<IPaySlip> } = {};
+//export const payslips: { [employeeId: string]: FileDB<IPaySlip> } = {};
 
-
+/*
 export const getCustomers = (): ICustomers => {
   return customers.getMutable(false);
 }
@@ -44,7 +44,9 @@ export const getEmployeesByCustomer = (customerId: string): IEmploeeByCustomer =
   }
   return employees.getMutable(false);
 }
+*/
 
+/*
 export const getPaySlipByUser = (customerId: string, userID: string): IPaySlip | undefined => {
   let payslip = payslips[userID];
   if (!payslip) {
@@ -53,6 +55,7 @@ export const getPaySlipByUser = (customerId: string, userID: string): IPaySlip |
   };
   return payslip.read(userID);
 }
+*/
 
 export const getAccDeds = (customerId: string): IData<IAccDed> => {
   let accDed = customerAccDeds[customerId];

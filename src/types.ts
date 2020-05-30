@@ -151,6 +151,21 @@ export interface IPaySlipItem {
   s: number;
 };
 
+export interface IPaySlipData {
+  department: LName;
+  position: LName;
+  saldo?: IPaySlipItem,
+  tax?: IPaySlipItem[],
+  advance?: IPaySlipItem[],
+  deduction?: IPaySlipItem[],
+  accrual?: IPaySlipItem[],
+  tax_deduction?: IPaySlipItem[],
+  privilage?: IPaySlipItem[],
+  salary?: number;
+  hourrate?: number;
+  rate?: number;
+};
+
  export type TypePaySlip = 'DETAIL' | 'CONCISE' | 'COMPARE'
 /**
  * TODO: этот кусок мы просто скопировали из gdmn-internals
