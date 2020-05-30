@@ -19,7 +19,7 @@
   "dependencies": {
     "koa": "^2.11.0",
     "koa-bodyparser": "^4.2",
-    "koa-router": "^8.0.8",
+    "koa-router": "^9",
     "telegraf": "^3.36.0",
     "viber-bot": "^1.0.16",
     "winston": "^3.2.1",
