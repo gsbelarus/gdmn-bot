@@ -336,52 +336,76 @@ export class Bot {
       position: {}
     };
 
+    const isGr = (d1: Date, d2: Date) => {
+      return d1.getTime() > d2.getTime();
+    }
+
+    const isGrOrEq = (d1: Date, d2: Date) => {
+      return d1.getTime() > d2.getTime();
+    }
+
+    const isLsOrEq = (d1: Date, d2: Date) => {
+      return d1.getTime() <= d2.getTime();
+    }
+
     // Подразделение получаем из массива подразделений dept,
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
     // Аналогично с должностью из массива pos
     //let maxDate: Date = paySlip.dept[0].d;
-    payslip.dept.reduce((prev, cur) => {
-      if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
-        data.department = cur.name;
-        return cur.d;
-      }
-      return prev;
-    }, payslip.dept[0].d);
 
-    payslip.pos.reduce((prev, cur) => {
-      if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
-        data.position = cur.name;
-        return cur.d;
-      }
-      return prev;
-    }, payslip.pos[0].d);
+    //TODO: а может массив оказаться пустым? это где-то проверяется
+    let department = payslip.dept[0].name;
+    let maxDate = payslip.dept[0].d;
 
-    payslip.salary.reduce((prev, cur) => {
-      if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
-        data.salary = cur.s;
-        return cur.d;
+    for (const dept of payslip.dept) {
+      if (isGr(dept.d, maxDate) && isLsOrEq(dept.d, de)) {
+        department = dept.name;
+        maxDate = dept.d;
       }
-      return prev;
-    }, payslip.salary[0].d);
+    }
+
+    let position = payslip.pos[0].name;
+    maxDate = payslip.pos[0].d;
+
+    for (const pos of payslip.pos) {
+      if (isGr(pos.d, maxDate) && isLsOrEq(pos.d, de)) {
+        position = pos.name;
+        maxDate = pos.d;
+      }
+    }
+
+    let salary = payslip.salary[0].s;
+    maxDate = payslip.salary[0].d;
+
+    for (const posS of payslip.salary) {
+      if (isGr(posS.d, maxDate) && isLsOrEq(posS.d, de)) {
+        salary = posS.s;
+        maxDate = posS.d;
+      }
+    }
+
+    let hourrate: number | undefined = undefined;
 
     if (payslip.hourrate) {
-      payslip.hourrate.reduce((prev, cur) => {
-        if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
-          data.hourrate = cur.s;
-          return cur.d
+      hourrate = payslip.hourrate[0].s;
+      maxDate = payslip.hourrate[0].d;
+
+      for (const posHR of payslip.hourrate) {
+        if (isGr(posHR.d, maxDate) && isLsOrEq(posHR.d, de)) {
+          hourrate = posHR.s;
+          maxDate = posHR.d;
         }
-        return prev;
-      }, payslip.hourrate[0].d)
+      }
     };
 
-    let isHavingData = false;
+    let isData = false;
     //Цикл по всем записям начислений-удержаний
     for (const value of Object.values(payslip.data)) {
-      if (value && value.db.getTime() >= db.getTime() && value.de.getTime() <= db.getTime()) {
+      if (isGrOrEq(value.db, db) && isLsOrEq(value.de, de)) {
 
         const name = accDedObj[value.typeId].name;
         const det = value.det;
-        isHavingData = true;
+        isData = true;
 
         switch (accDedObj[value.typeId].type) {
           case 'SALDO':
@@ -443,7 +467,7 @@ export class Bot {
         }
       }
     };
-    return isHavingData ? data : undefined;
+    return isData ? data : undefined;
   }
 
   launch() {
