@@ -331,11 +331,6 @@ export class Bot {
 
     const accDedObj = accDed.getMutable(false);
 
-    const data: IPaySlipData = {
-      department: {},
-      position: {}
-    };
-
     const isGr = (d1: Date, d2: Date) => {
       return d1.getTime() > d2.getTime();
     }
@@ -398,77 +393,62 @@ export class Bot {
       }
     };
 
-    let isData = false;
+    const data = {
+      department,
+      position,
+      salary,
+      hourrate,
+      tax: [],
+      advance: [],
+      deduction: [],
+      accrual: [],
+      tax_deduction: [],
+      privilage: []
+    } as IPaySlipData;
+
     //Цикл по всем записям начислений-удержаний
     for (const value of Object.values(payslip.data)) {
       if (isGrOrEq(value.db, db) && isLsOrEq(value.de, de)) {
+        //TODO: а если в справочнике не окажется значения с таким типом?
+        const { det, s, typeId } = value;
+        const { name, type } = accDedObj[typeId];
 
-        const name = accDedObj[value.typeId].name;
-        const det = value.det;
-        isData = true;
-
-        switch (accDedObj[value.typeId].type) {
+        switch (type) {
           case 'SALDO':
-            data.saldo = {
-              name,
-              s: value.s
-            }
+            data.saldo = { name, s };
+            break;
+
           case 'INCOME_TAX':
           case 'PENSION_TAX':
-          case 'TRADE_UNION_TAX': {
-            data.tax?.push({
-              name,
-              s: value.s,
-              type: accDedObj[value.typeId].type,
-              det
-            })
+          case 'TRADE_UNION_TAX':
+            data.tax?.push({ name, s, type, det });
             break;
-          }
-          case 'ADVANCE': {
-            data.advance?.push({
-              name,
-              s: value.s,
-              det
-            })
+
+          case 'ADVANCE':
+            data.advance?.push({ name, s, det });
             break;
-          }
-          case 'DEDUCTION': {
-            data.deduction?.push({
-              name,
-              s: value.s,
-              det
-            })
+
+          case 'DEDUCTION':
+            data.deduction?.push({ name, s, det });
             break;
-          }
-          case 'ACCRUAL': {
-            data.accrual?.push({
-              name,
-              s: value.s,
-              det
-            })
+
+          case 'ACCRUAL':
+            data.accrual?.push({ name, s, det });
             break;
-          }
-          case 'TAX_DEDUCTION': {
-            data.tax_deduction?.push({
-              name,
-              s: value.s,
-              det
-            })
+
+          case 'TAX_DEDUCTION':
+            data.tax_deduction?.push({ name, s, det });
             break;
-          }
-          case 'PRIVILAGE': {
-            data.privilage?.push({
-              name,
-              s: value.s,
-              det
-            })
+
+          case 'PRIVILAGE':
+            data.privilage?.push({ name, s,  det });
             break;
-          }
         }
       }
     };
-    return isData ? data : undefined;
-  }
+
+    return (data.saldo || data.accrual?.length || data.deduction?.length) ? data : undefined;
+  };
 
   launch() {
     this._telegram.launch();
@@ -598,5 +578,22 @@ export class Bot {
         }
       }
     }
+  }
+
+  uploadAccDeds(customerId: string, objData: Object) {
+    let customerAccDed = this._customerAccDeds[customerId];
+
+    if (!customerAccDed) {
+      customerAccDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`));
+      this._customerAccDeds[customerId] = customerAccDed;
+    }
+
+    customerAccDed.clear();
+
+    for (const [key, value] of Object.entries(objData)) {
+      customerAccDed.write(key, value as any);
+    }
+
+    customerAccDed.flush();
   }
 };

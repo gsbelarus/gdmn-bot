@@ -1,5 +1,5 @@
 import { FileDB, IData } from "./util/fileDB";
-import { ICustomer, IEmployee, IAccDed, IPaySlip, ICustomers, IEmploeeByCustomer } from "./types";
+import { ICustomer, IEmployee, IAccDed } from "./types";
 import path from 'path';
 
 export const DATA_ROOT = `data/`;
@@ -57,6 +57,7 @@ export const getPaySlipByUser = (customerId: string, userID: string): IPaySlip |
 }
 */
 
+/*
 export const getAccDeds = (customerId: string): IData<IAccDed> => {
   let accDed = customerAccDeds[customerId];
   if (!accDed) {
@@ -65,3 +66,4 @@ export const getAccDeds = (customerId: string): IData<IAccDed> => {
   };
   return accDed.getMutable(false);
 };
+*/

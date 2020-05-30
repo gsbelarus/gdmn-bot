@@ -4,7 +4,7 @@ import Router from 'koa-router';
 import http from 'http';
 import https from 'https';
 import path from 'path';
-import { upload_employees, upload_accDedRefs, upload_payslips } from "./util/upload";
+import { upload_employees, upload_payslips } from "./util/upload";
 import { initCurrencies } from "./currency";
 import * as fs from "fs";
 import { customers, employeesByCustomer } from "./data";
@@ -86,7 +86,16 @@ router.post('/zarobak/v1/upload_employees', (ctx, next) => {
 });
 
 router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
-  upload_accDedRefs(ctx);
+  try {
+    const { customerId, objData } = ctx.request.body;
+    bot.uploadAccDeds(customerId, objData);
+    ctx.status = 200;
+    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+  } catch(err) {
+    console.log(`Error in accdedrefs uploading. ${err.message}`);
+    ctx.status = 500;
+    ctx.body = JSON.stringify({ status: 500, result: err.message });
+  }
   return next();
 });
 
