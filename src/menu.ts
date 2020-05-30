@@ -39,6 +39,30 @@ export const keyboardMenu: Menu = [
   ]
 ];
 
+export const keyboardSettings: Menu = [
+  [
+    { type: 'BUTTON', caption: 'menuSelectLanguage', command: 'selectLanguage' },
+    { type: 'BUTTON', caption: 'menuSelectCurrency', command: 'selectCurrency' }
+  ],
+  [
+    { type: 'BUTTON', caption: 'btnBackToMenu', command: 'cancelSettings' },
+  ]
+];
+
+export const keyboardLanguage: Menu = [
+  ...['BE', 'RU', 'EN'].map(
+    l => ([{ type: 'BUTTON', caption: `language${l}`, command: `selectLanguage/${l}` } as IMenuButton])
+  ),
+  [{ type: 'BUTTON', caption: 'btnBackToSettingsMenu', command: 'cancelSettings' }]
+];
+
+export const keyboardCurrency: Menu = [
+  ...['BYN', 'USD', 'EUR', 'RUR', 'PLN', 'UAH'].map(
+    l => ([{ type: 'BUTTON', caption: `currency${l}`, command: `selectCurrency/${l}` } as IMenuButton])
+  ),
+  [{ type: 'BUTTON', caption: 'btnBackToSettingsMenu', command: 'cancelSettings' }]
+];
+
 export const keyboardCalendar = (year: number): Menu => {
   const mm = [
     [0, 1, 2, 3],

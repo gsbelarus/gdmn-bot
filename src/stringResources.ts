@@ -1,6 +1,8 @@
+type FormatFunc = (...args: any[]) => string;
+
 interface ILocString {
   en: string | null;
-  ru: string | null;
+  ru: string | null | FormatFunc;
   be: string | null;
 };
 
@@ -55,6 +57,11 @@ const stringResources = {
     ru: 'До свидания! Спасибо, что использовали наш чат-бот.',
     be: null
   },
+  showSettings: {
+    en: null,
+    ru: (lang: Language, curr: string) => `Текущие настройки:\n\tЯзык: ${lang}\n\tВалюта: ${curr}`,
+    be: null
+  } as ILocString,
   showSelectedDate: {
     en: null,
     ru: 'Выбрана дата...',
@@ -170,6 +177,61 @@ const stringResources = {
     ru: '❓',
     be: null
   },
+  menuSelectLanguage: {
+    en: null,
+    ru: 'Выбрать язык',
+    be: null
+  },
+  menuSelectCurrency: {
+    en: null,
+    ru: 'Выбрать валюту',
+    be: null
+  },
+  languageRU: {
+    en: null,
+    ru: 'Русский',
+    be: null
+  },
+  languageBE: {
+    en: null,
+    ru: 'Белорусский',
+    be: null
+  },
+  languageEN: {
+    en: null,
+    ru: 'Английский',
+    be: null
+  },
+  currencyBYN: {
+    en: null,
+    ru: 'Белорусский рубль',
+    be: null
+  },
+  currencyUSD: {
+    en: null,
+    ru: 'Доллар США',
+    be: null
+  },
+  currencyEUR: {
+    en: null,
+    ru: 'Евро',
+    be: null
+  },
+  currencyRUR: {
+    en: null,
+    ru: 'Российский рубль',
+    be: null
+  },
+  currencyPLN: {
+    en: null,
+    ru: 'Польский злотый',
+    be: null
+  },
+  currencyUAH: {
+    en: null,
+    ru: 'Украинская гривна',
+    be: null
+  },
   btnPrevYear: {
     en: null,
     ru: ' < ',
@@ -182,7 +244,12 @@ const stringResources = {
   },
   btnBackToMenu: {
     en: null,
-    ru: 'Меню',
+    ru: 'Вернуться в главное меню...',
+    be: null
+  },
+  btnBackToSettingsMenu: {
+    en: null,
+    ru: 'Вернуться в меню параметров...',
     be: null
   },
 };
@@ -190,13 +257,24 @@ const stringResources = {
 export type Language = keyof ILocString;
 export type StringResource = keyof typeof stringResources;
 
-export const getLocString = (id: StringResource, lang?: Language) => stringResources[id][lang ?? 'ru']
-  ?? stringResources[id]['be']
-  ?? stringResources[id]['en']
-  ?? stringResources[id]['ru'];
+export const getLocString = (id: StringResource, lang: Language, ...args: any[]) => {
+  const sr = stringResources[id][lang]
+    ?? stringResources[id]['be']
+    ?? stringResources[id]['en']
+    ?? stringResources[id]['ru'];
+
+  if (typeof sr === 'function') {
+    return sr(...args);
+  }
+  else if (sr === null) {
+    throw new Error(`String resource ${id} isn't defined for a given lanuage.`)
+  } else {
+    return sr;
+  }
+};
 
 export const str2Language = (s?: string): Language => {
-  switch (s) {
+  switch (s?.toLowerCase()) {
     case 'be': return 'be';
     case 'en': return 'en';
   default:

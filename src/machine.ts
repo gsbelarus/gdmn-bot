@@ -22,9 +22,8 @@ export interface ICalendarMachineContext extends IMachineContextBase {
 type ChangeYearEvent      = { type: 'CHANGE_YEAR';    delta: number; };
 type SelectMonthEvent     = { type: 'SELECT_MONTH';   month: number; };
 type CancelCalendarEvent  = { type: 'CANCEL_CALENDAR' };
-type RestoreEvent         = { type: 'RESTORE' };
 
-export type CalendarMachineEvent = ChangeYearEvent | SelectMonthEvent | CancelCalendarEvent | RestoreEvent;
+export type CalendarMachineEvent = ChangeYearEvent | SelectMonthEvent | CancelCalendarEvent;
 
 export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, CalendarMachineEvent> = {
   id: 'calendarMachine',
@@ -79,18 +78,14 @@ export interface IBotMachineContext extends IMachineContextBase {
 
 export type StartEvent        = { type: 'START' } & Required<IMachineContextBase>;
 export type MainMenuEvent     = { type: 'MAIN_MENU' } & Required<IMachineContextBase> & { customerId: string; employeeId: string; };
-export type NextEvent         = { type: 'NEXT' };
 export type EnterTextEvent    = { type: 'ENTER_TEXT';    text: string; };
 export type MenuCommandEvent  = { type: 'MENU_COMMAND';  command: string; };
-export type DateSelectedEvent = { type: 'DATE_SELECTED'; year: number; month: number; };
 
 export type BotMachineEvent = CalendarMachineEvent
   | StartEvent
-  | NextEvent
   | EnterTextEvent
   | MenuCommandEvent
-  | MainMenuEvent
-  | DateSelectedEvent;
+  | MainMenuEvent;
 
 export function isEnterTextEvent(event: BotMachineEvent): event is EnterTextEvent {
   return event.type === 'ENTER_TEXT' && typeof event.text === 'string';
@@ -207,10 +202,58 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
         entry: 'showPayslip'
       },
       settings: {
+        initial: 'showSettings',
         on: {
-          '': 'mainMenu'
+          MENU_COMMAND: [
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === 'selectLanguage',
+              target: '.selectLanguage'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === 'selectCurrency',
+              target: '.selectCurrency'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === 'cancelSettings',
+              target: 'mainMenu'
+            },
+          ]
         },
-        entry: 'showSettings'
+        states: {
+          selectLanguage: {
+            on: {
+              MENU_COMMAND: [
+                {
+                  cond: (_, { command }: MenuCommandEvent) => command === 'cancelSettings',
+                  target: 'showSettings'
+                },
+                {
+                  target: 'showSettings',
+                  actions: 'selectLanguage'
+                }
+              ]
+            },
+            entry: 'showSelectLanguageMenu'
+          },
+          selectCurrency: {
+            on: {
+              MENU_COMMAND: [
+                {
+                  cond: (_, { command }: MenuCommandEvent) => command === 'cancelSettings',
+                  target: 'showSettings'
+                },
+                {
+                  target: 'showSettings',
+                  actions: 'selectCurrency'
+                }
+              ]
+            },
+            entry: 'showSelectCurrencyMenu'
+          },
+          showSettings: {
+            entry: 'showSettings'
+          }
+        },
       },
       logout: {
         type: 'final',

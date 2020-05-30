@@ -3,11 +3,11 @@ import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
-import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
+import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig, MenuCommandEvent } from "./machine";
 import { getLocString, StringResource, str2Language, Language } from "./stringResources";
 import path from 'path';
 import { testNormalizeStr, testIdentStr } from "./util/utils";
-import { Menu, keyboardMenu, keyboardCalendar } from "./menu";
+import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
 import { Semaphore } from "./semaphore";
 
 // TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
@@ -32,7 +32,7 @@ export class Bot {
     this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'));
     this._customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'));
 
-    const reply = (s: StringResource | undefined, t?: string, menu?: Menu) => async ({ platform, chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+    const reply = (s: StringResource | undefined, menu?: Menu, ...args: any[]) => async ({ platform, chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
         console.log('No semaphore');
         return;
@@ -56,7 +56,7 @@ export class Bot {
           ))
         );
 
-        const text = t ?? (s && getLocString(s, language));
+        const text = s && getLocString(s, language, ...args);
 
         await semaphore.acquire();
         try {
@@ -122,12 +122,12 @@ export class Bot {
         actions: {
           showSelectedDate: reply('showSelectedDate'),
           showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
-            ? reply(undefined, undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
+            ? reply(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
             : reply(dateKind === 'PERIOD_1_DB'
               ? 'selectDB'
               : dateKind === 'PERIOD_1_DE'
               ? 'selectDE'
-              : 'selectDB2', undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore }
+              : 'selectDB2', keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore }
             )
         }
       }
@@ -157,18 +157,20 @@ export class Bot {
     this._machine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._calendarMachine),
       {
         actions: {
+          //TODO: зачем передавать ключ, когда можно передать структуру?
           askCompanyName: reply('askCompanyName'),
           unknownCompanyName: reply('unknownCompanyName'),
           assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
           assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
           askPersonalNumber: reply('askPersonalNumber'),
-          showMainMenu: reply('mainMenuCaption', undefined, keyboardMenu),
+          showMainMenu: reply('mainMenuCaption', keyboardMenu),
           showPayslip: reply('payslip'),
           showPayslipForPeriod: reply('payslipForPeriod'),
           showComparePayslip: reply('comparePayslip'),
           showSettings: ctx => {
             const { accountLink, ...rest } = checkAccountLink(ctx);
-            reply(undefined, 'Показываем текущие настройки...')(rest);
+            //TODO: языка и валюты может не быть. надо заменять на дефолтные
+            reply('showSettings', keyboardSettings, accountLink.language, accountLink.currencyId)(rest);
           },
           sayGoodbye: reply('sayGoodbye'),
           logout: ({ platform, chatId }) => {
@@ -176,6 +178,32 @@ export class Bot {
               const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
               accountLinkDB.delete(chatId);
               delete this._service[this.getUniqId(platform, chatId)];
+            }
+          },
+          showSelectLanguageMenu: reply(undefined, keyboardLanguage),
+          selectLanguage: (ctx, event) => {
+            if (event.type === 'MENU_COMMAND') {
+              const { accountLink, chatId, platform } = checkAccountLink(ctx);
+              if (accountLink) {
+                const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+                accountLinkDB.write(chatId, {
+                  ...accountLink,
+                  language: str2Language(event.command.split('/')[1])
+                });
+              }
+            }
+          },
+          showSelectCurrencyMenu: reply(undefined, keyboardCurrency),
+          selectCurrency: (ctx, event) => {
+            if (event.type === 'MENU_COMMAND') {
+              const { accountLink, chatId, platform } = checkAccountLink(ctx);
+              if (accountLink) {
+                const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+                accountLinkDB.write(chatId, {
+                  ...accountLink,
+                  currencyId: event.command.split('/')[1]
+                });
+              }
             }
           }
         },
