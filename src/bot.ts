@@ -312,6 +312,129 @@ export class Bot {
     return undefined;
   }
 
+  private _getPaySlipData(customerId: string, employeeId: string, db: Date, de: Date): IPaySlipData | undefined {
+    let paySlip = this.getPaySlipByUser(customerId, employeeId);
+
+    if (!paySlip) {
+      return undefined;
+    }
+    const accDedObj = this.getAccDeds(customerId);
+
+    const data: IPaySlipData = {
+      department: {},
+      position: {}
+    };
+
+    // Подразделение получаем из массива подразделений dept,
+    // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
+    // Аналогично с должностью из массива pos
+    //let maxDate: Date = paySlip.dept[0].d;
+    paySlip.dept.reduce((prev, cur) => {
+      if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
+        data.department = cur.name;
+        return cur.d;
+      }
+      return prev;
+    }, paySlip.dept[0].d);
+
+    paySlip.pos.reduce((prev, cur) => {
+      if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
+        data.position = cur.name;
+        return cur.d;
+      }
+      return prev;
+    }, paySlip.pos[0].d);
+
+    paySlip.salary.reduce((prev, cur) => {
+      if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
+        data.salary = cur.s;
+        return cur.d;
+      }
+      return prev;
+    }, paySlip.salary[0].d);
+
+    if (paySlip.hourrate) {
+      paySlip.hourrate.reduce((prev, cur) => {
+        if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
+          data.hourrate = cur.s;
+          return cur.d
+        }
+        return prev;
+      }, paySlip.hourrate[0].d)
+    };
+
+    let isHavingData = false;
+    //Цикл по всем записям начислений-удержаний
+    for (const value of Object.values(paySlip.data)) {
+      if (value && value.db.getTime() >= db.getTime() && value.de.getTime() <= db.getTime()) {
+
+        const name = accDedObj[value.typeId].name;
+        const det = value.det;
+        isHavingData = true;
+
+        switch (accDedObj[value.typeId].type) {
+          case 'SALDO':
+            data.saldo = {
+              name,
+              s: value.s
+            }
+          case 'INCOME_TAX':
+          case 'PENSION_TAX':
+          case 'TRADE_UNION_TAX': {
+            data.tax?.push({
+              name,
+              s: value.s,
+              type: accDedObj[value.typeId].type,
+              det
+            })
+            break;
+          }
+          case 'ADVANCE': {
+            data.advance?.push({
+              name,
+              s: value.s,
+              det
+            })
+            break;
+          }
+          case 'DEDUCTION': {
+            data.deduction?.push({
+              name,
+              s: value.s,
+              det
+            })
+            break;
+          }
+          case 'ACCRUAL': {
+            data.accrual?.push({
+              name,
+              s: value.s,
+              det
+            })
+            break;
+          }
+          case 'TAX_DEDUCTION': {
+            data.tax_deduction?.push({
+              name,
+              s: value.s,
+              det
+            })
+            break;
+          }
+          case 'PRIVILAGE': {
+            data.privilage?.push({
+              name,
+              s: value.s,
+              det
+            })
+            break;
+          }
+        }
+      }
+    };
+    return isHavingData ? data : undefined;
+  }
+
   launch() {
     this._telegram.launch();
   }
