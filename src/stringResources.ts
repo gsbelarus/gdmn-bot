@@ -286,3 +286,45 @@ export const str2Language = (s?: string): Language => {
     return 'ru';
   }
 };
+
+export interface ITName {
+  name: string;
+  fullName?: string;
+};
+
+export type LName = {
+  [lang in Language]?: ITName;
+};
+
+export function getLName(n: LName, langPref: Language[] = [], getFullName: boolean = false): string {
+  for (let i = 0; i < langPref.length; i++) {
+    const tn = n[langPref[i]];
+    if (tn) {
+      return (getFullName && tn.fullName) ? tn.fullName : tn.name;
+    }
+  }
+
+  if (!n.en) return '';
+
+  return (getFullName && n.en.fullName) ? n.en.fullName : n.en.name;
+};
+
+/**
+ * Формат кода языка
+ * @param lang_code
+ */
+export const getLanguage = (lang_code?: string): Language => {
+    if (!lang_code) {
+      return 'ru'
+    }
+    if (lang_code.indexOf('-')) {
+      lang_code = lang_code.split('-')[0]
+    }
+    if (lang_code === 'ru') {
+      return 'ru'
+    } else if (lang_code === 'be') {
+        return 'be'
+      } else {
+      return 'en'
+    }
+};

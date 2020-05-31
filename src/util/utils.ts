@@ -1,5 +1,3 @@
-import { Lang, LName } from '../types';
-
 const toIgnore = 'ооо,оао,зао,таа,зат,аат,ип,іп,уп,куп'.split(',');
 
 /**
@@ -18,39 +16,6 @@ export const normalizeStr = (s?: string) => s && s.trim()
   .join(' ');
 
 export const testNormalizeStr = (a: string, b: string) => normalizeStr(a) === normalizeStr(b);
-
-export function getLName(n: LName, langPref: Lang[] = [], getFullName: boolean = false): string {
-  for (let i = 0; i < langPref.length; i++) {
-    const tn = n[langPref[i]];
-    if (tn) {
-      return (getFullName && tn.fullName) ? tn.fullName : tn.name;
-    }
-  }
-
-  if (!n.en) return '';
-
-  return (getFullName && n.en.fullName) ? n.en.fullName : n.en.name;
-};
-
-/**
- * Формат кода языка
- * @param lang_code
- */
-export const getLanguage = (lang_code?: string): Lang => {
-    if (!lang_code) {
-      return 'ru'
-    }
-    if (lang_code.indexOf('-')) {
-      lang_code = lang_code.split('-')[0]
-    }
-    if (lang_code === 'ru') {
-      return 'ru'
-    } else if (lang_code === 'by') {
-        return 'by'
-      } else {
-      return 'en'
-    }
-}
 
 /** Возвращает массив лет за период*/
 export function getYears(fromDate: Date, toDate: Date): number[] {

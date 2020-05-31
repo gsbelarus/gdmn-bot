@@ -4,7 +4,7 @@ import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig, MenuCommandEvent } from "./machine";
-import { getLocString, StringResource, str2Language, Language } from "./stringResources";
+import { getLocString, StringResource, str2Language, Language, getLName } from "./stringResources";
 import path from 'path';
 import { testNormalizeStr, testIdentStr, date2str } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
@@ -467,7 +467,7 @@ export class Bot {
   }
 
   //getShortPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Language, currencyId?: string): Template {
-  getShortPaySlip(data: IPaySlipData, employeeName: string, periodName: string, lng: Language, currencyName?: string): string {
+  getShortPaySlip(data: IPaySlipData, db: Date, de: Date, employeeName: string, periodName: string, lng: Language, currencyName: string): Template {
 
     const sum = (arr?: IPaySlipItem[], type?: AccDedType) =>
       arr?.reduce((prev, cur) => prev + (type ? (type === cur.type ? cur.s : 0) : cur.s), 0) ?? 0;
@@ -480,32 +480,33 @@ export class Bot {
     const pensionTax = sum(data.tax, 'PENSION_TAX');
     const tradeUnionTax = sum(data.tax, 'TRADE_UNION_TAX');
 
-    return
-`Расчетный листок'],
-mplName],
-Период: ${period}`],
-Валюта: ${currencyAbbreviation}`],
-Курс на ${date2str(db)}:`, data.rate],
-='],
-Начислено:', accruals, true],
-='],
-Зарплата чистыми:', accruals - taxes],
-  Удержания:', deds, true],
-  Аванс:', advances, true],
-  К выдаче:', data.saldo?.s, true],
-='],
-Налоги:', taxes],
-  Подоходный:', incomeTax, true],
-  Пенсионный:', pensionTax, true],
-  Профсоюзный:', tradeUnionTax, true],
-='],
-Информация на ${date2str(de)}:`],
-Подразделение:'],
-[this.getPaySlipString('', getLName(data.department, [lng, 'ru']))],
-Должность:'],
-[this.getPaySlipString('', getLName(data.position, [lng, 'ru']))],
-Оклад:', data.salary, true],
-ЧТС:', data.hourrate, true]
+    return [
+      ['Расчетный листок'],
+      [employeeName],
+      [`Период: ${periodName}`],
+      [`Валюта: ${currencyName}`],
+      [`Курс на ${date2str(db)}:`, data.rate],
+      ['='],
+      ['Начислено:', accruals, true],
+      ['='],
+      ['Зарплата чистыми:', accruals - taxes],
+      ['  Удержания:', deds, true],
+      ['  Аванс:', advances, true],
+      ['  К выдаче:', data.saldo?.s, true],
+      ['='],
+      ['Налоги:', taxes],
+      ['  Подоходный:', incomeTax, true],
+      ['  Пенсионный:', pensionTax, true],
+      ['  Профсоюзный:', tradeUnionTax, true],
+      ['='],
+      [`Информация на ${date2str(de)}:`],
+      ['Подразделение:'],
+      [getLName(data.department, [lng, 'ru'])],
+      ['Должность:'],
+      [getLName(data.position, [lng, 'ru'])],
+      ['Оклад:', data.salary, true],
+      ['ЧТС:', data.hourrate, true]
+    ];
   }
 
   getDetailPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Lang, currencyId?: string): Template {

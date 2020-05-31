@@ -160,18 +160,6 @@ export interface IPaySlip {
  * этот код и заменить на импорт пакета
  */
 
-// TODO: осторожно! у нас принято by для беларускай мовы, но в телеграме используется код be
-export type Lang = 'ru' | 'by' | 'en';
-
-export interface ITName {
-  name: string;
-  fullName?: string;
-};
-
-export type LName = {
-  [lang in Lang]?: ITName;
-};
-
 /*
 export const monthList: LName[] = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
   .map( name => ({ ru: { name }}) );
