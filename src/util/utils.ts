@@ -64,10 +64,7 @@ export function getYears(fromDate: Date, toDate: Date): number[] {
   return years;
 };
 
-export const getSumByRate = (s: number, rate: number) => {
-  return round(s/rate, 2)
-}
-
+/*
 function round(value: number, decimals: number) {
   let r = 0.5 * Number.EPSILON * value;
   let o = 1;
@@ -75,6 +72,7 @@ function round(value: number, decimals: number) {
   if(value < 0) o *= -1;
   return Math.round((value + r) * o) / o;
 }
+*/
 
 /**
  * Преобразует дату в строку вида YYYY.MM.DD. или DD.MM.YYYY

@@ -10,6 +10,7 @@ import { testNormalizeStr, testIdentStr } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
 import { Semaphore } from "./semaphore";
 import { payslipRoot, accDedRefFileName } from "./data";
+import { getCurrRate } from "./currency";
 
 // TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
 //       надо предусмотреть обновление или просто сброс данных после загрузки на сервер
@@ -449,6 +450,21 @@ export class Bot {
 
     return (data.saldo || data.accrual?.length || data.deduction?.length) ? data : undefined;
   };
+
+  private _getPaySlipByRate(data: IPaySlipData, rate: number) {
+    const { saldo, tax, advance, deduction, accrual, tax_deduction, privilage, salary, ...rest } = data;
+    return {
+      ...rest,
+      saldo: saldo && { ...saldo, s: saldo.s / rate },
+      tax: tax && tax.map( i => ({ ...i, s: i.s / rate }) ),
+      advance: advance && advance.map( i => ({ ...i, s: i.s / rate }) ),
+      deduction: deduction && deduction.map( i => ({ ...i, s: i.s / rate }) ),
+      accrual: accrual && accrual.map( i => ({ ...i, s: i.s / rate }) ),
+      tax_deduction: tax_deduction && tax_deduction.map( i => ({ ...i, s: i.s / rate }) ),
+      privilage: privilage && privilage.map( i => ({ ...i, s: i.s / rate }) ),
+      salary: salary && salary / rate
+    }
+  }
 
   launch() {
     this._telegram.launch();
