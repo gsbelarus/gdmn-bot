@@ -473,7 +473,7 @@ export class Bot {
   }
 
   //getShortPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Language, currencyId?: string): Template {
-  getShortPaySlip(data: IPaySlipData, db: Date, de: Date, employeeName: string, periodName: string, lng: Language, currencyName: string): Template {
+  private _getShortPaySlip(data: IPaySlipData, db: Date, de: Date, employeeName: string, periodName: string, lng: Language, currencyName: string): Template {
     const accruals = sum(data.accrual);
     const taxes = sum(data.tax);
     const deds = sum(data.deduction);
@@ -511,6 +511,7 @@ export class Bot {
     ];
   }
 
+  /*
   //getDetailPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Lang, currencyId?: string): Template {
   getDetailPaySlip(data: IPaySlipData, db: Date, de: Date, employeeName: string, periodName: string, lng: Language, currencyName: string): Template {
     const accruals = sum(data.accrual);
@@ -651,10 +652,23 @@ export class Bot {
               ['Разница:', dataII.hourrate || 0 - (dataI.hourrate || 0)]
             ];
   }
-
+  */
 
   //async getPaySlip(chatId: string, typePaySlip: TypePaySlip, lng: Lang, db: Date, de: Date, dbII?: Date, deII?: Date): Promise<string> {
   async getPaySlip(customerId: string, employeeId: string, typePaySlip: TypePaySlip, lng: Language, currencyId: string, db: Date, de: Date, dbII?: Date): Promise<string> {
+
+    const paySlipView = (template: Template) => {
+      const lenS = 10;
+      const len = 19;
+      return template.filter( t => t[0] && (t[1] || t[1] === undefined ) )
+        .map(t => Array.isArray(t[0])
+          ? '!!!'
+          : t[1] === undefined
+          ? `${t[0] === '=' ? '==============================' : t[0]}`
+          : `${t[0]!.toString().padEnd(len)} ${new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2}).format(t[1]).padStart(lenS)}`)
+        .join('\n');
+    };
+
     const rate = currencyId && await getCurrRate(db, currencyId);
 
     if (currencyId && !rate) {
@@ -677,12 +691,14 @@ export class Bot {
       ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
       : 'Bond, James Bond';
 
-    const period = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth()
+    const periodName = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth()
       ? `${date2str(db)}-${date2str(de)}`
       : `${db.toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`;
-    const currencyAbbreviation = getCurrencyAbbreviationById(currencyId);
+    const currencyName = getCurrencyAbbreviationById(currencyId);
 
+    return '```ini\n' + paySlipView(this._getShortPaySlip(dataI, db, de, employeeName, periodName, lng, currencyName)) + '```';
 
+    /*
     let template: Template = [];
 
     switch (typePaySlip) {
@@ -709,6 +725,7 @@ export class Bot {
       }
     }
     return this.paySlipView(template);
+    */
   }
 
   launch() {

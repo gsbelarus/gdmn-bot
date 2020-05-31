@@ -12,11 +12,11 @@
  */
 
 import path from 'path';
-import { Lang, LName } from './types';
 import { FileDB, IData } from './util/fileDB';
-import { getLName, date2str } from './util/utils';
+import { date2str } from './util/utils';
 import { MINDATE } from './constants';
 import fetch from 'node-fetch';
+import { LName, Language, getLName } from './stringResources';
 
 /**
  * Информация о валюте в справочнике валют. Краткая аббревиатура
@@ -82,7 +82,7 @@ export async function initCurrencies() {
             en: {
               name: currency.Cur_Name_Eng
             },
-            by: {
+            be: {
               name: currency.Cur_Name_Bel
             },
           }
@@ -104,7 +104,7 @@ export async function initCurrencies() {
  * @param lng ИД языка.
  * @param currencyId ИД валюты. Если не задано, функция вернет 'Белорусский рубль'.
  */
-export const getCurrencyNameById = (lng: Lang, currencyId?: string) => {
+export const getCurrencyNameById = (lng: Language, currencyId?: string) => {
   if (currenciesDB && currencyId) {
     const c = currenciesDB.read(currencyId);
     if (c) {

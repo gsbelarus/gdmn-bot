@@ -1,5 +1,5 @@
 import { IData } from "./util/fileDB";
-import { Language } from "./stringResources";
+import { Language, LName } from "./stringResources";
 
 export type Platform = 'TELEGRAM' | 'VIBER';
 export type UpdateType = 'MESSAGE' | 'ACTION' | 'COMMAND';
