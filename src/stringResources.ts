@@ -252,6 +252,11 @@ const stringResources = {
     ru: 'Вернуться в меню параметров...',
     be: null
   },
+  cantLoadRate: {
+    en: null,
+    ru: (currencyId: string) => `Невозможно загрузить курс валюты ${currencyId}`,
+    be: null
+  } as ILocString,
 };
 
 export type Language = keyof ILocString;

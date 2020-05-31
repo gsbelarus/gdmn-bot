@@ -1,16 +1,16 @@
 import { FileDB } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IPaySlipData, IPaySlip, IAccDed, TypePaySlip } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IPaySlipData, IPaySlip, IAccDed, TypePaySlip, IPaySlipItem, AccDedType } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig, MenuCommandEvent } from "./machine";
 import { getLocString, StringResource, str2Language, Language } from "./stringResources";
 import path from 'path';
-import { testNormalizeStr, testIdentStr } from "./util/utils";
+import { testNormalizeStr, testIdentStr, date2str } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
 import { Semaphore } from "./semaphore";
 import { payslipRoot, accDedRefFileName } from "./data";
-import { getCurrRate } from "./currency";
+import { getCurrRate, getCurrencyAbbreviationById } from "./currency";
 
 // TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
 //       надо предусмотреть обновление или просто сброс данных после загрузки на сервер
@@ -292,15 +292,15 @@ export class Bot {
     return undefined;
   }
 
-  private _findEmployee = ({ customerId: companyId }: IBotMachineContext, event: BotMachineEvent) => {
-    if (isEnterTextEvent(event) && companyId) {
-      let employees = this._employees[companyId];
+  private _findEmployee = ({ customerId }: IBotMachineContext, event: BotMachineEvent) => {
+    if (isEnterTextEvent(event) && customerId) {
+      let employees = this._employees[customerId];
 
       if (!employees) {
-        const db = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/payslip/${companyId}/employee.json`));
+        const db = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`));
         if (!db.isEmpty()) {
           employees = db;
-          this._employees[companyId] = db;
+          this._employees[customerId] = db;
         }
       }
 
@@ -466,49 +466,46 @@ export class Bot {
     }
   }
 
-  getShortPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Lang, currencyId?: string): Template {
-    const empls = this.getEmployeesByCustomer(customerId);
-    const emplName = `${empls[employeeId].lastName} ${empls[employeeId].firstName.slice(0, 1)}. ${empls[employeeId].patrName.slice(0, 1)}.`;
-    const period = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth()
-      ? `${date2str(db)}-${date2str(de)}`
-      : `${db.toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`;
-    const currencyAbbreviation = getCurrencyAbbreviationById(currencyId);
+  //getShortPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Language, currencyId?: string): Template {
+  getShortPaySlip(data: IPaySlipData, employeeName: string, periodName: string, lng: Language, currencyName?: string): string {
 
-    const accruals = data.accrual?.reduce((prev, cur) => prev + cur.s, 0) || 0;
-    const taxes = data.tax?.reduce((prev, cur) => prev + cur.s, 0) || 0;
-    const deds = data.deduction?.reduce((prev, cur) => prev + cur.s, 0);
-    const advances = data.advance?.reduce((prev, cur) => prev + cur.s, 0);
-    const incomeTax = data.tax?.reduce((prev, cur) => prev + (cur.type === 'INCOME_TAX' ? cur.s : 0), 0);
-    const pensionTax = data.tax?.reduce((prev, cur) => prev + (cur.type === 'PENSION_TAX' ? cur.s : 0), 0);
-    const tradeUnionTax = data.tax?.reduce((prev, cur) => prev + (cur.type === 'TRADE_UNION_TAX' ? cur.s : 0), 0);
+    const sum = (arr?: IPaySlipItem[], type?: AccDedType) =>
+      arr?.reduce((prev, cur) => prev + (type ? (type === cur.type ? cur.s : 0) : cur.s), 0) ?? 0;
 
-    return  [
-              ['Расчетный листок'],
-              [emplName],
-              [`Период: ${period}`],
-              [`Валюта: ${currencyAbbreviation}`],
-              [`Курс на ${date2str(db)}:`, data.rate],
-              ['='],
-              ['Начислено:', accruals, true],
-              ['='],
-              ['Зарплата чистыми:', accruals - taxes],
-              ['  Удержания:', deds, true],
-              ['  Аванс:', advances, true],
-              ['  К выдаче:', data.saldo?.s, true],
-              ['='],
-              ['Налоги:', taxes],
-              ['  Подоходный:', incomeTax, true],
-              ['  Пенсионный:', pensionTax, true],
-              ['  Профсоюзный:', tradeUnionTax, true],
-              ['='],
-              [`Информация на ${date2str(de)}:`],
-              ['Подразделение:'],
-              //[this.getPaySlipString('', getLName(data.department, [lng, 'ru']))],
-              ['Должность:'],
-              //[this.getPaySlipString('', getLName(data.position, [lng, 'ru']))],
-              ['Оклад:', data.salary, true],
-              ['ЧТС:', data.hourrate, true]
-            ];
+    const accruals = sum(data.accrual);
+    const taxes = sum(data.tax);
+    const deds = sum(data.deduction);
+    const advances = sum(data.advance);
+    const incomeTax = sum(data.tax, 'INCOME_TAX');
+    const pensionTax = sum(data.tax, 'PENSION_TAX');
+    const tradeUnionTax = sum(data.tax, 'TRADE_UNION_TAX');
+
+    return
+`Расчетный листок'],
+mplName],
+Период: ${period}`],
+Валюта: ${currencyAbbreviation}`],
+Курс на ${date2str(db)}:`, data.rate],
+='],
+Начислено:', accruals, true],
+='],
+Зарплата чистыми:', accruals - taxes],
+  Удержания:', deds, true],
+  Аванс:', advances, true],
+  К выдаче:', data.saldo?.s, true],
+='],
+Налоги:', taxes],
+  Подоходный:', incomeTax, true],
+  Пенсионный:', pensionTax, true],
+  Профсоюзный:', tradeUnionTax, true],
+='],
+Информация на ${date2str(de)}:`],
+Подразделение:'],
+[this.getPaySlipString('', getLName(data.department, [lng, 'ru']))],
+Должность:'],
+[this.getPaySlipString('', getLName(data.position, [lng, 'ru']))],
+Оклад:', data.salary, true],
+ЧТС:', data.hourrate, true]
   }
 
   getDetailPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Lang, currencyId?: string): Template {
@@ -662,57 +659,62 @@ export class Bot {
   }
 
 
-  async getPaySlip(chatId: string, typePaySlip: TypePaySlip, lng: Lang, db: Date, de: Date, dbII?: Date, deII?: Date): Promise<string> {
-    const link = this._accountLink.read(chatId);
+  //async getPaySlip(chatId: string, typePaySlip: TypePaySlip, lng: Lang, db: Date, de: Date, dbII?: Date, deII?: Date): Promise<string> {
+  async getPaySlip(customerId: string, employeeId: string, typePaySlip: TypePaySlip, lng: Language, currencyId: string, db: Date, de: Date, dbII?: Date): Promise<string> {
+    const rate = currencyId && await getCurrRate(db, currencyId);
 
-    if (link?.customerId && link.employeeId) {
-      const { customerId, employeeId, currencyId } = link;
+    if (currencyId && !rate) {
+      return getLocString('cantLoadRate', lng, currencyId);
+    }
 
-      let paySlip = this.getPaySlipByUser(customerId, employeeId);
+    let dataI = this._getPaySlipData(customerId, employeeId, db, de);
 
-      if (!paySlip) {
-          //continue;
-      } else {
-        let dataI = this.getPaySlipData(customerId, employeeId, db, de);
-        if (!dataI) {
-          return ''
-        }
-        if (currencyId) {
-          dataI = await this.getPaySlipByRate(dataI, currencyId, db);
-          if (!dataI.rate) {
-            return ('Курс валюты не был загружен')
+    if (!dataI) {
+      return '';
+    }
+
+    if (rate) {
+      dataI = this._getPaySlipByRate(dataI, rate);
+    }
+
+    const employees = this._employees[customerId];
+    const employee = employees?.read(employeeId);
+    const employeeName = employee
+      ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
+      : 'Bond, James Bond';
+
+    const period = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth()
+      ? `${date2str(db)}-${date2str(de)}`
+      : `${db.toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`;
+    const currencyAbbreviation = getCurrencyAbbreviationById(currencyId);
+
+
+    let template: Template = [];
+
+    switch (typePaySlip) {
+      case 'DETAIL': {
+        template = this.getDetailPaySlip(dataI, customerId, employeeId, db, de, lng, currencyId);
+      }
+      case 'CONCISE': {
+        template = this.getShortPaySlip(dataI, customerId, employeeId, db, de, lng, currencyId);
+      }
+      case 'COMPARE': {
+        if (dbII && deII) {
+          let dataII = this.getPaySlipData(customerId, employeeId, dbII, deII);
+          if (!dataII) {
+            return ''
           }
-        }
-
-        let template: Template = [];
-
-        switch (typePaySlip) {
-          case 'DETAIL': {
-            template = this.getDetailPaySlip(dataI, customerId, employeeId, db, de, lng, currencyId);
-          }
-          case 'CONCISE': {
-            template = this.getShortPaySlip(dataI, customerId, employeeId, db, de, lng, currencyId);
-          }
-          case 'COMPARE': {
-            if (dbII && deII) {
-              let dataII = this.getPaySlipData(customerId, employeeId, dbII, deII);
-              if (!dataII) {
-                return ''
-              }
-              if (currencyId) {
-                dataII = await this.getPaySlipByRate(dataII, currencyId, dbII);
-                if (!dataII.rate) {
-                  return ('Курс валюты не был загружен')
-                }
-              }
-              template = this.getComparePaySlip(dataI, dataII, customerId, employeeId, db, de, dbII, deII, lng, currencyId);
+          if (currencyId) {
+            dataII = await this.getPaySlipByRate(dataII, currencyId, dbII);
+            if (!dataII.rate) {
+              return ('Курс валюты не был загружен')
             }
           }
+          template = this.getComparePaySlip(dataI, dataII, customerId, employeeId, db, de, dbII, deII, lng, currencyId);
         }
-        return this.paySlipView(template);
       }
     }
-    return '';
+    return this.paySlipView(template);
   }
 
   launch() {
