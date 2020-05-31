@@ -12,6 +12,12 @@ import { Semaphore } from "./semaphore";
 import { payslipRoot, accDedRefFileName } from "./data";
 import { getCurrRate, getCurrencyAbbreviationById } from "./currency";
 
+type Template = ([string | string[][] | undefined, number?, boolean?])[];
+
+//TODO: перенести в utils?
+const sum = (arr?: IPaySlipItem[], type?: AccDedType) =>
+  arr?.reduce((prev, cur) => prev + (type ? (type === cur.type ? cur.s : 0) : cur.s), 0) ?? 0;
+
 // TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
 //       надо предусмотреть обновление или просто сброс данных после загрузки на сервер
 //       из Гедымина.
@@ -468,10 +474,6 @@ export class Bot {
 
   //getShortPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Language, currencyId?: string): Template {
   getShortPaySlip(data: IPaySlipData, db: Date, de: Date, employeeName: string, periodName: string, lng: Language, currencyName: string): Template {
-
-    const sum = (arr?: IPaySlipItem[], type?: AccDedType) =>
-      arr?.reduce((prev, cur) => prev + (type ? (type === cur.type ? cur.s : 0) : cur.s), 0) ?? 0;
-
     const accruals = sum(data.accrual);
     const taxes = sum(data.tax);
     const deds = sum(data.deduction);
@@ -501,78 +503,69 @@ export class Bot {
       ['='],
       [`Информация на ${date2str(de)}:`],
       ['Подразделение:'],
-      [getLName(data.department, [lng, 'ru'])],
+      [getLName(data.department, [lng])],
       ['Должность:'],
-      [getLName(data.position, [lng, 'ru'])],
+      [getLName(data.position, [lng])],
       ['Оклад:', data.salary, true],
       ['ЧТС:', data.hourrate, true]
     ];
   }
 
-  getDetailPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Lang, currencyId?: string): Template {
-    const empls = this.getEmployeesByCustomer(customerId);
-    const emplName = `${empls[employeeId].lastName} ${empls[employeeId].firstName.slice(0, 1)}. ${empls[employeeId].patrName.slice(0, 1)}.`;
-    const period = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth()
-      ? `${date2str(db)}-${date2str(de)}`
-      : `${db.toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`;
-    const currencyAbbreviation = getCurrencyAbbreviationById(currencyId);
+  //getDetailPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Lang, currencyId?: string): Template {
+  getDetailPaySlip(data: IPaySlipData, db: Date, de: Date, employeeName: string, periodName: string, lng: Language, currencyName: string): Template {
+    const accruals = sum(data.accrual);
+    const taxes = sum(data.tax);
+    const deds = sum(data.deduction);
+    const advances = sum(data.advance);
+    const taxDeds = sum(data.tax_deduction);
+    const privilages = sum(data.privilage);
 
-    const accruals = data.accrual?.reduce((prev, cur) => prev + cur.s, 0);
-    const taxes = data.tax?.reduce((prev, cur) => prev + cur.s, 0);
-    const deds = data.deduction?.reduce((prev, cur) => prev + cur.s, 0);
-    const taxDeds = data.tax_deduction?.reduce((prev, cur) => prev + cur.s, 0);
-    const advances = data.advance?.reduce((prev, cur) => prev + cur.s, 0);
-    const privilages = data.privilage?.reduce((prev, cur) => prev + cur.s, 0);
+    const strAccruals = data.accrual?.map( i => ([getLName(i.name, [lng]) + ' ' + i.s]));
+    const strDeductions = data.deduction?.map( i => ([getLName(i.name, [lng]) + ' ' + i.s]));
+    const strAdvances = data.advance?.map( i => ([getLName(i.name, [lng]) + ' ' + i.s]));
+    const strTaxes = data.tax?.map( i => ([getLName(i.name, [lng]) + ' ' + i.s]));
+    const strTaxDeds = data.tax_deduction?.map( i => ([getLName(i.name, [lng]) + ' ' + i.s]));
+    const strPrivilages = data.privilage?.map( i => ([getLName(i.name, [lng]) + ' ' + i.s]));
 
-    const strAccruals = data.accrual?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
-    const strDeductions = data.deduction?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
-    const strAdvances = data.advance?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
-
-    //const strTaxes = data.tax?.map( t => `${getLName(t.name)} ${t.s}` ).join('\n');
-
-    const strTaxes = data.tax?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') ?? ''
-    const strTaxDeds = data.tax_deduction?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
-    const strPrivilages = data.privilage?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
-
-    return  [
-              ['Расчетный листок'],
-              [emplName],
-              [`Период: ${period}`],
-              [`Валюта: ${currencyAbbreviation}`],
-              [`Курс на ${date2str(db)}:`, data.rate],
-              ['='],
-              ['Начисления:', accruals, true],
-              [accruals ? '=' : ''],
-              [strAccruals],
-              [accruals ? '=' : ''],
-              ['Удержания:', deds, true],
-              [deds ? '=' : ''],
-              [strDeductions],
-              [deds ? '=' : ''],
-              ['Аванс:', advances, true],
-              [advances ? '=' : ''],
-              [strAdvances],
-              [advances ? '=' : ''],
-              ['Налоги:', taxes, true],
-              [taxes ? '=' : ''],
-              [strTaxes],
-              [taxes ? '=' : ''],
-              ['Вычеты:', taxDeds, true],
-              [taxDeds ? '=' : ''],
-              [strTaxDeds],
-              [taxDeds ? '=' : ''],
-              ['Льготы:', privilages, true],
-              [privilages ? '=' : ''],
-              [strPrivilages],
-              [privilages ? '=' : ''],
-              [`Информация на ${date2str(de)}:`],
-              ['Подразделение:'],
-              //[this.getPaySlipString('', getLName(data.department, [lng, 'ru']))],
-              ['Должность:'],
-              //[this.getPaySlipString('', getLName(data.position, [lng, 'ru']))],
-              ['Оклад:', data.salary, true],
-              ['ЧТС:', data.hourrate, true]
-            ];
+    return [
+      ['Расчетный листок'],
+      [employeeName],
+      [`Период: ${periodName}`],
+      [`Валюта: ${currencyName}`],
+      [`Курс на ${date2str(db)}:`, data.rate],
+      ['='],
+      ['Начисления:', accruals, true],
+      [accruals ? '=' : ''],
+      [strAccruals],
+      [accruals ? '=' : ''],
+      ['Удержания:', deds, true],
+      [deds ? '=' : ''],
+      [strDeductions],
+      [deds ? '=' : ''],
+      ['Аванс:', advances, true],
+      [advances ? '=' : ''],
+      [strAdvances],
+      [advances ? '=' : ''],
+      ['Налоги:', taxes, true],
+      [taxes ? '=' : ''],
+      [strTaxes],
+      [taxes ? '=' : ''],
+      ['Вычеты:', taxDeds, true],
+      [taxDeds ? '=' : ''],
+      [strTaxDeds],
+      [taxDeds ? '=' : ''],
+      ['Льготы:', privilages, true],
+      [privilages ? '=' : ''],
+      [strPrivilages],
+      [privilages ? '=' : ''],
+      [`Информация на ${date2str(de)}:`],
+      ['Подразделение:'],
+      [getLName(data.department, [lng])],
+      ['Должность:'],
+      [getLName(data.position, [lng])],
+      ['Оклад:', data.salary, true],
+      ['ЧТС:', data.hourrate, true]
+    ];
   }
 
   getComparePaySlip(dataI: IPaySlipData, dataII: IPaySlipData, customerId: string, employeeId: string, dbI: Date, deI: Date, dbII: Date, deII: Date, lng: Lang, currencyId?: string):Template {
