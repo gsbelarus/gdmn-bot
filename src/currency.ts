@@ -16,8 +16,7 @@ import { Lang, LName } from './types';
 import { FileDB, IData } from './util/fileDB';
 import { getLName, date2str } from './util/utils';
 import { MINDATE } from './constants';
-
-const fetch = require("node-fetch");
+import fetch from 'node-fetch';
 
 /**
  * Информация о валюте в справочнике валют. Краткая аббревиатура
