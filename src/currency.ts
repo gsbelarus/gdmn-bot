@@ -154,9 +154,25 @@ let ratesDB: FileDB<ICurrencyRates> | undefined = undefined;
  * загрузить с сайта. Если на сайте нет, то берем на максимальную предыдущую дату.
  * Если все равно нет курса валюты, то возвращаем ЧТО?
  * @param date Дата.
- * @param currId ИД валюты.
+ * @param currency Код валюты. Например, USD.
  */
-export const getCurrRate = async (date: Date, currId: string) => {
+export const getCurrRate = async (date: Date, currency: string) => {
+  if (!currenciesDB) {
+    throw new Error('No currency db');
+  }
+
+  let currId = '';
+
+  for (const s of Object.entries(currenciesDB?.getMutable(false))) {
+    if (s[1].abbreviation === currency) {
+      currId = s[0];
+    }
+  }
+
+  if (!currId) {
+    throw new Error(`Invalid currency abbreviation ${currency}`);
+  }
+
   if (!ratesDB) {
     // загружаем курсы с диска
     ratesDB = new FileDB<ICurrencyRates>(

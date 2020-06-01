@@ -16,7 +16,7 @@ interface ISelectedDate {
 export interface ICalendarMachineContext extends IMachineContextBase {
   selectedDate: ISelectedDate;
   canceled: boolean;
-  dateKind: 'PERIOD_1_DB' | 'PERIOD_1_DE' | 'PERIOD_2_DB';
+  dateKind: 'PERIOD_1_DB' | 'PERIOD_1_DE' | 'PERIOD_2_DB' | 'PERIOD_MONTH';
 };
 
 type ChangeYearEvent      = { type: 'CHANGE_YEAR';    delta: number; };
@@ -195,12 +195,6 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           }
         }
       },
-      payslip: {
-        on: {
-          '': 'mainMenu'
-        },
-        entry: 'showPayslip'
-      },
       settings: {
         initial: 'showSettings',
         on: {
@@ -258,6 +252,40 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       logout: {
         type: 'final',
         entry: 'sayGoodbye'
+      },
+      payslip: {
+        initial: 'enterDate',
+        states: {
+          enterDate: {
+            invoke: {
+              id: 'calendarMachine',
+              src: calendarMachine,
+              autoForward: true,
+              data: (ctx: IBotMachineContext) => ({
+                selectedDate: ctx.dateBegin,
+                canceled: false,
+                dateKind: 'PERIOD_MONTH',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
+              }),
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  target: 'showPayslip',
+                  actions: assign({ dateBegin: (_, event) => event.data.selectedDate })
+                }
+              ]
+            }
+          },
+          showPayslip: {
+            on: { '': '#botMachine.mainMenu' },
+            entry: 'showPayslip'
+          }
+        }
       },
       payslipForPeriod: {
         initial: 'enterDateBegin',

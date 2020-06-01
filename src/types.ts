@@ -37,7 +37,7 @@ export interface IEmployee {
 export interface IAccountLink {
   customerId: string;
   employeeId: string;
-  currencyId?: string;
+  currency?: string;
   language?: Language;
   state?: any;
   context?: any;

@@ -1,12 +1,12 @@
 type FormatFunc = (...args: any[]) => string;
 
-interface ILocString {
+export interface ILocString {
   en: string | null;
   ru: string | null | FormatFunc;
   be: string | null;
 };
 
-const stringResources = {
+export const stringResources = {
   askCompanyName: {
     en: 'Hi!\n\nTo receive payslips you need to sign up.\n\nEnter organization name.',
     ru: 'Здравствуйте!\n\nДля получения расчетных листков необходимо зарегистрироваться.\n\nВведите наименование организации.',
@@ -142,6 +142,11 @@ const stringResources = {
     ru: 'Выберите дату начала второго периода.',
     be: null
   },
+  selectMonth: {
+    en: null,
+    ru: 'Выберите месяц.',
+    be: null
+  },
   menuPayslip: {
     en: null,
     ru: '💰 Расчетный листок',
@@ -262,17 +267,17 @@ const stringResources = {
 export type Language = keyof ILocString;
 export type StringResource = keyof typeof stringResources;
 
-export const getLocString = (id: StringResource, lang: Language, ...args: any[]) => {
-  const sr = stringResources[id][lang]
-    ?? stringResources[id]['be']
-    ?? stringResources[id]['en']
-    ?? stringResources[id]['ru'];
+export const getLocString = (r: ILocString, lang: Language, ...args: any[]) => {
+  const sr = r[lang]
+    ?? r['be']
+    ?? r['en']
+    ?? r['ru'];
 
   if (typeof sr === 'function') {
     return sr(...args);
   }
   else if (sr === null) {
-    throw new Error(`String resource ${id} isn't defined for a given lanuage.`)
+    throw new Error(`String resource isn't defined for a given lanuage.`)
   } else {
     return sr;
   }

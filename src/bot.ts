@@ -4,7 +4,7 @@ import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig, MenuCommandEvent } from "./machine";
-import { getLocString, StringResource, str2Language, Language, getLName } from "./stringResources";
+import { getLocString, StringResource, str2Language, Language, getLName, ILocString, stringResources } from "./stringResources";
 import path from 'path';
 import { testNormalizeStr, testIdentStr, date2str } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
@@ -41,7 +41,7 @@ export class Bot {
     this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'));
     this._customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'));
 
-    const reply = (s: StringResource | undefined, menu?: Menu, ...args: any[]) => async ({ platform, chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+    const reply = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ platform, chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
         console.log('No semaphore');
         return;
@@ -129,15 +129,17 @@ export class Bot {
     this._calendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
       {
         actions: {
-          showSelectedDate: reply('showSelectedDate'),
+          showSelectedDate: reply(stringResources.showSelectedDate),
           showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
             ? reply(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
             : reply(dateKind === 'PERIOD_1_DB'
-              ? 'selectDB'
-              : dateKind === 'PERIOD_1_DE'
-              ? 'selectDE'
-              : 'selectDB2', keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore }
-            )
+                ? stringResources.selectDB
+                : dateKind === 'PERIOD_1_DE'
+                ? stringResources.selectDE
+                : dateKind === 'PERIOD_MONTH'
+                ? stringResources.selectMonth
+                : stringResources.selectDB2, keyboardCalendar(selectedDate.year)
+              )({ platform, chatId, semaphore })
         }
       }
     );
@@ -167,21 +169,31 @@ export class Bot {
       {
         actions: {
           //TODO: зачем передавать ключ, когда можно передать структуру?
-          askCompanyName: reply('askCompanyName'),
-          unknownCompanyName: reply('unknownCompanyName'),
+          askCompanyName: reply(stringResources.askCompanyName),
+          unknownCompanyName: reply(stringResources.unknownCompanyName),
           assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
           assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
-          askPersonalNumber: reply('askPersonalNumber'),
-          showMainMenu: reply('mainMenuCaption', keyboardMenu),
-          showPayslip: reply('payslip'),
-          showPayslipForPeriod: reply('payslipForPeriod'),
-          showComparePayslip: reply('comparePayslip'),
+          askPersonalNumber: reply(stringResources.askPersonalNumber),
+          showMainMenu: reply(stringResources.mainMenuCaption, keyboardMenu),
+          showPayslip: async (ctx) => {
+            const { accountLink, ...rest } = checkAccountLink(ctx);
+            const { dateBegin } = ctx;
+            const db = new Date(dateBegin.year, dateBegin.month);
+            const de = new Date(dateBegin.year, dateBegin.month + 1);
+            const { customerId, employeeId, language, currency } = accountLink;
+            //TODO: заменять на дефолтные язык и валюту
+            // валюта! преобразовать в ід
+            const s = await this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', db, de);
+            reply({ en: null, ru: s, be: null }, keyboardMenu)(rest);
+          },
+          showPayslipForPeriod: reply(stringResources.payslipForPeriod),
+          showComparePayslip: reply(stringResources.comparePayslip),
           showSettings: ctx => {
             const { accountLink, ...rest } = checkAccountLink(ctx);
             //TODO: языка и валюты может не быть. надо заменять на дефолтные
-            reply('showSettings', keyboardSettings, accountLink.language, accountLink.currencyId)(rest);
+            reply(stringResources.showSettings, keyboardSettings, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
           },
-          sayGoodbye: reply('sayGoodbye'),
+          sayGoodbye: reply(stringResources.sayGoodbye),
           logout: ({ platform, chatId }) => {
             if (platform && chatId) {
               const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
@@ -210,7 +222,7 @@ export class Bot {
                 const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
                 accountLinkDB.write(chatId, {
                   ...accountLink,
-                  currencyId: event.command.split('/')[1]
+                  currency: event.command.split('/')[1]
                 });
               }
             }
@@ -338,16 +350,25 @@ export class Bot {
 
     const accDedObj = accDed.getMutable(false);
 
+    const str2Date = (date: Date | string) => {
+      if (typeof date === 'string') {
+        const [y, m, d] = date.split('.').map( s => Number(s) );
+        return new Date(y, m - 1, d);
+      } else {
+        return date;
+      }
+    };
+
     const isGr = (d1: Date, d2: Date) => {
       return d1.getTime() > d2.getTime();
     }
 
-    const isGrOrEq = (d1: Date, d2: Date) => {
-      return d1.getTime() > d2.getTime();
+    const isLs = (d1: Date, d2: Date) => {
+      return d1.getTime() < d2.getTime();
     }
 
-    const isLsOrEq = (d1: Date, d2: Date) => {
-      return d1.getTime() <= d2.getTime();
+    const isGrOrEq = (d1: Date, d2: Date) => {
+      return d1.getTime() >= d2.getTime();
     }
 
     // Подразделение получаем из массива подразделений dept,
@@ -357,32 +378,35 @@ export class Bot {
 
     //TODO: а может массив оказаться пустым? это где-то проверяется
     let department = payslip.dept[0].name;
-    let maxDate = payslip.dept[0].d;
+    let maxDate = str2Date(payslip.dept[0].d);
 
     for (const dept of payslip.dept) {
-      if (isGr(dept.d, maxDate) && isLsOrEq(dept.d, de)) {
+      const deptD = str2Date(dept.d);
+      if (isGr(deptD, maxDate) && isLs(deptD, de)) {
         department = dept.name;
-        maxDate = dept.d;
+        maxDate = deptD;
       }
     }
 
     let position = payslip.pos[0].name;
-    maxDate = payslip.pos[0].d;
+    maxDate = str2Date(payslip.pos[0].d);
 
     for (const pos of payslip.pos) {
-      if (isGr(pos.d, maxDate) && isLsOrEq(pos.d, de)) {
+      const posD = str2Date(pos.d);
+      if (isGr(posD, maxDate) && isLs(posD, de)) {
         position = pos.name;
-        maxDate = pos.d;
+        maxDate = posD;
       }
     }
 
     let salary = payslip.salary[0].s;
-    maxDate = payslip.salary[0].d;
+    maxDate = str2Date(payslip.salary[0].d);
 
     for (const posS of payslip.salary) {
-      if (isGr(posS.d, maxDate) && isLsOrEq(posS.d, de)) {
+      const posSD = str2Date(posS.d);
+      if (isGr(posSD, maxDate) && isLs(posSD, de)) {
         salary = posS.s;
-        maxDate = posS.d;
+        maxDate = posSD;
       }
     }
 
@@ -390,12 +414,13 @@ export class Bot {
 
     if (payslip.hourrate) {
       hourrate = payslip.hourrate[0].s;
-      maxDate = payslip.hourrate[0].d;
+      maxDate = str2Date(payslip.hourrate[0].d);
 
       for (const posHR of payslip.hourrate) {
-        if (isGr(posHR.d, maxDate) && isLsOrEq(posHR.d, de)) {
+        const posHRD = str2Date(posHR.d);
+        if (isGr(posHRD, maxDate) && isLs(posHRD, de)) {
           hourrate = posHR.s;
-          maxDate = posHR.d;
+          maxDate = posHRD;
         }
       }
     };
@@ -415,9 +440,16 @@ export class Bot {
 
     //Цикл по всем записям начислений-удержаний
     for (const value of Object.values(payslip.data)) {
-      if (isGrOrEq(value.db, db) && isLsOrEq(value.de, de)) {
-        //TODO: а если в справочнике не окажется значения с таким типом?
+      const valueDB = str2Date(value.db);
+      const valueDE = str2Date(value.de);
+      if (isGrOrEq(valueDB, db) && isLs(valueDE, de)) {
         const { det, s, typeId } = value;
+
+        if (!accDedObj[typeId]) {
+          console.error(`Отсутствует в справочнике тип начисления или удержания ${typeId}`);
+          continue;
+        }
+
         const { name, type } = accDedObj[typeId];
 
         switch (type) {
@@ -655,7 +687,7 @@ export class Bot {
   */
 
   //async getPaySlip(chatId: string, typePaySlip: TypePaySlip, lng: Lang, db: Date, de: Date, dbII?: Date, deII?: Date): Promise<string> {
-  async getPaySlip(customerId: string, employeeId: string, typePaySlip: TypePaySlip, lng: Language, currencyId: string, db: Date, de: Date, dbII?: Date): Promise<string> {
+  async getPayslip(customerId: string, employeeId: string, typePaySlip: TypePaySlip, lng: Language, currency: string, db: Date, de: Date, dbII?: Date): Promise<string> {
 
     const paySlipView = (template: Template) => {
       const lenS = 10;
@@ -669,10 +701,10 @@ export class Bot {
         .join('\n');
     };
 
-    const rate = currencyId && await getCurrRate(db, currencyId);
+    const rate = currency === 'BYN' ? undefined : await getCurrRate(db, currency);
 
-    if (currencyId && !rate) {
-      return getLocString('cantLoadRate', lng, currencyId);
+    if (currency && currency !== 'BYN' && !rate) {
+      return getLocString(stringResources.cantLoadRate, lng, currency);
     }
 
     let dataI = this._getPaySlipData(customerId, employeeId, db, de);
@@ -694,7 +726,7 @@ export class Bot {
     const periodName = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth()
       ? `${date2str(db)}-${date2str(de)}`
       : `${db.toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`;
-    const currencyName = getCurrencyAbbreviationById(currencyId);
+    const currencyName = getCurrencyAbbreviationById(currency);
 
     return '```ini\n' + paySlipView(this._getShortPaySlip(dataI, db, de, employeeName, periodName, lng, currencyName)) + '```';
 
