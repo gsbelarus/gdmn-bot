@@ -11,6 +11,7 @@ import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguag
 import { Semaphore } from "./semaphore";
 import { payslipRoot, accDedRefFileName } from "./data";
 import { getCurrRate, getCurrencyAbbreviationById } from "./currency";
+import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 
 type Template = ([string | string[][] | undefined, number?, boolean?])[];
 
@@ -66,13 +67,18 @@ export class Bot {
         );
 
         const text = s && getLocString(s, language, ...args);
+        const extra: ExtraEditMessage = keyboard ? Extra.markup(keyboard) : {};
+
+        if (text && text.slice(0, 3) === '```') {
+          extra.parse_mode = 'MarkdownV2';
+        }
 
         await semaphore.acquire();
         try {
           const accountLink = this._telegramAccountLink.read(chatId);
 
           if (!accountLink) {
-            await this._telegram.telegram.sendMessage(chatId, text ?? '<<Empty message>>', Extra.markup(keyboard));
+            await this._telegram.telegram.sendMessage(chatId, text ?? '<<Empty message>>', extra);
             return;
           }
 
@@ -93,7 +99,7 @@ export class Bot {
           if (lastMenuId) {
             if (text && keyboard) {
               await editMessageReplyMarkup(true);
-              const message = await this._telegram.telegram.sendMessage(chatId, text, Extra.markup(keyboard));
+              const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
               this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
             }
             else if (text && !keyboard) {
@@ -106,14 +112,14 @@ export class Bot {
             }
           } else {
             if (text && keyboard) {
-              const message = await this._telegram.telegram.sendMessage(chatId, text, Extra.markup(keyboard));
+              const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
               this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
             }
             else if (text && !keyboard) {
               await this._telegram.telegram.sendMessage(chatId, text);
             }
             else if (!text && keyboard) {
-              const message = await this._telegram.telegram.sendMessage(chatId, '<<<Empty message>>>', Extra.markup(keyboard));
+              const message = await this._telegram.telegram.sendMessage(chatId, '<<<Empty message>>>', extra);
               this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
             }
           }
