@@ -17,6 +17,7 @@ import { date2str } from './util/utils';
 import { MINDATE } from './constants';
 import fetch from 'node-fetch';
 import { LName, Language, getLName } from './stringResources';
+import { IDate } from './types';
 
 /**
  * Информация о валюте в справочнике валют. Краткая аббревиатура
@@ -156,7 +157,7 @@ let ratesDB: FileDB<ICurrencyRates> | undefined = undefined;
  * @param date Дата.
  * @param currency Код валюты. Например, USD.
  */
-export const getCurrRate = async (date: Date, currency: string) => {
+export const getCurrRate = async (date: IDate, currency: string) => {
   if (!currenciesDB) {
     throw new Error('No currency db');
   }
@@ -183,11 +184,11 @@ export const getCurrRate = async (date: Date, currency: string) => {
     );
   }
 
-  let d = date;
+  let d = new Date(date.year, date.month);
   let rate: number | undefined = undefined;
 
-  while (true) {
-    const strDate = date2str(d, true);
+  while (d.getTime() > MINDATE.getTime()) {
+    const strDate = date2str(d, 'YMD');
     const ratesForDate = ratesDB.read(strDate);
     rate = ratesForDate?.[currId];
 
@@ -236,10 +237,6 @@ export const getCurrRate = async (date: Date, currency: string) => {
     }
 
     d.setDate(d.getDate() - 1);
-
-    if (d.getTime() < MINDATE.getTime()) {
-      break;
-    }
   }
 
   return rate;

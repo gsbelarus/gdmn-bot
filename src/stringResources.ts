@@ -309,15 +309,19 @@ export function getLName(n: LName, langPref: Language[] = [], getFullName: boole
     }
   }
 
-  if (!n.en) return '';
-
-  return (getFullName && n.en.fullName) ? n.en.fullName : n.en.name;
+  return (
+    (getFullName ? n.ru?.fullName : undefined) ?? n.ru?.name ??
+    (getFullName ? n.be?.fullName : undefined) ?? n.be?.name ??
+    (getFullName ? n.en?.fullName : undefined) ?? n.en?.name ??
+    ''
+  );
 };
 
 /**
  * Формат кода языка
  * @param lang_code
  */
+ /*
 export const getLanguage = (lang_code?: string): Language => {
     if (!lang_code) {
       return 'ru'
@@ -333,3 +337,4 @@ export const getLanguage = (lang_code?: string): Language => {
       return 'en'
     }
 };
+*/

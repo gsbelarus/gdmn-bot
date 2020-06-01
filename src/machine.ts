@@ -1,5 +1,5 @@
 import { MachineConfig, assign, StateMachine } from "xstate";
-import { Platform } from "./types";
+import { Platform, IDate } from "./types";
 import { Semaphore } from "./semaphore";
 
 interface IMachineContextBase {
@@ -8,13 +8,8 @@ interface IMachineContextBase {
   semaphore?: Semaphore;
 }
 
-interface ISelectedDate {
-  year: number;
-  month: number;
-};
-
 export interface ICalendarMachineContext extends IMachineContextBase {
-  selectedDate: ISelectedDate;
+  selectedDate: IDate;
   canceled: boolean;
   dateKind: 'PERIOD_1_DB' | 'PERIOD_1_DE' | 'PERIOD_2_DB' | 'PERIOD_MONTH';
 };
@@ -71,9 +66,9 @@ export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, 
 export interface IBotMachineContext extends IMachineContextBase {
   customerId?: string;
   employeeId?: string;
-  dateBegin: ISelectedDate;
-  dateEnd: ISelectedDate;
-  dateBegin2: ISelectedDate;
+  dateBegin: IDate;
+  dateEnd: IDate;
+  dateBegin2: IDate;
 };
 
 export type StartEvent        = { type: 'START' } & Required<IMachineContextBase>;

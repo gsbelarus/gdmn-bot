@@ -1,10 +1,10 @@
 import { FileDB } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IPaySlipData, IPaySlip, IAccDed, TypePaySlip, IPaySlipItem, AccDedType } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IPaySlipData, IPaySlip, IAccDed, TypePaySlip, IPaySlipItem, AccDedType, IDate } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
-import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig, MenuCommandEvent } from "./machine";
-import { getLocString, StringResource, str2Language, Language, getLName, ILocString, stringResources } from "./stringResources";
+import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
+import { getLocString, str2Language, Language, getLName, ILocString, stringResources } from "./stringResources";
 import path from 'path';
 import { testNormalizeStr, testIdentStr, date2str } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
@@ -184,12 +184,10 @@ export class Bot {
           showPayslip: async (ctx) => {
             const { accountLink, ...rest } = checkAccountLink(ctx);
             const { dateBegin } = ctx;
-            const db = new Date(dateBegin.year, dateBegin.month);
-            const de = new Date(dateBegin.year, dateBegin.month + 1);
             const { customerId, employeeId, language, currency } = accountLink;
             //TODO: заменять на дефолтные язык и валюту
             // валюта! преобразовать в ід
-            const s = await this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', db, de);
+            const s = await this.getPayslip(customerId, employeeId, language ?? 'ru', currency ?? 'BYN', dateBegin);
             reply({ en: null, ru: s, be: null }, keyboardMenu)(rest);
           },
           showPayslipForPeriod: reply(stringResources.payslipForPeriod),
@@ -304,6 +302,20 @@ export class Bot {
     );
   }
 
+  private _getEmployees(customerId: string) {
+    let employees = this._employees[customerId];
+
+    if (!employees) {
+      const db = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`));
+      if (!db.isEmpty()) {
+        this._employees[customerId] = db;
+        return db;
+      }
+    }
+
+    return employees;
+  }
+
   private _findCompany = (_: any, event: BotMachineEvent) => {
     if (isEnterTextEvent(event)) {
       const customers = this._customers.getMutable(false);
@@ -318,15 +330,7 @@ export class Bot {
 
   private _findEmployee = ({ customerId }: IBotMachineContext, event: BotMachineEvent) => {
     if (isEnterTextEvent(event) && customerId) {
-      let employees = this._employees[customerId];
-
-      if (!employees) {
-        const db = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`));
-        if (!db.isEmpty()) {
-          employees = db;
-          this._employees[customerId] = db;
-        }
-      }
+      const employees = this._getEmployees(customerId);
 
       if (employees) {
         for (const [employeeId, { passportId }] of Object.entries(employees.getMutable(false))) {
@@ -339,7 +343,7 @@ export class Bot {
     return undefined;
   }
 
-  private _getPaySlipData(customerId: string, employeeId: string, db: Date, de: Date): IPaySlipData | undefined {
+  private _getPaySlipData(customerId: string, employeeId: string, mb: IDate, me?: IDate): IPaySlipData | undefined {
     const payslip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`))
       .read(employeeId);
 
@@ -376,6 +380,9 @@ export class Bot {
     const isGrOrEq = (d1: Date, d2: Date) => {
       return d1.getTime() >= d2.getTime();
     }
+
+    const db = new Date(mb.year, mb.month);
+    const de = me ? new Date(me.year, me.month + 1) : new Date(mb.year, mb.month + 1);
 
     // Подразделение получаем из массива подразделений dept,
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
@@ -517,7 +524,7 @@ export class Bot {
   }
 
   //getShortPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Language, currencyId?: string): Template {
-  private _getShortPaySlip(data: IPaySlipData, db: Date, de: Date, employeeName: string, periodName: string, lng: Language, currencyName: string): Template {
+  private _getShortPaySlip(data: IPaySlipData, db: IDate, de: IDate | undefined, employeeName: string, periodName: string, lng: Language, currencyName: string): Template {
     const accruals = sum(data.accrual);
     const taxes = sum(data.tax);
     const deds = sum(data.deduction);
@@ -531,7 +538,7 @@ export class Bot {
       [employeeName],
       [`Период: ${periodName}`],
       [`Валюта: ${currencyName}`],
-      [`Курс на ${date2str(db)}:`, data.rate],
+      [`Курс на ${db.month + 1}.${db.year}:`, data.rate],
       ['='],
       ['Начислено:', accruals, true],
       ['='],
@@ -545,7 +552,7 @@ export class Bot {
       ['  Пенсионный:', pensionTax, true],
       ['  Профсоюзный:', tradeUnionTax, true],
       ['='],
-      [`Информация на ${date2str(de)}:`],
+      [`Информация на ${de ? (de.month + 1).toString() + '.' + de.year.toString() : (db.month + 1).toString() + '.' + db.year.toString()}:`],
       ['Подразделение:'],
       [getLName(data.department, [lng])],
       ['Должность:'],
@@ -699,7 +706,7 @@ export class Bot {
   */
 
   //async getPaySlip(chatId: string, typePaySlip: TypePaySlip, lng: Lang, db: Date, de: Date, dbII?: Date, deII?: Date): Promise<string> {
-  async getPayslip(customerId: string, employeeId: string, typePaySlip: TypePaySlip, lng: Language, currency: string, db: Date, de: Date, dbII?: Date): Promise<string> {
+  async getPayslip(customerId: string, employeeId: string, lng: Language, currency: string, db: IDate, de?: IDate): Promise<string> {
 
     const paySlipView = (template: Template) => {
       const lenS = 10;
@@ -713,31 +720,31 @@ export class Bot {
         .join('\n');
     };
 
-    const rate = currency === 'BYN' ? undefined : await getCurrRate(db, currency);
-
-    if (currency && currency !== 'BYN' && !rate) {
-      return getLocString(stringResources.cantLoadRate, lng, currency);
-    }
-
     let dataI = this._getPaySlipData(customerId, employeeId, db, de);
 
     if (!dataI) {
       return '';
     }
 
+    const rate = currency === 'BYN' ? undefined : await getCurrRate(db, currency);
+
+    if (currency && currency !== 'BYN' && !rate) {
+      return getLocString(stringResources.cantLoadRate, lng, currency);
+    }
+
     if (rate) {
       dataI = this._getPaySlipByRate(dataI, rate);
     }
 
-    const employees = this._employees[customerId];
+    const employees = this._getEmployees(customerId);
     const employee = employees?.read(employeeId);
     const employeeName = employee
       ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
       : 'Bond, James Bond';
 
-    const periodName = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth()
-      ? `${date2str(db)}-${date2str(de)}`
-      : `${db.toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`;
+    const periodName = de
+      ? `${db.month + 1}.${db.year}-${de.month + 1}-${de.year}`
+      : `${new Date(db.year, db.month).toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`;
     const currencyName = getCurrencyAbbreviationById(currency);
 
     return '```ini\n' + paySlipView(this._getShortPaySlip(dataI, db, de, employeeName, periodName, lng, currencyName)) + '```';

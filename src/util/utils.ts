@@ -43,10 +43,10 @@ function round(value: number, decimals: number) {
  * Преобразует дату в строку вида YYYY.MM.DD. или DD.MM.YYYY
  * @param date Дата.
  */
-export const date2str = (date: Date, yearFirst = false) =>
-  yearFirst
-    ? `${date.getFullYear()}.${('00' + (date.getMonth() + 1).toString()).slice(-2)}.${('00' + date.getDate().toString()).slice(-2)}`
-    : `${('00' + date.getDate().toString()).slice(-2)}.${('00' + (date.getMonth() + 1).toString()).slice(-2)}.${date.getFullYear()}`;
+export const date2str = (date: Date, format: 'YMD' | 'DMY' = 'YMD') =>
+  format === 'YMD'
+    ? `${date.getFullYear()}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getDate().toString().padStart(2, '0')}`
+    : `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
 
 
 const lmap: { [letter: string]: string } = {
