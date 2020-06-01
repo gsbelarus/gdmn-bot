@@ -1,12 +1,12 @@
 import { FileDB } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IPaySlipData, IPaySlip, IAccDed, TypePaySlip, IPaySlipItem, AccDedType, IDate } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IPaySlipData, IPaySlip, IAccDed, IPaySlipItem, AccDedType, IDate } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources } from "./stringResources";
 import path from 'path';
-import { testNormalizeStr, testIdentStr, date2str } from "./util/utils";
+import { testNormalizeStr, testIdentStr } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
 import { Semaphore } from "./semaphore";
 import { payslipRoot, accDedRefFileName } from "./data";
@@ -104,7 +104,7 @@ export class Bot {
             }
             else if (text && !keyboard) {
               await editMessageReplyMarkup(true);
-              await this._telegram.telegram.sendMessage(chatId, text);
+              await this._telegram.telegram.sendMessage(chatId, text, extra);
               this._telegramAccountLink.merge(chatId, {}, ['lastMenuId']);
             }
             else if (!text && keyboard) {
@@ -116,7 +116,7 @@ export class Bot {
               this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
             }
             else if (text && !keyboard) {
-              await this._telegram.telegram.sendMessage(chatId, text);
+              await this._telegram.telegram.sendMessage(chatId, text, extra);
             }
             else if (!text && keyboard) {
               const message = await this._telegram.telegram.sendMessage(chatId, '<<<Empty message>>>', extra);
@@ -174,7 +174,6 @@ export class Bot {
     this._machine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._calendarMachine),
       {
         actions: {
-          //TODO: зачем передавать ключ, когда можно передать структуру?
           askCompanyName: reply(stringResources.askCompanyName),
           unknownCompanyName: reply(stringResources.unknownCompanyName),
           assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
@@ -182,13 +181,18 @@ export class Bot {
           askPersonalNumber: reply(stringResources.askPersonalNumber),
           showMainMenu: reply(stringResources.mainMenuCaption, keyboardMenu),
           showPayslip: async (ctx) => {
-            const { accountLink, ...rest } = checkAccountLink(ctx);
+            const { accountLink, semaphore, ...rest } = checkAccountLink(ctx);
             const { dateBegin } = ctx;
             const { customerId, employeeId, language, currency } = accountLink;
-            //TODO: заменять на дефолтные язык и валюту
-            // валюта! преобразовать в ід
-            const s = await this.getPayslip(customerId, employeeId, language ?? 'ru', currency ?? 'BYN', dateBegin);
-            reply({ en: null, ru: s, be: null }, keyboardMenu)(rest);
+            await semaphore?.acquire();
+            try {
+              //TODO: заменять на дефолтные язык и валюту
+              // валюта! преобразовать в ід
+              const s = await this.getPayslip(customerId, employeeId, language ?? 'ru', currency ?? 'BYN', dateBegin);
+              reply({ en: null, ru: s, be: null })({ ...rest, semaphore: new Semaphore() });
+            } finally {
+              semaphore?.release();
+            }
           },
           showPayslipForPeriod: reply(stringResources.payslipForPeriod),
           showComparePayslip: reply(stringResources.comparePayslip),
