@@ -446,6 +446,12 @@ export class Bot {
         const { det, s, typeId } = value;
 
         if (!accDedObj[typeId]) {
+          if (typeId === 'saldo') {
+            //TODO: языки!
+            data.saldo = { name: { ru: { name: 'Остаток' }}, s };
+            continue;
+          }
+
           console.error(`Отсутствует в справочнике тип начисления или удержания ${typeId}`);
           continue;
         }
