@@ -1,3 +1,5 @@
+import { IDate } from "./types";
+
 type FormatFunc = (...args: any[]) => string;
 
 export interface ILocString {
@@ -57,6 +59,11 @@ export const stringResources = {
     ru: 'До свидания! Спасибо, что использовали наш чат-бот.',
     be: null
   },
+  noData: {
+    en: null,
+    ru: '😕 Нет данных за выбранный период!',
+    be: null
+  },
   showSettings: {
     en: null,
     ru: (lang: Language, curr: string) => `Текущие настройки:\n\tЯзык: ${lang}\n\tВалюта: ${curr}`,
@@ -64,7 +71,7 @@ export const stringResources = {
   } as ILocString,
   showSelectedDate: {
     en: null,
-    ru: 'Выбрана дата...',
+    ru: (d: IDate) => `Выбран месяц ${d.month + 1}.${d.year}`,
     be: null
   },
   shortMonth0: {
@@ -262,6 +269,16 @@ export const stringResources = {
     ru: (currencyId: string) => `Невозможно загрузить курс валюты ${currencyId}`,
     be: null
   } as ILocString,
+  payslipTitle: {
+    en: 'Payslip',
+    ru: 'Расчетный листок',
+    be: 'Разліковы лісток'
+  },
+  comparativePayslipTitle: {
+    en: 'Comparative payslip',
+    ru: 'Сравнительный листок',
+    be: 'Параўнальны лісток'
+  }
 };
 
 export type Language = keyof ILocString;
@@ -316,25 +333,3 @@ export function getLName(n: LName, langPref: Language[] = [], getFullName: boole
     ''
   );
 };
-
-/**
- * Формат кода языка
- * @param lang_code
- */
- /*
-export const getLanguage = (lang_code?: string): Language => {
-    if (!lang_code) {
-      return 'ru'
-    }
-    if (lang_code.indexOf('-')) {
-      lang_code = lang_code.split('-')[0]
-    }
-    if (lang_code === 'ru') {
-      return 'ru'
-    } else if (lang_code === 'be') {
-        return 'be'
-      } else {
-      return 'en'
-    }
-};
-*/

@@ -1,21 +1,14 @@
-import { FileDB } from "./fileDB";
-import { IPaySlip, IEmployee } from "../types";
-import path from 'path';
-import { employeesByCustomer, payslipRoot, emploeeFileName } from "../data";
 
 /**
  * Загрузка сотрудников
  * @param ctx
  */
+ /*
 export const upload_employees = (ctx: any) => {
   try {
     const { customerId, objData } = ctx.request.body;
-    let employee = employeesByCustomer[customerId];
+    const employee = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${emploeeFileName}`), {});
 
-    if (!employee) {
-      employee = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${emploeeFileName}`), {});
-      employeesByCustomer[customerId] = employee;
-    }
     employee.clear();
 
     for (const [key, value] of Object.entries(objData)) {
@@ -32,12 +25,8 @@ export const upload_employees = (ctx: any) => {
     ctx.body = JSON.stringify({ status: 500, result: err.message });
   }
 }
+*/
 
-interface IUploadPaySlipRequest {
-  rewrite: boolean;
-  customerId: string;
-  objData: IPaySlip;
-};
 
 /*
 
@@ -54,11 +43,18 @@ interface IUploadPaySlipRequest {
  * Загрузка расчетных листков
  * @param ctx
  */
+/*
 export const upload_payslips = (ctx: any) => {
+  interface IUploadPaySlipRequest {
+    rewrite: boolean;
+    customerId: string;
+    objData: IPaySlip;
+  };
+
   try {
     const { rewrite, customerId, objData } = ctx.request.body as IUploadPaySlipRequest;
     const employeeId = objData.emplId;
-    let payslip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`));
+    const payslip = new FileDB<IPaySlip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`));
 
     if (rewrite) {
       payslip.clear();
@@ -134,3 +130,4 @@ export const upload_payslips = (ctx: any) => {
     ctx.body = JSON.stringify({ status: 500, result: err.message });
   }
 };
+*/

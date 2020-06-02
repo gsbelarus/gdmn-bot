@@ -4,10 +4,8 @@ import Router from 'koa-router';
 import http from 'http';
 import https from 'https';
 import path from 'path';
-import { upload_employees, upload_payslips } from "./util/upload";
 import { initCurrencies } from "./currency";
 import * as fs from "fs";
-import { customers, employeesByCustomer } from "./data";
 import { Logger } from "./log";
 
 // if not exists create configuration file using
@@ -79,9 +77,16 @@ router.get('/', (ctx, next) => {
 });
 
 router.post('/zarobak/v1/upload_employees', (ctx, next) => {
-  //TODO: после загрузки данных, надо послать сигнал в объект Бот
-  //чтобы скинуть там закэшированные данные
-  upload_employees(ctx);
+  try {
+    const { customerId, objData } = ctx.request.body;
+    bot.uploadEmployees(customerId, objData);
+    ctx.status = 200;
+    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+  } catch(err) {
+    console.log(`Error in employees uploading. ${err.message}`);
+    ctx.status = 500;
+    ctx.body = JSON.stringify({ status: 500, result: err.message });
+  }
   return next();
 });
 
@@ -103,15 +108,16 @@ router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
 // например: /zarobak/v1/upload_paySlips?employeeId=445566
 // тогда сразу будет видно на каком именно сотруднике произошла ошибка
 router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
-  upload_payslips(ctx);
-
-  // TODO: Сделать, чтобы не просто надпись выводилась, а человек сразу получал в чат
-  //       краткий расчетный листок.
-  /*
-  viber.showPaySlip(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
-  telegram.showPaySlip(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
-  */
-
+  try {
+    const { customerId, objData, rewrite } = ctx.request.body;
+    bot.upload_payslips(customerId, objData, rewrite);
+    ctx.status = 200;
+    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+  } catch(err) {
+    console.log(`Error in payslips uploading. ${err.message}`);
+    ctx.status = 500;
+    ctx.body = JSON.stringify({ status: 500, result: err.message });
+  }
   return next();
 });
 
@@ -124,17 +130,6 @@ app
   .use(router.allowedMethods());
 
 const koaCallback = app.callback();
-
-const flushData = () => {
-  customers.flush();
-
-  for (const ec of Object.values(employeesByCustomer)) {
-    ec.flush();
-  }
-
-  bot.finalize();
-};
-
 
 // TODO: Если у нас получится грузить из Гедымина по протоколу HTTPS, то HTTP сервер мы вообще уберем из программы.
 
@@ -182,7 +177,7 @@ https.createServer({ cert, ca, key },
     }
 
     // раз в час пишем на диск все несохраненные данные
-    setInterval(flushData, 60 * 60 * 1000);
+    setInterval(bot.finalize, 60 * 60 * 1000);
   }
 );
 
@@ -194,7 +189,7 @@ bot.launch();
 
 process
   .on('exit', async (code) => {
-    flushData();
+    bot.finalize();
     await log.info(undefined, undefined, `Process exit event with code: ${code}`);
     await log.shutdown();
   })

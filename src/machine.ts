@@ -93,7 +93,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
     context: {
       dateBegin: { year: new Date().getFullYear(), month: 0 },
       dateEnd: { year: new Date().getFullYear(), month: 11 },
-      dateBegin2: { year: new Date().getFullYear() - 1, month: 0 },
+      dateBegin2: { year: new Date().getFullYear(), month: 0 },
     },
     states: {
       init: {
@@ -275,7 +275,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
                 },
                 {
                   target: 'showPayslip',
-                  actions: assign({ dateBegin: (_, event) => event.data.selectedDate })
+                  actions: assign({
+                    dateBegin: (_, event) => event.data.selectedDate,
+                    dateEnd: (_, event) => event.data.selectedDate
+                  })
                 }
               ]
             }
@@ -309,7 +312,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
                 },
                 {
                   target: 'showDetailedPayslip',
-                  actions: assign({ dateBegin: (_, event) => event.data.selectedDate })
+                  actions: assign({
+                    dateBegin: (_, event) => event.data.selectedDate,
+                    dateEnd: (_, event) => event.data.selectedDate
+                  })
                 }
               ]
             }

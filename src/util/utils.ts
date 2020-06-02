@@ -5,7 +5,7 @@ const toIgnore = 'ооо,оао,зао,таа,зат,аат,ип,іп,уп,ку�
  * Приводит к нижнему регистру.
  * @param s Входящая строка
  */
-export const normalizeStr = (s?: string) => s && s.trim()
+const normalizeStr = (s?: string) => s && s.trim()
   .toLowerCase()
   .split('')
   .filter( c => c !== '"' && c !== "'" && c !== '`' && c !== '-' && c !== '\n' && c !== '\t' )
@@ -18,6 +18,7 @@ export const normalizeStr = (s?: string) => s && s.trim()
 export const testNormalizeStr = (a: string, b: string) => normalizeStr(a) === normalizeStr(b);
 
 /** Возвращает массив лет за период*/
+/*
 export function getYears(fromDate: Date, toDate: Date): number[] {
   let years = [];
   let fromYear = fromDate.getFullYear();
@@ -28,6 +29,7 @@ export function getYears(fromDate: Date, toDate: Date): number[] {
   }
   return years;
 };
+*/
 
 /*
 function round(value: number, decimals: number) {
@@ -64,6 +66,6 @@ const lmap: { [letter: string]: string } = {
   'Х': 'X'
 };
 
-export const replaceIdentLetters = (s: string | undefined) => s && [...s.toUpperCase()].map( c => lmap[c] ?? c ).join('');
+const replaceIdentLetters = (s: string | undefined) => s && [...s.toUpperCase()].map( c => lmap[c] ?? c ).join('');
 
 export const testIdentStr = (a: string, b: string) => replaceIdentLetters(a) === replaceIdentLetters(b);

@@ -1,4 +1,4 @@
-import { StringResource, ILocString, stringResources } from "./stringResources";
+import { ILocString, stringResources } from "./stringResources";
 
 export interface IMenuButton {
   type: 'BUTTON';

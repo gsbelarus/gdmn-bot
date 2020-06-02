@@ -1,15 +1,10 @@
-import { FileDB, IData } from "./util/fileDB";
-import { ICustomer, IEmployee, IAccDed } from "./types";
-import path from 'path';
 
-export const DATA_ROOT = `data/`;
-export const customersFile = `${DATA_ROOT}customers.json`;
-export const payslipRoot = `${DATA_ROOT}/payslip`;
-export const emploeeFileName = 'employee.json';
-export const accDedRefFileName = 'accdedref.json';
-
+/*
+*/
+/*
 export const customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), customersFile), {});
 export const employeesByCustomer: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
+*/
 
 /**
  * справочники начислений/удержаний для каждого клиента.

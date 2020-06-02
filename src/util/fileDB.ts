@@ -136,6 +136,7 @@ export class FileDB<T extends Object> {
 
       fs.writeFileSync(this._fn, JSON.stringify(envelope, undefined, 2), { encoding: 'utf8' });
       this._modified = false;
+      //TODO: в конструктор передавать логгер, который затем использовать
       console.log(`Data has been written to ${this._fn}...`);
     }
   }

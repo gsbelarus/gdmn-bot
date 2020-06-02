@@ -26,7 +26,7 @@ export class Semaphore {
     this._permits += 1;
 
     if (this._permits > 1 && this._queue.length > 0) {
-      console.warn("Should never be");
+      console.warn('Should never be');
     } else if (this._permits === 1 && this._queue.length > 0) {
       this._permits -= 1;
 
@@ -36,4 +36,4 @@ export class Semaphore {
       }
     }
   }
-}
+};
