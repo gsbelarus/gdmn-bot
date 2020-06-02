@@ -167,6 +167,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
               target: 'payslip'
             },
             {
+              cond: (_, { command }: MenuCommandEvent) => command === 'detailedPayslip',
+              target: 'detailedPayslip'
+            },
+            {
               cond: (_, { command }: MenuCommandEvent) => command === 'payslipForPeriod',
               target: 'payslipForPeriod'
             },
@@ -279,6 +283,40 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           showPayslip: {
             on: { '': '#botMachine.mainMenu' },
             entry: 'showPayslip'
+          }
+        }
+      },
+      detailedPayslip: {
+        initial: 'enterDate',
+        states: {
+          enterDate: {
+            invoke: {
+              id: 'calendarMachine',
+              src: calendarMachine,
+              autoForward: true,
+              data: (ctx: IBotMachineContext) => ({
+                selectedDate: ctx.dateBegin,
+                canceled: false,
+                dateKind: 'PERIOD_MONTH',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
+              }),
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  target: 'showDetailedPayslip',
+                  actions: assign({ dateBegin: (_, event) => event.data.selectedDate })
+                }
+              ]
+            }
+          },
+          showDetailedPayslip: {
+            on: { '': '#botMachine.mainMenu' },
+            entry: 'showDetailedPayslip'
           }
         }
       },

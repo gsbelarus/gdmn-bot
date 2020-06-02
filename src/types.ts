@@ -158,7 +158,7 @@ export interface IPaySlip {
   dismissalDate?: Date;
 };
 
- export type TypePaySlip = 'DETAIL' | 'CONCISE' | 'COMPARE'
+ export type PayslipType = 'DETAIL' | 'CONCISE' | 'COMPARE'
 /**
  * TODO: этот кусок мы просто скопировали из gdmn-internals
  * когда оформим gdmn-internals в отдельный пакет, надо убрать

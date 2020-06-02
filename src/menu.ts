@@ -24,7 +24,7 @@ export type Menu = MenuItem[][];
 export const keyboardMenu: Menu = [
   [
     { type: 'BUTTON', caption: stringResources.menuPayslip, command: 'payslip' },
-    { type: 'BUTTON', caption: stringResources.menuDetailedPayslip, command: 'detailPayslip' }
+    { type: 'BUTTON', caption: stringResources.menuDetailedPayslip, command: 'detailedPayslip' }
   ],
   [
     { type: 'BUTTON', caption: stringResources.menuPayslipForPeriod, command: 'payslipForPeriod' },

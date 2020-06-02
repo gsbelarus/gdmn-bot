@@ -154,10 +154,10 @@ let ratesDB: FileDB<ICurrencyRates> | undefined = undefined;
  * Возвращает курс заданной валюты на заданную дату. Если курса нет, то пытаемся
  * загрузить с сайта. Если на сайте нет, то берем на максимальную предыдущую дату.
  * Если все равно нет курса валюты, то возвращаем ЧТО?
- * @param date Дата.
+ * @param forDate Дата.
  * @param currency Код валюты. Например, USD.
  */
-export const getCurrRate = async (date: IDate, currency: string) => {
+export const getCurrRate = async (forDate: IDate, currency: string) => {
   if (!currenciesDB) {
     throw new Error('No currency db');
   }
@@ -184,11 +184,11 @@ export const getCurrRate = async (date: IDate, currency: string) => {
     );
   }
 
-  let d = new Date(date.year, date.month);
+  let date = new Date(forDate.year, forDate.month);
   let rate: number | undefined = undefined;
 
-  while (d.getTime() > MINDATE.getTime()) {
-    const strDate = date2str(d, 'YMD');
+  while (date.getTime() > MINDATE.getTime()) {
+    const strDate = date2str(date, 'YYYY.MM.DD');
     const ratesForDate = ratesDB.read(strDate);
     rate = ratesForDate?.[currId];
 
@@ -236,8 +236,8 @@ export const getCurrRate = async (date: IDate, currency: string) => {
       console.error(`Error fetching currencyRate list: ${e}`);
     }
 
-    d.setDate(d.getDate() - 1);
+    date.setDate(date.getDate() - 1);
   }
 
-  return rate;
+  return rate ? { date, rate } : undefined;
 };
