@@ -1,15 +1,14 @@
 type Unlock = () => void;
 
 export class Semaphore {
-
   private _permits: number;
   private _queue: Unlock[] = [];
 
-  constructor(count: number = 1) {
+  constructor(count = 1) {
     this._permits = count;
   }
 
-  get permits(): number {
+  get permits() {
     return this._permits;
   }
 
@@ -19,21 +18,17 @@ export class Semaphore {
       return;
     }
 
-    return new Promise((resolve) => this._queue.push(resolve));
+    return new Promise( resolve  => this._queue.push(resolve) );
   }
 
-  public release(): void {
+  public release() {
     this._permits += 1;
 
     if (this._permits > 1 && this._queue.length > 0) {
       console.warn('Should never be');
     } else if (this._permits === 1 && this._queue.length > 0) {
       this._permits -= 1;
-
-      const nextResolve = this._queue.shift();
-      if (nextResolve) {
-        nextResolve();
-      }
+      this._queue.shift()?.();
     }
   }
 };

@@ -141,7 +141,6 @@ export class Bot {
         }
       } catch (e) {
         console.log(e);
-        semaphore.release();
       } finally {
         semaphore.release();
       }
@@ -331,6 +330,36 @@ export class Bot {
     /**************************************************************/
     /**************************************************************/
 
+    const replyViber = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+      if (!semaphore) {
+        console.log('No semaphore');
+        return;
+      }
+
+      if (!chatId) {
+        console.log('Invalid chatId');
+        return;
+      }
+
+      //TODO: языка может и не быть. подставлять дефолтный?
+      const language = this._accountLanguage[this.getUniqId('VIBER', chatId)];
+      const keyboard = menu && this._menu2ViberMenu(menu, language);
+      const text = s && getLocString(s, language, ...args);
+
+      await semaphore.acquire();
+      try {
+        if (keyboard) {
+          await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
+        } else {
+          await this._viber.sendMessage({ id: chatId }, [new TextMessage(text)]);
+        }
+      } catch (e) {
+        console.log(e);
+      } finally {
+        semaphore.release();
+      }
+    };
+
     this._viberCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
       {
         actions: {
@@ -365,22 +394,6 @@ export class Bot {
     // });
 
     this._viber.onError(console.error);
-
-    this._telegram.start(
-      ctx => {
-        if (!ctx.chat) {
-          console.error('Invalid chat context');
-        } else {
-          this.onUpdate({
-            platform: 'TELEGRAM',
-            chatId: ctx.chat.id.toString(),
-            type: 'COMMAND',
-            body: '/start',
-            language: str2Language(ctx.from?.language_code)
-          });
-        }
-      }
-    );
 
     this._viber.on(BotEvents.SUBSCRIBED, (response: any) => {
       const chatId = response.userProfile.id;
@@ -538,6 +551,42 @@ export class Bot {
 
   get viber() {
     return this._viber;
+  }
+
+  private _menu2ViberMenu(menu: Menu, lng: Language) {
+    const Buttons: any[] = [];
+
+    for (const row of menu) {
+      const buttonWidth = row.length > 6 ? 1 : Math.floor(6 / row.length);
+      for (const col of row) {
+        if (col.type === 'BUTTON' || col.type === 'STATIC') {
+          Buttons.push({
+            Columns: buttonWidth,
+            Rows: 1,
+            ActionType: 'reply',
+            ActionBody: col.type === 'BUTTON' ? col.command : undefined,
+            Text: `<font color=\"#ffffff\">${col.type === 'BUTTON' ? getLocString(col.caption, lng) : col.label}</font>`,
+            BgColor: '#7360f2',
+            silent: true
+          });
+        } else {
+          Buttons.push({
+            Columns: buttonWidth,
+            Rows: 1,
+            ActionType: 'open-url',
+            ActionBody: col.url,
+            Text: `<font color=\"#ffffff\">${getLocString(col.caption, lng)}</font>`,
+            BgColor: '#7360f2',
+            silent: true
+          });
+        }
+      }
+    }
+
+    return {
+      Type: 'keyboard',
+      Buttons
+    };
   }
 
   private _getEmployees(customerId: string) {
