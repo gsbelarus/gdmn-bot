@@ -36,18 +36,27 @@ export class Bot {
   private _customers: FileDB<Omit<ICustomer, 'id'>>;
   private _telegram: Telegraf<Context>;
   private _service: { [id: string]: Interpreter<IBotMachineContext, any, BotMachineEvent> } = {};
-  private _calendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
-  private _machine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
+  private _telegramCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
+  private _telegramMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
   private _botStarted = new Date();
   private _callbacksReceived = 0;
   private _customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
   private _viber: any;
+  private _viberCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
 
   constructor(telegramToken: string, telegramRoot: string, viberToken: string, viberRoot: string) {
     this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'));
     this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'));
     this._customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'));
+
+    /**************************************************************/
+    /**************************************************************/
+    /**                                                          **/
+    /**  Telegram bot initialization                             **/
+    /**                                                          **/
+    /**************************************************************/
+    /**************************************************************/
 
     const replyTelegram = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
@@ -138,7 +147,7 @@ export class Bot {
       }
     };
 
-    this._calendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
+    this._telegramCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
       {
         actions: {
           showSelectedDate: ctx => replyTelegram(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
@@ -192,7 +201,7 @@ export class Bot {
       }
     };
 
-    this._machine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._calendarMachine),
+    this._telegramMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._telegramCalendarMachine),
       {
         actions: {
           askCompanyName: replyTelegram(stringResources.askCompanyName),
@@ -251,14 +260,6 @@ export class Bot {
         }
       }
     );
-
-    /**************************************************************/
-    /**************************************************************/
-    /**                                                          **/
-    /**  Telegram bot initialization                             **/
-    /**                                                          **/
-    /**************************************************************/
-    /**************************************************************/
 
     this._telegram = new Telegraf(telegramToken);
 
@@ -329,6 +330,24 @@ export class Bot {
     /**                                                          **/
     /**************************************************************/
     /**************************************************************/
+
+    this._viberCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
+      {
+        actions: {
+          showSelectedDate: ctx => replyTelegram(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
+          showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
+            ? replyTelegram(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
+            : replyTelegram(dateKind === 'PERIOD_1_DB'
+                ? stringResources.selectDB
+                : dateKind === 'PERIOD_1_DE'
+                ? stringResources.selectDE
+                : dateKind === 'PERIOD_MONTH'
+                ? stringResources.selectMonth
+                : stringResources.selectDB2, keyboardCalendar(selectedDate.year)
+              )({ platform, chatId, semaphore })
+        }
+      }
+    );
 
     this._viber = new ViberBot({
       authToken: viberToken,
@@ -943,7 +962,7 @@ export class Bot {
   createService(inPlatform: Platform, inChatId: string) {
     const uniqId = this.getUniqId(inPlatform, inChatId);
     const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-    const service = interpret(this._machine)
+    const service = interpret(this._telegramMachine)
       .onTransition( (state, { type }) => {
         console.log(`State: ${state.toStrings().join('->')}, Event: ${type}`);
         console.log(`State value: ${JSON.stringify(state.value)}`);
