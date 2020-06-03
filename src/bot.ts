@@ -366,6 +366,58 @@ export class Bot {
 
     this._viber.onError(console.error);
 
+    this._telegram.start(
+      ctx => {
+        if (!ctx.chat) {
+          console.error('Invalid chat context');
+        } else {
+          this.onUpdate({
+            platform: 'TELEGRAM',
+            chatId: ctx.chat.id.toString(),
+            type: 'COMMAND',
+            body: '/start',
+            language: str2Language(ctx.from?.language_code)
+          });
+        }
+      }
+    );
+
+    this._viber.on(BotEvents.SUBSCRIBED, (response: any) => {
+      const chatId = response.userProfile.id;
+
+      console.log(`SUBSCRIBED ${chatId}`);
+
+      if (!chatId) {
+        console.error('Invalid viber response');
+      } else {
+        this.onUpdate({
+          platform: 'VIBER',
+          chatId,
+          type: 'COMMAND',
+          body: '/start',
+          language: str2Language(response.userProfile.language)
+        });
+      }
+    });
+
+    this._viber.onTextMessage(/.+/, (message: any, response: any) => {
+      const chatId = response.userProfile.id;
+
+      if (!chatId) {
+        console.error('Invalid viber response');
+      } else {
+        this.onUpdate({
+          platform: 'VIBER',
+          chatId,
+          type: 'MESSAGE',
+          body: message.text,
+          //TODO: язык может не передаваться, надо брать из профиля
+          language: str2Language(response.userProfile.language)
+        });
+      }
+    });
+
+
     this._viber.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
       //TODO: удалять accountLink
       console.log(`User unsubscribed, ${response}`)
@@ -482,6 +534,10 @@ export class Bot {
       }
     });
     */
+  }
+
+  get viber() {
+    return this._viber;
   }
 
   private _getEmployees(customerId: string) {

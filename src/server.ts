@@ -150,16 +150,12 @@ const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bun
   .map(cert => cert +'-----END CERTIFICATE-----\r\n')
   .pop();
 
-/*
-const viberCallback = viber.bot.middleware();
-*/
+const viberCallback = bot.viber.middleware();
 
 https.createServer({ cert, ca, key },
   (req, res) => {
     if (req.headers['x-viber-content-signature']) {
-      /*
       viberCallback(req, res);
-      */
     } else {
       koaCallback(req, res);
     }
@@ -169,10 +165,8 @@ https.createServer({ cert, ca, key },
     const viberWebhook = `https://${config.viber.callbackHost}`;
 
     try {
-      /*
-      await viber.bot.setWebhook(viberWebhook);
-      log.info(`Viber webhook set at ${viberWebhook}`)
-      */
+      await bot.viber.setWebhook(viberWebhook);
+      log.info(undefined, undefined, `Viber webhook set at ${viberWebhook}`);
     } catch(e) {
       log.error(undefined, undefined, `Error setting Viber webhook at ${viberWebhook}: ${e}`);
     }
