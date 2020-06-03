@@ -246,6 +246,14 @@ export class Bot {
       }
     );
 
+    /**************************************************************/
+    /**************************************************************/
+    /**                                                          **/
+    /**  Telegram bot initialization                             **/
+    /**                                                          **/
+    /**************************************************************/
+    /**************************************************************/
+
     this._telegram = new Telegraf(telegramToken);
 
     this._telegram.use((ctx, next) => {
@@ -307,6 +315,147 @@ export class Bot {
         }
       }
     );
+
+    /**************************************************************/
+    /**************************************************************/
+    /**                                                          **/
+    /**  Viber bot initialization                                **/
+    /**                                                          **/
+    /**************************************************************/
+    /**************************************************************/
+
+    this._viber = new ViberBot({
+      authToken: token,
+     //logger: logger,
+      name: 'Моя зарплата',
+      avatar: ''
+    });
+
+    // this._viber.on(BotEvents.SUBSCRIBED, async (response: any) => {
+    //   if (!response?.userProfile) {
+    //     console.error('Invalid chat context');
+    //   } else {
+    //     this.start(response.userProfile.id.toString());
+    //   }
+    // });
+
+    this._viber.onError((err: Error) => logger.error(err));
+
+    this._viber.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
+      this.unsubscribe(response);
+      logger.log(`User unsubscribed, ${response}`)
+    });
+
+    this._viber.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.start(response.userProfile.id.toString(),
+        `Здравствуйте${response?.userProfile.name ? ', ' + response.userProfile.name : ''}!\nДля подписки введите любое сообщение.`);
+      }
+    });
+
+    this._viber.on(BotEvents.MESSAGE_RECEIVED, async (message: any, response: any) => {
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      }
+      else if (message?.text === undefined) {
+        console.error('Invalid chat message');
+      } else {
+        this.process(response.userProfile.id.toString(), message.text);
+      }
+    });
+
+    this._viber.on(BotEvents.MESSAGE_RECEIVED, async (message: any, response: any) => {
+
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      }
+      else if (message?.text === undefined) {
+        console.error('Invalid chat callbackQuery');
+      } else {
+        this.callback_query(response.userProfile.id.toString(), getLanguage(response.userProfile.language), message.text);
+      }
+    });
+
+    this._viber.onTextMessage(/login/, async (message: any, response: any) => {
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.loginDialog(response.userProfile.id.toString(), undefined, true);
+      }
+    });
+
+    this._viber.onTextMessage(/logout/, async (message: any, response: any) => {
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.logout(response.userProfile.id.toString())
+      }
+    });
+
+    this._viber.onTextMessage(/paySlip/, (message: any, response: any) => {
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        const today = new Date();
+        const db = new Date(today.getFullYear(), today.getMonth(), 1);
+        const de = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        this.paySlip(response.userProfile.id.toString(), 'CONCISE', getLanguage(response.userProfile.language), db, de);
+      }
+    });
+
+    this._viber.onTextMessage(/detailPaySlip/, (message: any, response: any) => {
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        const today = new Date();
+        const db = new Date(today.getFullYear(), today.getMonth(), 1);
+        const de = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        this.paySlip(response.userProfile.id.toString(), 'DETAIL', getLanguage(response.userProfile.language), db, de);
+      }
+    });
+
+    this._viber.onTextMessage(/concisePaySlip/, (message: any, response: any) => {
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.paySlipDialog(response.userProfile.id.toString(), getLanguage(response.userProfile.language), undefined, true);
+      }
+    });
+
+    this._viber.onTextMessage(/comparePaySlip/, (message: any, response: any) => {
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.paySlipCompareDialog(response.userProfile.id.toString(), getLanguage(response.userProfile.language), undefined, true);
+      }
+    });
+
+    this._viber.onTextMessage(/settings/, (message: any, response: any) => {
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.settings(response.userProfile.id.toString())
+      }
+    });
+
+    this._viber.onTextMessage(/menu/, (message: any, response: any) => {
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.menu(response.userProfile.id.toString())
+      }
+    });
+
+    this._viber.onTextMessage(/getCurrency/, (message: any, response: any) => {
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.currencyDialog(response.userProfile.id.toString(), getLanguage(response.userProfile.language), undefined, true);
+      }
+    });
+
   }
 
   private _getEmployees(customerId: string) {
