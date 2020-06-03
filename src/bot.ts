@@ -49,7 +49,7 @@ export class Bot {
     this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'));
     this._customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'));
 
-    const reply = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ platform, chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+    const replyTelegram = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
         console.log('No semaphore');
         return;
@@ -60,92 +60,91 @@ export class Bot {
         return;
       }
 
-      if (platform === 'TELEGRAM') {
-        const language = this._accountLanguage[this.getUniqId(platform, chatId)];
+      //TODO: языка может и не быть. подставлять дефолтный?
+      const language = this._accountLanguage[this.getUniqId('TELEGRAM', chatId)];
 
-        const keyboard = menu && Markup.inlineKeyboard(
-          menu.map(r => r.map(
-            c => c.type === 'BUTTON'
-              ? Markup.callbackButton(getLocString(c.caption, language), c.command) as any
-              : c.type === 'LINK'
-              ? Markup.urlButton(getLocString(c.caption, language), c.url)
-              : Markup.callbackButton(c.label, 'noop') as any
-          ))
-        );
+      const keyboard = menu && Markup.inlineKeyboard(
+        menu.map(r => r.map(
+          c => c.type === 'BUTTON'
+            ? Markup.callbackButton(getLocString(c.caption, language), c.command) as any
+            : c.type === 'LINK'
+            ? Markup.urlButton(getLocString(c.caption, language), c.url)
+            : Markup.callbackButton(c.label, 'noop') as any
+        ))
+      );
 
-        const text = s && getLocString(s, language, ...args);
-        const extra: ExtraEditMessage = keyboard ? Extra.markup(keyboard) : {};
+      const text = s && getLocString(s, language, ...args);
+      const extra: ExtraEditMessage = keyboard ? Extra.markup(keyboard) : {};
 
-        if (text && text.slice(0, 3) === '```') {
-          extra.parse_mode = 'MarkdownV2';
+      if (text && text.slice(0, 3) === '```') {
+        extra.parse_mode = 'MarkdownV2';
+      }
+
+      await semaphore.acquire();
+      try {
+        const accountLink = this._telegramAccountLink.read(chatId);
+
+        if (!accountLink) {
+          await this._telegram.telegram.sendMessage(chatId, text ?? '<<Empty message>>', extra);
+          return;
         }
 
-        await semaphore.acquire();
-        try {
-          const accountLink = this._telegramAccountLink.read(chatId);
+        const { lastMenuId } = accountLink;
 
-          if (!accountLink) {
-            await this._telegram.telegram.sendMessage(chatId, text ?? '<<Empty message>>', extra);
-            return;
+        const editMessageReplyMarkup = async (remove = false) => {
+          try {
+            if (remove || !keyboard) {
+              await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId);
+            } else {
+              await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId, undefined, keyboard && JSON.stringify(keyboard));
+            }
+          } catch (e) {
+            //
           }
+        };
 
-          const { lastMenuId } = accountLink;
-
-          const editMessageReplyMarkup = async (remove = false) => {
-            try {
-              if (remove || !keyboard) {
-                await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId);
-              } else {
-                await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId, undefined, keyboard && JSON.stringify(keyboard));
-              }
-            } catch (e) {
-              //
-            }
-          };
-
-          if (lastMenuId) {
-            if (text && keyboard) {
-              await editMessageReplyMarkup(true);
-              const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
-              this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
-            }
-            else if (text && !keyboard) {
-              await editMessageReplyMarkup(true);
-              await this._telegram.telegram.sendMessage(chatId, text, extra);
-              this._telegramAccountLink.merge(chatId, {}, ['lastMenuId']);
-            }
-            else if (!text && keyboard) {
-              await editMessageReplyMarkup();
-            }
-          } else {
-            if (text && keyboard) {
-              const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
-              this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
-            }
-            else if (text && !keyboard) {
-              await this._telegram.telegram.sendMessage(chatId, text, extra);
-            }
-            else if (!text && keyboard) {
-              const message = await this._telegram.telegram.sendMessage(chatId, '<<<Empty message>>>', extra);
-              this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
-            }
+        if (lastMenuId) {
+          if (text && keyboard) {
+            await editMessageReplyMarkup(true);
+            const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
+            this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
           }
-        } catch (e) {
-          console.log(e);
-          semaphore.release();
-        } finally {
-          semaphore.release();
+          else if (text && !keyboard) {
+            await editMessageReplyMarkup(true);
+            await this._telegram.telegram.sendMessage(chatId, text, extra);
+            this._telegramAccountLink.merge(chatId, {}, ['lastMenuId']);
+          }
+          else if (!text && keyboard) {
+            await editMessageReplyMarkup();
+          }
+        } else {
+          if (text && keyboard) {
+            const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
+            this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
+          }
+          else if (text && !keyboard) {
+            await this._telegram.telegram.sendMessage(chatId, text, extra);
+          }
+          else if (!text && keyboard) {
+            const message = await this._telegram.telegram.sendMessage(chatId, '<<<Empty message>>>', extra);
+            this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
+          }
         }
+      } catch (e) {
+        console.log(e);
+        semaphore.release();
+      } finally {
+        semaphore.release();
       }
     };
 
     this._calendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
       {
         actions: {
-          showSelectedDate: ctx => reply(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
+          showSelectedDate: ctx => replyTelegram(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
           showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
-            ? reply(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
-            : reply(dateKind === 'PERIOD_1_DB'
+            ? replyTelegram(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
+            : replyTelegram(dateKind === 'PERIOD_1_DB'
                 ? stringResources.selectDB
                 : dateKind === 'PERIOD_1_DE'
                 ? stringResources.selectDE
@@ -187,7 +186,7 @@ export class Bot {
         //TODO: заменять на дефолтные язык и валюту
         // валюта! преобразовать в ід
         const s = await this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', dateBegin, dateEnd, dateBegin2);
-        reply({ en: null, ru: s, be: null })({ ...rest, semaphore: new Semaphore() });
+        replyTelegram({ en: null, ru: s, be: null })({ ...rest, semaphore: new Semaphore() });
       } finally {
         semaphore?.release();
       }
@@ -196,12 +195,12 @@ export class Bot {
     this._machine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._calendarMachine),
       {
         actions: {
-          askCompanyName: reply(stringResources.askCompanyName),
-          unknownCompanyName: reply(stringResources.unknownCompanyName),
+          askCompanyName: replyTelegram(stringResources.askCompanyName),
+          unknownCompanyName: replyTelegram(stringResources.unknownCompanyName),
           assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
           assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
-          askPersonalNumber: reply(stringResources.askPersonalNumber),
-          showMainMenu: reply(stringResources.mainMenuCaption, keyboardMenu),
+          askPersonalNumber: replyTelegram(stringResources.askPersonalNumber),
+          showMainMenu: replyTelegram(stringResources.mainMenuCaption, keyboardMenu),
           showPayslip: getShowPayslipFunc('CONCISE'),
           showDetailedPayslip: getShowPayslipFunc('DETAIL'),
           showPayslipForPeriod: getShowPayslipFunc('DETAIL'),
@@ -209,9 +208,9 @@ export class Bot {
           showSettings: ctx => {
             const { accountLink, ...rest } = checkAccountLink(ctx);
             //TODO: языка и валюты может не быть. надо заменять на дефолтные
-            reply(stringResources.showSettings, keyboardSettings, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
+            replyTelegram(stringResources.showSettings, keyboardSettings, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
           },
-          sayGoodbye: reply(stringResources.sayGoodbye),
+          sayGoodbye: replyTelegram(stringResources.sayGoodbye),
           logout: ({ platform, chatId }) => {
             if (platform && chatId) {
               const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
@@ -219,7 +218,7 @@ export class Bot {
               delete this._service[this.getUniqId(platform, chatId)];
             }
           },
-          showSelectLanguageMenu: reply(undefined, keyboardLanguage),
+          showSelectLanguageMenu: replyTelegram(undefined, keyboardLanguage),
           selectLanguage: (ctx, event) => {
             if (event.type === 'MENU_COMMAND') {
               const { accountLink, chatId, platform } = checkAccountLink(ctx);
@@ -232,7 +231,7 @@ export class Bot {
               }
             }
           },
-          showSelectCurrencyMenu: reply(undefined, keyboardCurrency),
+          showSelectCurrencyMenu: replyTelegram(undefined, keyboardCurrency),
           selectCurrency: (ctx, event) => {
             if (event.type === 'MENU_COMMAND') {
               const { accountLink, chatId, platform } = checkAccountLink(ctx);
@@ -349,10 +348,11 @@ export class Bot {
     this._viber.onError(console.error);
 
     this._viber.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
-      this.unsubscribe(response);
+      //TODO: удалять accountLink
       console.log(`User unsubscribed, ${response}`)
     });
 
+    /*
     this._viber.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
       if (!response?.userProfile) {
         console.error('Invalid chat context');
@@ -462,7 +462,7 @@ export class Bot {
         this.currencyDialog(response.userProfile.id.toString(), getLanguage(response.userProfile.language), undefined, true);
       }
     });
-
+    */
   }
 
   private _getEmployees(customerId: string) {
