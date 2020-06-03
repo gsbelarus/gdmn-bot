@@ -13,6 +13,12 @@ import { getCurrRate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { payslipRoot, accDedRefFileName, emploeeFileName as employeeFileName } from "./constants";
 
+const vb = require('viber-bot');
+const ViberBot = vb.Bot
+const BotEvents = vb.Events
+const TextMessage = vb.Message.Text;
+const KeyboardMessage = vb.Message.Keyboard;
+
 type Template = (string | [string, number | undefined] | undefined | ILocString | [number, number, number])[];
 
 //TODO: перенести в utils?
@@ -36,6 +42,7 @@ export class Bot {
   private _botStarted = new Date();
   private _callbacksReceived = 0;
   private _customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
+  private _viber: any;
 
   constructor(telegramToken: string, telegramRoot: string, viberToken: string, viberRoot: string) {
     this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'));
@@ -325,7 +332,7 @@ export class Bot {
     /**************************************************************/
 
     this._viber = new ViberBot({
-      authToken: token,
+      authToken: viberToken,
      //logger: logger,
       name: 'Моя зарплата',
       avatar: ''
@@ -339,11 +346,11 @@ export class Bot {
     //   }
     // });
 
-    this._viber.onError((err: Error) => logger.error(err));
+    this._viber.onError(console.error);
 
     this._viber.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
       this.unsubscribe(response);
-      logger.log(`User unsubscribed, ${response}`)
+      console.log(`User unsubscribed, ${response}`)
     });
 
     this._viber.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
