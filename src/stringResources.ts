@@ -3,9 +3,9 @@ import { IDate } from "./types";
 type FormatFunc = (...args: any[]) => string;
 
 export interface ILocString {
-  en: string | null;
+  en: string | null | FormatFunc;
   ru: string | null | FormatFunc;
-  be: string | null;
+  be: string | null | FormatFunc;
 };
 
 export const stringResources = {
@@ -22,7 +22,7 @@ export const stringResources = {
   askPersonalNumber: {
     en: null,
     ru: 'Введите свой персональный идентификационный номер из паспорта.',
-    be: null
+    be: 'Увядзіце свой персанальны ідэнтыфікацыйны нумар з пашпарту.'
   },
   test: {
     en: null,
@@ -32,47 +32,27 @@ export const stringResources = {
   mainMenuCaption: {
     en: null,
     ru: 'Выберите команду из меню.',
-    be: null
+    be: 'Выбярыце каманду з меню.'
   },
-  goodBye: {
+  goodbye: {
     en: null,
     ru: 'До свидания! Спасибо, что были с нами.',
-    be: null
-  },
-  payslip: {
-    en: null,
-    ru: 'Здесь будет расчетный листок...',
-    be: null
-  },
-  payslipForPeriod: {
-    en: null,
-    ru: 'Здесь будет расчетный листок за период...',
-    be: null
-  },
-  comparePayslip: {
-    en: null,
-    ru: 'Здесь будет сравнение расчетных листков...',
-    be: null
-  },
-  sayGoodbye: {
-    en: null,
-    ru: 'До свидания! Спасибо, что использовали наш чат-бот.',
-    be: null
+    be: 'Да пабачэння! Дзякуй, што былі з намі.'
   },
   noData: {
     en: null,
     ru: '😕 Нет данных за выбранный период!',
-    be: null
+    be: '😕 Няма дадзеных за выбраны перыяд!'
   },
   showSettings: {
     en: null,
     ru: (lang: Language, curr: string) => `Текущие настройки:\n\tЯзык: ${lang}\n\tВалюта: ${curr}`,
-    be: null
+    be: (lang: Language, curr: string) => `Бягучыя настройкі:\n\tМова: ${lang}\n\tВалюта: ${curr}`
   } as ILocString,
   showSelectedDate: {
     en: null,
     ru: (d: IDate) => `Выбран месяц ${d.month + 1}.${d.year}`,
-    be: null
+    be: (d: IDate) => `Выбраны месяц ${d.month + 1}.${d.year}`
   },
   shortMonth0: {
     en: 'jan',
@@ -157,7 +137,7 @@ export const stringResources = {
   menuPayslip: {
     en: null,
     ru: '💰 Расчетный листок',
-    be: null
+    be: '💰 Разліковы лісток',
   },
   menuDetailedPayslip: {
     en: null,
@@ -176,7 +156,7 @@ export const stringResources = {
   },
   menuSettings: {
     en: null,
-    ru: '🔧 Параметры',
+    ru: '🔧 Настройки',
     be: null
   },
   menuLogout: {
@@ -207,7 +187,7 @@ export const stringResources = {
   languageBE: {
     en: null,
     ru: 'Белорусский',
-    be: null
+    be: 'Беларуская'
   },
   languageEN: {
     en: null,

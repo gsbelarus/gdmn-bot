@@ -221,7 +221,7 @@ export class Bot {
           //TODO: языка и валюты может не быть. надо заменять на дефолтные
           reply(stringResources.showSettings, keyboardSettings, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
         },
-        sayGoodbye: reply(stringResources.sayGoodbye),
+        sayGoodbye: reply(stringResources.goodbye),
         logout: ({ platform, chatId }) => {
           if (platform && chatId) {
             const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
