@@ -55,6 +55,7 @@ const viber = new Viber(
 const bot = new Bot(
   config.telegram.token,
   path.resolve(process.cwd(), 'data/telegram'),
+  config.viber.token,
   path.resolve(process.cwd(), 'data/viber')
 );
 

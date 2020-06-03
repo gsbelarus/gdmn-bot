@@ -37,7 +37,7 @@ export class Bot {
   private _callbacksReceived = 0;
   private _customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
 
-  constructor(telegramToken: string, telegramRoot: string, viberRoot: string) {
+  constructor(telegramToken: string, telegramRoot: string, viberToken: string, viberRoot: string) {
     this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'));
     this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'));
     this._customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'));
