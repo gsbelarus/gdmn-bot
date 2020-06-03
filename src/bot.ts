@@ -2,7 +2,7 @@ import { FileDB } from "./util/fileDB";
 import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IPaySlipData as IPayslipData, IPaySlip as IPayslip, IAccDed, IPaySlipItem, AccDedType, IDate, PayslipType } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
-import { Interpreter, Machine, StateMachine, interpret, assign } from "xstate";
+import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources } from "./stringResources";
 import path from 'path';
@@ -44,6 +44,7 @@ export class Bot {
   private _customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
   private _viber: any;
   private _viberCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
+  private _viberMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
 
   constructor(telegramToken: string, telegramRoot: string, viberToken: string, viberRoot: string) {
     this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'));
@@ -58,7 +59,9 @@ export class Bot {
     /**************************************************************/
     /**************************************************************/
 
-    const replyTelegram = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+    type ReplyFunc = (s: ILocString | undefined, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
+
+    const replyTelegram: ReplyFunc = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
         console.log('No semaphore');
         return;
@@ -146,23 +149,24 @@ export class Bot {
       }
     };
 
-    this._telegramCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
-      {
-        actions: {
-          showSelectedDate: ctx => replyTelegram(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
-          showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
-            ? replyTelegram(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
-            : replyTelegram(dateKind === 'PERIOD_1_DB'
-                ? stringResources.selectDB
-                : dateKind === 'PERIOD_1_DE'
-                ? stringResources.selectDE
-                : dateKind === 'PERIOD_MONTH'
-                ? stringResources.selectMonth
-                : stringResources.selectDB2, keyboardCalendar(selectedDate.year)
-              )({ platform, chatId, semaphore })
-        }
+    const calendarMachineOptions = (reply: ReplyFunc): Partial<MachineOptions<ICalendarMachineContext, CalendarMachineEvent>> => ({
+      actions: {
+        showSelectedDate: ctx => reply(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
+        showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
+          ? reply(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
+          : reply(dateKind === 'PERIOD_1_DB'
+              ? stringResources.selectDB
+              : dateKind === 'PERIOD_1_DE'
+              ? stringResources.selectDE
+              : dateKind === 'PERIOD_MONTH'
+              ? stringResources.selectMonth
+              : stringResources.selectDB2, keyboardCalendar(selectedDate.year)
+            )({ platform, chatId, semaphore })
       }
-    );
+    });
+
+    this._telegramCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
+      calendarMachineOptions(replyTelegram));
 
     const checkAccountLink = (ctx: IBotMachineContext) => {
       const { platform, chatId, semaphore } = ctx;
@@ -200,65 +204,66 @@ export class Bot {
       }
     };
 
-    this._telegramMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._telegramCalendarMachine),
-      {
-        actions: {
-          askCompanyName: replyTelegram(stringResources.askCompanyName),
-          unknownCompanyName: replyTelegram(stringResources.unknownCompanyName),
-          assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
-          assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
-          askPersonalNumber: replyTelegram(stringResources.askPersonalNumber),
-          showMainMenu: replyTelegram(stringResources.mainMenuCaption, keyboardMenu),
-          showPayslip: getShowPayslipFunc('CONCISE'),
-          showDetailedPayslip: getShowPayslipFunc('DETAIL'),
-          showPayslipForPeriod: getShowPayslipFunc('DETAIL'),
-          showComparePayslip: getShowPayslipFunc('COMPARE'),
-          showSettings: ctx => {
-            const { accountLink, ...rest } = checkAccountLink(ctx);
-            //TODO: языка и валюты может не быть. надо заменять на дефолтные
-            replyTelegram(stringResources.showSettings, keyboardSettings, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
-          },
-          sayGoodbye: replyTelegram(stringResources.sayGoodbye),
-          logout: ({ platform, chatId }) => {
-            if (platform && chatId) {
+    const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
+      actions: {
+        askCompanyName: reply(stringResources.askCompanyName),
+        unknownCompanyName: reply(stringResources.unknownCompanyName),
+        assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
+        assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
+        askPersonalNumber: reply(stringResources.askPersonalNumber),
+        showMainMenu: reply(stringResources.mainMenuCaption, keyboardMenu),
+        showPayslip: getShowPayslipFunc('CONCISE'),
+        showDetailedPayslip: getShowPayslipFunc('DETAIL'),
+        showPayslipForPeriod: getShowPayslipFunc('DETAIL'),
+        showComparePayslip: getShowPayslipFunc('COMPARE'),
+        showSettings: ctx => {
+          const { accountLink, ...rest } = checkAccountLink(ctx);
+          //TODO: языка и валюты может не быть. надо заменять на дефолтные
+          reply(stringResources.showSettings, keyboardSettings, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
+        },
+        sayGoodbye: reply(stringResources.sayGoodbye),
+        logout: ({ platform, chatId }) => {
+          if (platform && chatId) {
+            const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+            accountLinkDB.delete(chatId);
+            delete this._service[this.getUniqId(platform, chatId)];
+          }
+        },
+        showSelectLanguageMenu: reply(undefined, keyboardLanguage),
+        selectLanguage: (ctx, event) => {
+          if (event.type === 'MENU_COMMAND') {
+            const { accountLink, chatId, platform } = checkAccountLink(ctx);
+            if (accountLink) {
               const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-              accountLinkDB.delete(chatId);
-              delete this._service[this.getUniqId(platform, chatId)];
-            }
-          },
-          showSelectLanguageMenu: replyTelegram(undefined, keyboardLanguage),
-          selectLanguage: (ctx, event) => {
-            if (event.type === 'MENU_COMMAND') {
-              const { accountLink, chatId, platform } = checkAccountLink(ctx);
-              if (accountLink) {
-                const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-                accountLinkDB.write(chatId, {
-                  ...accountLink,
-                  language: str2Language(event.command.split('/')[1])
-                });
-              }
-            }
-          },
-          showSelectCurrencyMenu: replyTelegram(undefined, keyboardCurrency),
-          selectCurrency: (ctx, event) => {
-            if (event.type === 'MENU_COMMAND') {
-              const { accountLink, chatId, platform } = checkAccountLink(ctx);
-              if (accountLink) {
-                const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-                accountLinkDB.write(chatId, {
-                  ...accountLink,
-                  currency: event.command.split('/')[1]
-                });
-              }
+              accountLinkDB.write(chatId, {
+                ...accountLink,
+                language: str2Language(event.command.split('/')[1])
+              });
             }
           }
         },
-        guards: {
-          findCompany: (ctx, event) => !!this._findCompany(ctx, event),
-          findEmployee: (ctx, event) => !!this._findEmployee(ctx, event),
+        showSelectCurrencyMenu: reply(undefined, keyboardCurrency),
+        selectCurrency: (ctx, event) => {
+          if (event.type === 'MENU_COMMAND') {
+            const { accountLink, chatId, platform } = checkAccountLink(ctx);
+            if (accountLink) {
+              const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+              accountLinkDB.write(chatId, {
+                ...accountLink,
+                currency: event.command.split('/')[1]
+              });
+            }
+          }
         }
+      },
+      guards: {
+        findCompany: (ctx, event) => !!this._findCompany(ctx, event),
+        findEmployee: (ctx, event) => !!this._findEmployee(ctx, event),
       }
-    );
+    });
+
+    this._telegramMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._telegramCalendarMachine),
+      machineOptions(replyTelegram));
 
     this._telegram = new Telegraf(telegramToken);
 
@@ -361,22 +366,10 @@ export class Bot {
     };
 
     this._viberCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
-      {
-        actions: {
-          showSelectedDate: ctx => replyTelegram(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
-          showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
-            ? replyTelegram(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
-            : replyTelegram(dateKind === 'PERIOD_1_DB'
-                ? stringResources.selectDB
-                : dateKind === 'PERIOD_1_DE'
-                ? stringResources.selectDE
-                : dateKind === 'PERIOD_MONTH'
-                ? stringResources.selectMonth
-                : stringResources.selectDB2, keyboardCalendar(selectedDate.year)
-              )({ platform, chatId, semaphore })
-        }
-      }
-    );
+      calendarMachineOptions(replyViber));
+
+    this._viberMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._viberCalendarMachine),
+      machineOptions(replyViber));
 
     this._viber = new ViberBot({
       authToken: viberToken,
