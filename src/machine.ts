@@ -163,27 +163,27 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
         on: {
           MENU_COMMAND: [
             {
-              cond: (_, { command }: MenuCommandEvent) => command === 'payslip',
+              cond: (_, { command }: MenuCommandEvent) => command === '.payslip',
               target: 'payslip'
             },
             {
-              cond: (_, { command }: MenuCommandEvent) => command === 'detailedPayslip',
+              cond: (_, { command }: MenuCommandEvent) => command === '.detailedPayslip',
               target: 'detailedPayslip'
             },
             {
-              cond: (_, { command }: MenuCommandEvent) => command === 'payslipForPeriod',
+              cond: (_, { command }: MenuCommandEvent) => command === '.payslipForPeriod',
               target: 'payslipForPeriod'
             },
             {
-              cond: (_, { command }: MenuCommandEvent) => command === 'comparePayslip',
+              cond: (_, { command }: MenuCommandEvent) => command === '.comparePayslip',
               target: 'comparePayslip'
             },
             {
-              cond: (_, { command }: MenuCommandEvent) => command === 'settings',
+              cond: (_, { command }: MenuCommandEvent) => command === '.settings',
               target: 'settings'
             },
             {
-              cond: (_, { command }: MenuCommandEvent) => command === 'logout',
+              cond: (_, { command }: MenuCommandEvent) => command === '.logout',
               target: 'logout'
             }
           ]
@@ -199,15 +199,15 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
         on: {
           MENU_COMMAND: [
             {
-              cond: (_, { command }: MenuCommandEvent) => command === 'selectLanguage',
+              cond: (_, { command }: MenuCommandEvent) => command === '.selectLanguage',
               target: '.selectLanguage'
             },
             {
-              cond: (_, { command }: MenuCommandEvent) => command === 'selectCurrency',
+              cond: (_, { command }: MenuCommandEvent) => command === '.selectCurrency',
               target: '.selectCurrency'
             },
             {
-              cond: (_, { command }: MenuCommandEvent) => command === 'cancelSettings',
+              cond: (_, { command }: MenuCommandEvent) => command === '.cancelSettings',
               target: 'mainMenu'
             },
           ]
@@ -217,7 +217,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             on: {
               MENU_COMMAND: [
                 {
-                  cond: (_, { command }: MenuCommandEvent) => command === 'cancelSettings',
+                  cond: (_, { command }: MenuCommandEvent) => command === '.cancelSettings',
                   target: 'showSettings'
                 },
                 {
@@ -232,7 +232,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             on: {
               MENU_COMMAND: [
                 {
-                  cond: (_, { command }: MenuCommandEvent) => command === 'cancelSettings',
+                  cond: (_, { command }: MenuCommandEvent) => command === '.cancelSettings',
                   target: 'showSettings'
                 },
                 {

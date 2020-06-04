@@ -266,9 +266,9 @@ export type StringResource = keyof typeof stringResources;
 
 export const getLocString = (r: ILocString, lang: Language, ...args: any[]) => {
   const sr = r[lang]
+    ?? r['ru']
     ?? r['be']
-    ?? r['en']
-    ?? r['ru'];
+    ?? r['en'];
 
   if (typeof sr === 'function') {
     return sr(...args);

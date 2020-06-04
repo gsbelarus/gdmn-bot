@@ -354,7 +354,8 @@ export class Bot {
       await semaphore.acquire();
       try {
         if (keyboard) {
-          await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
+          const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
+          console.log(JSON.stringify(res));
         } else {
           await this._viber.sendMessage({ id: chatId }, [new TextMessage(text)]);
         }
@@ -406,6 +407,24 @@ export class Bot {
       }
     });
 
+    // команда меню
+    this._viber.onTextMessage(/(\.[A-Za-z0-9_]+)|(\{.+\})/, (message: any, response: any) => {
+      const chatId = response.userProfile.id;
+
+      if (!chatId) {
+        console.error('Invalid viber response');
+      } else {
+        this.onUpdate({
+          platform: 'VIBER',
+          chatId,
+          type: 'ACTION',
+          body: message.text,
+          //TODO: язык может не передаваться, надо брать из профиля
+          language: str2Language(response.userProfile.language)
+        });
+      }
+    });
+
     this._viber.onTextMessage(/.+/, (message: any, response: any) => {
       const chatId = response.userProfile.id;
 
@@ -438,107 +457,6 @@ export class Bot {
         `Здравствуйте${response?.userProfile.name ? ', ' + response.userProfile.name : ''}!\nДля подписки введите любое сообщение.`);
       }
     });
-
-    this._viber.on(BotEvents.MESSAGE_RECEIVED, async (message: any, response: any) => {
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      }
-      else if (message?.text === undefined) {
-        console.error('Invalid chat message');
-      } else {
-        this.process(response.userProfile.id.toString(), message.text);
-      }
-    });
-
-    this._viber.on(BotEvents.MESSAGE_RECEIVED, async (message: any, response: any) => {
-
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      }
-      else if (message?.text === undefined) {
-        console.error('Invalid chat callbackQuery');
-      } else {
-        this.callback_query(response.userProfile.id.toString(), getLanguage(response.userProfile.language), message.text);
-      }
-    });
-
-    this._viber.onTextMessage(/login/, async (message: any, response: any) => {
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      } else {
-        this.loginDialog(response.userProfile.id.toString(), undefined, true);
-      }
-    });
-
-    this._viber.onTextMessage(/logout/, async (message: any, response: any) => {
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      } else {
-        this.logout(response.userProfile.id.toString())
-      }
-    });
-
-    this._viber.onTextMessage(/paySlip/, (message: any, response: any) => {
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      } else {
-        const today = new Date();
-        const db = new Date(today.getFullYear(), today.getMonth(), 1);
-        const de = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        this.paySlip(response.userProfile.id.toString(), 'CONCISE', getLanguage(response.userProfile.language), db, de);
-      }
-    });
-
-    this._viber.onTextMessage(/detailPaySlip/, (message: any, response: any) => {
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      } else {
-        const today = new Date();
-        const db = new Date(today.getFullYear(), today.getMonth(), 1);
-        const de = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        this.paySlip(response.userProfile.id.toString(), 'DETAIL', getLanguage(response.userProfile.language), db, de);
-      }
-    });
-
-    this._viber.onTextMessage(/concisePaySlip/, (message: any, response: any) => {
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      } else {
-        this.paySlipDialog(response.userProfile.id.toString(), getLanguage(response.userProfile.language), undefined, true);
-      }
-    });
-
-    this._viber.onTextMessage(/comparePaySlip/, (message: any, response: any) => {
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      } else {
-        this.paySlipCompareDialog(response.userProfile.id.toString(), getLanguage(response.userProfile.language), undefined, true);
-      }
-    });
-
-    this._viber.onTextMessage(/settings/, (message: any, response: any) => {
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      } else {
-        this.settings(response.userProfile.id.toString())
-      }
-    });
-
-    this._viber.onTextMessage(/menu/, (message: any, response: any) => {
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      } else {
-        this.menu(response.userProfile.id.toString())
-      }
-    });
-
-    this._viber.onTextMessage(/getCurrency/, (message: any, response: any) => {
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      } else {
-        this.currencyDialog(response.userProfile.id.toString(), getLanguage(response.userProfile.language), undefined, true);
-      }
-    });
     */
   }
 
@@ -557,10 +475,11 @@ export class Bot {
             Columns: buttonWidth,
             Rows: 1,
             ActionType: 'reply',
-            ActionBody: col.type === 'BUTTON' ? col.command : undefined,
+            ActionBody: col.type === 'BUTTON' ? col.command : 'noop',
             Text: `<font color=\"#ffffff\">${col.type === 'BUTTON' ? getLocString(col.caption, lng) : col.label}</font>`,
             BgColor: '#7360f2',
-            silent: true
+            Silent: true,
+
           });
         } else {
           Buttons.push({
@@ -570,7 +489,7 @@ export class Bot {
             ActionBody: col.url,
             Text: `<font color=\"#ffffff\">${getLocString(col.caption, lng)}</font>`,
             BgColor: '#7360f2',
-            silent: true
+            Silent: true
           });
         }
       }
@@ -578,7 +497,8 @@ export class Bot {
 
     return {
       Type: 'keyboard',
-      Buttons
+      Buttons,
+      DefaultHeight: false
     };
   }
 
@@ -1060,7 +980,7 @@ export class Bot {
   createService(inPlatform: Platform, inChatId: string) {
     const uniqId = this.getUniqId(inPlatform, inChatId);
     const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-    const service = interpret(this._telegramMachine)
+    const service = (inPlatform === 'TELEGRAM' ? interpret(this._telegramMachine) : interpret(this._viberMachine))
       .onTransition( (state, { type }) => {
         console.log(`State: ${state.toStrings().join('->')}, Event: ${type}`);
         console.log(`State value: ${JSON.stringify(state.value)}`);
@@ -1117,6 +1037,10 @@ export class Bot {
     if (body === '/start' || !service) {
       const accountLink = accountLinkDB.read(chatId);
       if (accountLink) {
+        //TODO: перед тем как выводить меню для существующего чата
+        // имеет смысл вывести еще тескт, типа "мы отвлеклись, пожалуйста
+        // начните снова"
+
         const { customerId, employeeId, } = accountLink;
         this.createService(platform, chatId).send({
           type: 'MAIN_MENU',
@@ -1149,6 +1073,8 @@ export class Bot {
             ];
             if (platform === 'TELEGRAM') {
               this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
+            } else {
+              this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
             }
             return;
           }
@@ -1273,5 +1199,8 @@ export class Bot {
     payslip.flush();
 
     //TODO: оповестить всех клиентов о новых расчетных листках
+    // надо организовать цикл по всем аккаунт линк и если текущий диалог
+    // находится в состоянии главного меню, вывести там через машину
+    // состояний кратский расчетный листок
   }
 };

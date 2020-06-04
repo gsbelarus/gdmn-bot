@@ -23,16 +23,16 @@ export type Menu = MenuItem[][];
 
 export const keyboardMenu: Menu = [
   [
-    { type: 'BUTTON', caption: stringResources.menuPayslip, command: 'payslip' },
-    { type: 'BUTTON', caption: stringResources.menuDetailedPayslip, command: 'detailedPayslip' }
+    { type: 'BUTTON', caption: stringResources.menuPayslip, command: '.payslip' },
+    { type: 'BUTTON', caption: stringResources.menuDetailedPayslip, command: '.detailedPayslip' }
   ],
   [
-    { type: 'BUTTON', caption: stringResources.menuPayslipForPeriod, command: 'payslipForPeriod' },
-    { type: 'BUTTON', caption: stringResources.menuComparePayslip, command: 'comparePayslip' }
+    { type: 'BUTTON', caption: stringResources.menuPayslipForPeriod, command: '.payslipForPeriod' },
+    { type: 'BUTTON', caption: stringResources.menuComparePayslip, command: '.comparePayslip' }
   ],
   [
-    { type: 'BUTTON', caption: stringResources.menuSettings, command: 'settings' },
-    { type: 'BUTTON', caption: stringResources.menuLogout, command: 'logout' }
+    { type: 'BUTTON', caption: stringResources.menuSettings, command: '.settings' },
+    { type: 'BUTTON', caption: stringResources.menuLogout, command: '.logout' }
   ],
   [
     { type: 'LINK', caption: stringResources.menuHelp, url: 'http://gsbelarus.com' }
@@ -41,19 +41,19 @@ export const keyboardMenu: Menu = [
 
 export const keyboardSettings: Menu = [
   [
-    { type: 'BUTTON', caption: stringResources.menuSelectLanguage, command: 'selectLanguage' },
-    { type: 'BUTTON', caption: stringResources.menuSelectCurrency, command: 'selectCurrency' }
+    { type: 'BUTTON', caption: stringResources.menuSelectLanguage, command: '.selectLanguage' },
+    { type: 'BUTTON', caption: stringResources.menuSelectCurrency, command: '.selectCurrency' }
   ],
   [
-    { type: 'BUTTON', caption: stringResources.btnBackToMenu, command: 'cancelSettings' },
+    { type: 'BUTTON', caption: stringResources.btnBackToMenu, command: '.cancelSettings' },
   ]
 ];
 
 export const keyboardLanguage: Menu = [
   ...[['BE', stringResources.languageBE], ['RU', stringResources.languageRU], ['EN', stringResources.languageEN]].map(
-    l => ([{ type: 'BUTTON', caption: l[1], command: `selectLanguage/${l[0]}` } as IMenuButton])
+    l => ([{ type: 'BUTTON', caption: l[1], command: `.selectLanguage/${l[0]}` } as IMenuButton])
   ),
-  [{ type: 'BUTTON', caption: stringResources.btnBackToSettingsMenu, command: 'cancelSettings' }]
+  [{ type: 'BUTTON', caption: stringResources.btnBackToSettingsMenu, command: '.cancelSettings' }]
 ];
 
 export const keyboardCurrency: Menu = [
@@ -64,8 +64,8 @@ export const keyboardCurrency: Menu = [
       ['RUR', stringResources.currencyRUR],
       ['PLN', stringResources.currencyPLN],
       ['UAH', stringResources.currencyUAH],
-     ].map( l => ([{ type: 'BUTTON', caption: l[1], command: `selectCurrency/${l[0]}` } as IMenuButton]) ),
-  [{ type: 'BUTTON', caption: stringResources.btnBackToSettingsMenu, command: 'cancelSettings' }]
+     ].map( l => ([{ type: 'BUTTON', caption: l[1], command: `.selectCurrency/${l[0]}` } as IMenuButton]) ),
+  [{ type: 'BUTTON', caption: stringResources.btnBackToSettingsMenu, command: '.cancelSettings' }]
 ];
 
 export const keyboardCalendar = (year: number): Menu => {
