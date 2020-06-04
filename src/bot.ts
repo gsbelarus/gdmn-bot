@@ -1,10 +1,10 @@
 import { FileDB } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IPaySlipData as IPayslipData, IPaySlip as IPayslip, IAccDed, IPaySlipItem, AccDedType, IDate, PayslipType } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IPaySlipData as IPayslipData, IPaySlip as IPayslip, IAccDed, IPaySlipItem, AccDedType, IDate, PayslipType, IDet } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
-import { getLocString, str2Language, Language, getLName, ILocString, stringResources } from "./stringResources";
+import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
 import path from 'path';
 import { testNormalizeStr, testIdentStr, date2str } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
@@ -24,6 +24,16 @@ type Template = (string | [string, number | undefined] | undefined | ILocString 
 //TODO: перенести в utils?
 const sum = (arr?: IPaySlipItem[], type?: AccDedType) =>
   arr?.reduce((prev, cur) => prev + (type ? (type === cur.type ? cur.s : 0) : cur.s), 0) ?? 0;
+
+/** */
+const fillInPaySlipItem = (item: IPaySlipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, typeAccDed?: AccDedType) => {
+  const i = item?.findIndex(d => d.id === typeId);
+  if (i === undefined || i === -1) {
+    item?.push({ id: typeId, name, s, det, type: typeAccDed });
+  } else {
+    item[i].s += s;
+  }
+};
 
 // TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
 //       надо предусмотреть обновление или просто сброс данных после загрузки на сервер
@@ -666,7 +676,7 @@ export class Bot {
         if (!accDedObj[typeId]) {
           if (typeId === 'saldo') {
             //TODO: языки!
-            data.saldo = { name: { ru: { name: 'Остаток' }}, s };
+            data.saldo = { id: 'saldo', name: { ru: { name: 'Остаток' }}, s };
             continue;
           }
 
@@ -680,27 +690,27 @@ export class Bot {
           case 'INCOME_TAX':
           case 'PENSION_TAX':
           case 'TRADE_UNION_TAX':
-            data.tax?.push({ name, s, type, det });
+            fillInPaySlipItem(data.tax, typeId, name, s, det, type);
             break;
 
           case 'ADVANCE':
-            data.advance?.push({ name, s, det });
+            fillInPaySlipItem(data.advance, typeId, name, s, det);
             break;
 
           case 'DEDUCTION':
-            data.deduction?.push({ name, s, det });
+            fillInPaySlipItem(data.deduction, typeId, name, s, det);
             break;
 
           case 'ACCRUAL':
-            data.accrual?.push({ name, s, det });
+            fillInPaySlipItem(data.accrual, typeId, name, s, det);
             break;
 
           case 'TAX_DEDUCTION':
-            data.tax_deduction?.push({ name, s, det });
+            fillInPaySlipItem(data.tax_deduction, typeId, name, s, det);
             break;
 
           case 'PRIVILAGE':
-            data.privilage?.push({ name, s,  det });
+            fillInPaySlipItem(data.privilage, typeId, name, s, det);
             break;
         }
       }

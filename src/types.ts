@@ -106,6 +106,7 @@ export interface IPaySlip {
 export type PayslipType = 'DETAIL' | 'CONCISE' | 'COMPARE';
 
 export interface IPaySlipItem {
+  id: string;
   name: LName;
   s: number;
   type?: AccDedType;
@@ -116,12 +117,12 @@ export interface IPaySlipData {
   department: LName;
   position: LName;
   saldo?: IPaySlipItem,
-  tax?: IPaySlipItem[],
-  advance?: IPaySlipItem[],
-  deduction?: IPaySlipItem[],
-  accrual?: IPaySlipItem[],
-  tax_deduction?: IPaySlipItem[],
-  privilage?: IPaySlipItem[],
+  tax: IPaySlipItem[],
+  advance: IPaySlipItem[],
+  deduction: IPaySlipItem[],
+  accrual: IPaySlipItem[],
+  tax_deduction: IPaySlipItem[],
+  privilage: IPaySlipItem[],
   salary?: number;
   hourrate?: number;
   rate?: number;
