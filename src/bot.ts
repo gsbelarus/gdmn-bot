@@ -199,7 +199,7 @@ export class Bot {
       return { platform, chatId, semaphore, accountLink };
     };
 
-    const getShowPayslipFunc = (payslipType: PayslipType) => async (ctx: IBotMachineContext) => {
+    const getShowPayslipFunc = (payslipType: PayslipType, reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
       const { accountLink, semaphore, ...rest } = checkAccountLink(ctx);
       const { dateBegin, dateEnd, dateBegin2 } = ctx;
       const { customerId, employeeId, language, currency } = accountLink;
@@ -208,7 +208,7 @@ export class Bot {
         //TODO: заменять на дефолтные язык и валюту
         // валюта! преобразовать в ід
         const s = await this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', dateBegin, dateEnd, dateBegin2);
-        replyTelegram({ en: null, ru: s, be: null })({ ...rest, semaphore: new Semaphore() });
+        reply({ en: null, ru: s, be: null })({ ...rest, semaphore: new Semaphore() });
       } finally {
         semaphore?.release();
       }
@@ -222,10 +222,10 @@ export class Bot {
         assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
         askPersonalNumber: reply(stringResources.askPersonalNumber),
         showMainMenu: reply(stringResources.mainMenuCaption, keyboardMenu),
-        showPayslip: getShowPayslipFunc('CONCISE'),
-        showDetailedPayslip: getShowPayslipFunc('DETAIL'),
-        showPayslipForPeriod: getShowPayslipFunc('DETAIL'),
-        showComparePayslip: getShowPayslipFunc('COMPARE'),
+        showPayslip: getShowPayslipFunc('CONCISE', reply),
+        showDetailedPayslip: getShowPayslipFunc('DETAIL', reply),
+        showPayslipForPeriod: getShowPayslipFunc('DETAIL', reply),
+        showComparePayslip: getShowPayslipFunc('COMPARE', reply),
         showSettings: ctx => {
           const { accountLink, ...rest } = checkAccountLink(ctx);
           //TODO: языка и валюты может не быть. надо заменять на дефолтные
