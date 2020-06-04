@@ -26,12 +26,12 @@ const sum = (arr?: IPaySlipItem[], type?: AccDedType) =>
   arr?.reduce((prev, cur) => prev + (type ? (type === cur.type ? cur.s : 0) : cur.s), 0) ?? 0;
 
 /** */
-const fillInPaySlipItem = (item: IPaySlipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, typeAccDed?: AccDedType) => {
-  const i = item?.findIndex(d => d.id === typeId);
-  if (i === undefined || i === -1) {
-    item?.push({ id: typeId, name, s, det, type: typeAccDed });
+const fillInPayslipItem = (item: IPaySlipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, typeAccDed?: AccDedType) => {
+  const i = item.find( d => d.id === typeId );
+  if (i) {
+    i.s += s;
   } else {
-    item[i].s += s;
+    item.push({ id: typeId, name, s, det, type: typeAccDed });
   }
 };
 
@@ -690,27 +690,27 @@ export class Bot {
           case 'INCOME_TAX':
           case 'PENSION_TAX':
           case 'TRADE_UNION_TAX':
-            fillInPaySlipItem(data.tax, typeId, name, s, det, type);
+            fillInPayslipItem(data.tax, typeId, name, s, det, type);
             break;
 
           case 'ADVANCE':
-            fillInPaySlipItem(data.advance, typeId, name, s, det);
+            fillInPayslipItem(data.advance, typeId, name, s, det);
             break;
 
           case 'DEDUCTION':
-            fillInPaySlipItem(data.deduction, typeId, name, s, det);
+            fillInPayslipItem(data.deduction, typeId, name, s, det);
             break;
 
           case 'ACCRUAL':
-            fillInPaySlipItem(data.accrual, typeId, name, s, det);
+            fillInPayslipItem(data.accrual, typeId, name, s, det);
             break;
 
           case 'TAX_DEDUCTION':
-            fillInPaySlipItem(data.tax_deduction, typeId, name, s, det);
+            fillInPayslipItem(data.tax_deduction, typeId, name, s, det);
             break;
 
           case 'PRIVILAGE':
-            fillInPaySlipItem(data.privilage, typeId, name, s, det);
+            fillInPayslipItem(data.privilage, typeId, name, s, det);
             break;
         }
       }
@@ -1044,7 +1044,7 @@ export class Bot {
       this._accountLanguage[uniqId] = language;
     }
 
-    if (body === '/start' || !service) {
+    if (body === '/start' || !service || service.state.done) {
       const accountLink = accountLinkDB.read(chatId);
       if (accountLink) {
         //TODO: перед тем как выводить меню для существующего чата
