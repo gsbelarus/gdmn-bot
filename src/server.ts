@@ -172,7 +172,7 @@ https.createServer({ cert, ca, key },
     }
 
     // раз в час пишем на диск все несохраненные данные
-    setInterval(bot.finalize, 60 * 60 * 1000);
+    setInterval(() => bot.finalize(), 60 * 60 * 1000);
   }
 );
 

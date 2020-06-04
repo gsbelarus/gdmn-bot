@@ -43,7 +43,6 @@ export class Bot {
   private _telegramAccountLink: FileDB<IAccountLink>;
   private _viberAccountLink: FileDB<IAccountLink>;
   private _accountLanguage: { [id: string]: Language } = {};
-  private _customers: FileDB<Omit<ICustomer, 'id'>>;
   private _telegram: Telegraf<Context>;
   private _service: { [id: string]: Interpreter<IBotMachineContext, any, BotMachineEvent> } = {};
   private _telegramCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
@@ -59,7 +58,6 @@ export class Bot {
   constructor(telegramToken: string, telegramRoot: string, viberToken: string, viberRoot: string) {
     this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'));
     this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'));
-    this._customers = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'));
 
     /**************************************************************/
     /**************************************************************/
@@ -121,7 +119,7 @@ export class Bot {
               await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId, undefined, keyboard && JSON.stringify(keyboard));
             }
           } catch (e) {
-            //
+            console.error(e);
           }
         };
 
@@ -153,7 +151,7 @@ export class Bot {
           }
         }
       } catch (e) {
-        console.log(e);
+        console.error(e);
       } finally {
         semaphore.release();
       }
@@ -218,6 +216,7 @@ export class Bot {
       actions: {
         askCompanyName: reply(stringResources.askCompanyName),
         unknownCompanyName: reply(stringResources.unknownCompanyName),
+        unknownEmployee: reply(stringResources.unknownEmployee),
         assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
         assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
         askPersonalNumber: reply(stringResources.askPersonalNumber),
@@ -278,7 +277,6 @@ export class Bot {
     this._telegram = new Telegraf(telegramToken);
 
     this._telegram.use((ctx, next) => {
-      this._callbacksReceived++;
       console.log(`Telegram Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
       return next?.();
     });
@@ -365,12 +363,14 @@ export class Bot {
       try {
         if (keyboard) {
           const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
-          console.log(JSON.stringify(res));
+          if (!Array.isArray(res)) {
+            console.log(JSON.stringify(res));
+          }
         } else {
           await this._viber.sendMessage({ id: chatId }, [new TextMessage(text)]);
         }
       } catch (e) {
-        console.log(e);
+        console.error(e);
       } finally {
         semaphore.release();
       }
@@ -533,7 +533,8 @@ export class Bot {
 
   private _findCompany = (_: any, event: BotMachineEvent) => {
     if (isEnterTextEvent(event)) {
-      const customers = this._customers.getMutable(false);
+      const customersDB = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'));
+      const customers = customersDB.getMutable(false);
       for (const [companyId, { aliases }] of Object.entries(customers)) {
         if (aliases.find( alias => testNormalizeStr(alias, event.text) )) {
           return companyId;
@@ -989,14 +990,19 @@ export class Bot {
 
   createService(inPlatform: Platform, inChatId: string) {
     const uniqId = this.getUniqId(inPlatform, inChatId);
-    const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
     const service = (inPlatform === 'TELEGRAM' ? interpret(this._telegramMachine) : interpret(this._viberMachine))
       .onTransition( (state, { type }) => {
+        const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+
         console.log(`State: ${state.toStrings().join('->')}, Event: ${type}`);
         console.log(`State value: ${JSON.stringify(state.value)}`);
         console.log(`State context: ${JSON.stringify(state.context)}`);
         if (Object.keys(state.children).length) {
           console.log(`State children: ${JSON.stringify(Object.values(state.children)[0].state.value)}`);
+        }
+
+        if (state.done) {
+          return;
         }
 
         // при изменении состояния сохраним его в базе, чтобы
@@ -1035,6 +1041,8 @@ export class Bot {
    * @param update IUpdate
    */
   onUpdate(update: IUpdate) {
+    this._callbacksReceived++;
+
     const { platform, chatId, type, body, language } = update;
     const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
     const uniqId = this.getUniqId(platform, chatId);
@@ -1044,7 +1052,7 @@ export class Bot {
       this._accountLanguage[uniqId] = language;
     }
 
-    if (body === '/start' || !service || service.state.done) {
+    const createNewService = () => {
       const accountLink = accountLinkDB.read(chatId);
       if (accountLink) {
         //TODO: перед тем как выводить меню для существующего чата
@@ -1068,7 +1076,13 @@ export class Bot {
           semaphore: new Semaphore()
         });
       }
+    }
+
+    if (body === '/start' || !service || service.state.done) {
+      createNewService();
     } else {
+      let e: BotMachineEvent | undefined;
+
       switch (type) {
         case 'MESSAGE':
           if (body === 'diagnostics') {
@@ -1089,16 +1103,32 @@ export class Bot {
             return;
           }
 
-          service.send({ type: 'ENTER_TEXT', text: body });
+          e = { type: 'ENTER_TEXT', text: body };
           break;
 
         case 'ACTION': {
           if (body.slice(0, 1) === '{') {
-            service.send({ ...JSON.parse(body), update });
+            e = { ...JSON.parse(body), update };
           } else {
-            service.send({ type: 'MENU_COMMAND', command: body });
+            e = { type: 'MENU_COMMAND', command: body };
           }
           break;
+        }
+
+        default:
+          e = undefined;
+      }
+
+      if (e) {
+        if (service.nextState(e) === service.state) {
+          // мы каким-то образом попали в ситуацию, когда текущее состояние не
+          // может принять вводимую информацию. например, пользователь
+          // очистил чат или произошел сбой на стороне мессенджера и
+          // то, что видит пользователь отличается от внутреннего состояния
+          // машины
+          createNewService();
+        } else {
+          service.send(e);
         }
       }
     }
