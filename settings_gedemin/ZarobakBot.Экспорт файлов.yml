@@ -5,10 +5,10 @@ Properties:
   RUID: 1193786287_1320926324
   Name: "ZarobakBot.Экспорт файлов"
   Caption: "ZarobakBot.Экспорт файлов"
-  Version: "1.0.0.20"
+  Version: "1.0.0.21"
   Optional: False
   Internal: True
-  MD5: 5A6C332E10D299A8C98680715EA86C2F
+  MD5: A9277A0273170524FA4489E7716C8C80
 Uses: 
   - "158513268_1444931844 ZarobakBot.Сбор данных"
 Objects: 
@@ -54,11 +54,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-05T14:37:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -118,11 +119,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-05T14:37:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -181,11 +183,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-05T14:37:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -248,11 +251,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-05T14:37:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -314,11 +318,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-05T14:37:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -376,7 +381,7 @@ Objects:
       DontRemove: False
       IncludeSiblings: False
     Fields: 
-      PARENT: "710000_17 Исследователь"
+      PARENT: "147048865_974374174 Исследователь\\Зарплата и Отдел кадров"
       NAME: "ZarobakBot"
       CLASSNAME: ~
       CMD: "1193786363_1320926323"
@@ -385,7 +390,7 @@ Objects:
       IMGINDEX: 138
       ORDR: ~
       SUBTYPE: ~
-      EDITIONDATE: 2020-05-04T20:51:33+03:00
+      EDITIONDATE: 2020-06-05T16:54:12+03:00
       DISABLED: 0
   - 
     Properties: 
@@ -395,7 +400,7 @@ Objects:
       DontRemove: False
       IncludeSiblings: False
     Fields: 
-      PARENT: "1193786363_1320926323 Исследователь\\ZarobakBot"
+      PARENT: "1193786363_1320926323 Исследователь\\Зарплата и Отдел кадров\\ZarobakBot"
       NAME: "Экпорт данных"
       CLASSNAME: ~
       CMD: "1437186325_1434991069"
@@ -404,7 +409,7 @@ Objects:
       IMGINDEX: 174
       ORDR: ~
       SUBTYPE: ~
-      EDITIONDATE: 2020-05-03T22:07:00+03:00
+      EDITIONDATE: 2020-06-05T16:54:31+03:00
       DISABLED: 0
   - 
     Properties: 
@@ -423,11 +428,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-05T14:37:24+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -487,11 +493,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-05T14:37:24+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -543,11 +550,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-05T14:37:24+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -599,11 +607,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-05T14:37:24+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
