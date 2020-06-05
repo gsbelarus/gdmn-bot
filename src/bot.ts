@@ -641,7 +641,7 @@ export class Bot {
 
     let hourrate: number | undefined = undefined;
 
-    if (payslip.hourrate) {
+    if (payslip.hourrate?.length) {
       hourrate = payslip.hourrate[0].s;
       maxDate = str2Date(payslip.hourrate[0].d);
 
