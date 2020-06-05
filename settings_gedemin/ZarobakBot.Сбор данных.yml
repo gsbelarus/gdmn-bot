@@ -5,10 +5,10 @@ Properties:
   RUID: 158513268_1444931844
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.19"
+  Version: "1.0.0.20"
   Optional: False
   Internal: True
-  MD5: 5869C509EDA8B8D750C28B14CC36D191
+  MD5: 8185CCF993C893165876EF41F198AA08
 Objects: 
   - 
     Properties: 
@@ -77,7 +77,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-06-05T10:19:27+03:00
+      EDITIONDATE: 2020-06-05T17:40:26+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREPAYSLIP
         BOT_PREPAREPAYSLIP_ROLLBACK
@@ -159,7 +159,7 @@ Objects:
             "  EmployeeKey     dforeignkey,      " & _
             "  EmployeeRuid    VARCHAR(40), " & _
             "  NickName        VARCHAR(160), " & _
-            "  accdedStr       VARCHAR(4000) " & _
+            "  accdedStr       VARCHAR(10000) " & _
             "  ) " & _
             "AS " & _
             "  DECLARE TotalDocKey         dintkey; " & _

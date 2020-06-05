@@ -658,7 +658,7 @@ export class Bot {
 
     let hourrate: number | undefined = undefined;
 
-    if (payslip.hourrate) {
+    if (payslip.hourrate?.length) {
       hourrate = payslip.hourrate[0].s;
       maxDate = str2Date(payslip.hourrate[0].d);
 
@@ -886,7 +886,7 @@ export class Bot {
       /**
        * Ширина колонки с названием показателя в расчетном листке.
        */
-      const lLabel = 23;
+      const lLabel = 22;
       /**
        * Ширина колонки с числовым значением в расчетном листке.
        */
@@ -899,9 +899,9 @@ export class Bot {
         .map(t => Array.isArray(t) && t.length === 3
           ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2
-          ? `${translate(t[0]).slice(0, lLabel).padEnd(lLabel)}${format(t[1]!).padStart(lValue)}`
+          ? `${translate(t[0]).slice(0, lLabel).padEnd(lLabel)} ${format(t[1]!).padStart(lValue)}`
           : t === '='
-          ? '='.padEnd(lLabel + lValue, '=')
+          ? '='.padEnd(lLabel + lValue + 1, '=')
           : translate(t!))
         .join('\n');
     };
