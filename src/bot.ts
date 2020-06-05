@@ -866,9 +866,18 @@ export class Bot {
     const format = new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format;
 
     const payslipView = (template: Template) => {
-      const lLabel = 27;
+      /**
+       * Ширина колонки с названием показателя в расчетном листке.
+       */
+      const lLabel = 23;
+      /**
+       * Ширина колонки с числовым значением в расчетном листке.
+       */
       const lValue = 9;
-      const lCol = 12;
+      /**
+       * Ширина колонки в сравнительном листке.
+       */
+      const lCol = 10;
       return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
           ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}`
