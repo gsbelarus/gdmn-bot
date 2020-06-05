@@ -35,6 +35,23 @@ const fillInPayslipItem = (item: IPaySlipItem[], typeId: string, name: LName, s:
   }
 };
 
+/** */
+export const splitPaySlipString = (t: IPaySlipItem, lng: Language) => {
+    const s = getLName(t.name, [lng]);
+    const arr: string[] = [];
+    let currS = '';
+
+    for(const w of s.split(' ').filter( n => n.trim() )) {
+      if (currS.length + 1 + w.length < 28 ) {
+        currS += (currS ? ' ' : '') + w;
+      } else {
+        arr.push(currS);
+        currS = '';
+      }
+    }
+    return arr.join('\n');
+  };
+
 // TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
 //       надо предусмотреть обновление или просто сброс данных после загрузки на сервер
 //       из Гедымина.
