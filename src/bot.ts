@@ -227,8 +227,14 @@ export class Bot {
         showComparePayslip: getShowPayslipFunc('COMPARE', reply),
         showSettings: ctx => {
           const { accountLink, ...rest } = checkAccountLink(ctx);
+          const { customerId, employeeId } = ctx;
+          const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
+          const employeeName = employee
+           ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
+           : 'Bond, James Bond';
+
           //TODO: языка и валюты может не быть. надо заменять на дефолтные
-          reply(stringResources.showSettings, keyboardSettings, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
+          reply(stringResources.showSettings, keyboardSettings, employeeName, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
         },
         sayGoodbye: reply(stringResources.goodbye),
         logout: ({ platform, chatId }) => {
@@ -735,7 +741,7 @@ export class Bot {
     }
   }
 
-  private _formatShortPayslip(data: IPayslipData, lng: Language, employeeName: string, periodName: string, currencyName: string): Template {
+  private _formatShortPayslip(data: IPayslipData, lng: Language, periodName: string, currencyName: string): Template {
     const accruals = sum(data.accrual);
     const taxes = sum(data.tax);
     const deds = sum(data.deduction);
@@ -746,7 +752,7 @@ export class Bot {
 
     return [
       stringResources.payslipTitle,
-      employeeName,
+      //employeeName,
       periodName,
       currencyName,
       'Подразделение:',
@@ -770,7 +776,7 @@ export class Bot {
     ];
   }
 
-  private _formatComparativePayslip(data: IPayslipData, data2: IPayslipData, lng: Language, employeeName: string, periodName: string, currencyName: string): Template {
+  private _formatComparativePayslip(data: IPayslipData, data2: IPayslipData, lng: Language, periodName: string, currencyName: string): Template {
     const accruals = sum(data.accrual);
     const taxes = sum(data.tax);
     const deds = sum(data.deduction);
@@ -781,7 +787,7 @@ export class Bot {
 
     return [
       stringResources.comparativePayslipTitle,
-      employeeName,
+      //employeeName,
       periodName,
       currencyName,
       'Оклад:',
@@ -803,7 +809,7 @@ export class Bot {
     ];
   }
 
-  private _formatDetailedPayslip(data: IPayslipData, lng: Language, employeeName: string, periodName: string, currencyName: string): Template {
+  private _formatDetailedPayslip(data: IPayslipData, lng: Language, periodName: string, currencyName: string): Template {
     const accruals = sum(data.accrual);
     const taxes = sum(data.tax);
     const deds = sum(data.deduction);
@@ -820,7 +826,7 @@ export class Bot {
 
     return [
       stringResources.payslipTitle,
-      employeeName,
+      //employeeName,
       periodName,
       currencyName,
       'Подразделение:',
@@ -905,10 +911,10 @@ export class Bot {
       dataI = this._calcPayslipByRate(dataI, currencyRate.rate);
     }
 
-    const employee = this._getEmployee(customerId, employeeId);
-    const employeeName = employee
-      ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
-      : 'Bond, James Bond';
+    //const employee = this._getEmployee(customerId, employeeId);
+    //const employeeName = employee
+    //  ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
+    //  : 'Bond, James Bond';
 
     let s: Template;
 
@@ -926,8 +932,8 @@ export class Bot {
       );
 
       s = type === 'CONCISE'
-        ? this._formatShortPayslip(dataI, lng, employeeName, periodName, currencyName)
-        : this._formatDetailedPayslip(dataI, lng, employeeName, periodName, currencyName);
+        ? this._formatShortPayslip(dataI, lng, periodName, currencyName)
+        : this._formatDetailedPayslip(dataI, lng, periodName, currencyName);
     } else {
       if (!db2) {
         throw new Error('db2 is not specified');
@@ -957,7 +963,7 @@ export class Bot {
         dataII = this._calcPayslipByRate(dataII, currencyRate2.rate);
       }
 
-      const periodName = 'Период: ' + (de.year !== db.year || de.month !== db.month
+      const periodName = 'Период:\n' + (de.year !== db.year || de.month !== db.month
         ? `${db.month + 1}.${db.year}-${de.month + 1}.${de.year}`
         : `${new Date(db.year, db.month).toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`
       ) + ' к ' + (de2.year !== db2.year || de2.month !== db2.month
@@ -972,7 +978,7 @@ export class Bot {
           : 'Белорусский рубль'
       );
 
-      s = this._formatComparativePayslip(dataI, dataII, lng, employeeName, periodName, currencyName);
+      s = this._formatComparativePayslip(dataI, dataII, lng, periodName, currencyName);
     }
 
     return '```ini\n' + payslipView(s) + '```';

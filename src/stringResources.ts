@@ -46,8 +46,8 @@ export const stringResources = {
   },
   showSettings: {
     en: null,
-    ru: (lang: Language, curr: string) => `Текущие настройки:\n\tЯзык: ${lang}\n\tВалюта: ${curr}`,
-    be: (lang: Language, curr: string) => `Бягучыя настройкі:\n\tМова: ${lang}\n\tВалюта: ${curr}`
+    ru: (employee: string, lang: Language, curr: string) => `Текущие настройки:\n\tСотрудник: ${employee}\n\tЯзык: ${lang}\n\tВалюта: ${curr}`,
+    be: (employee: string, lang: Language, curr: string) => `Бягучыя настройкі:\n\tСупрацоўнік: ${employee}\n\tМова: ${lang}\n\tВалюта: ${curr}`
   } as ILocString,
   showSelectedDate: {
     en: null,
