@@ -253,6 +253,7 @@ export class Bot {
       await semaphore?.acquire();
       try {
         const s = await this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', dateBegin, dateEnd, dateBegin2);
+        //TODO: криво!
         reply({ en: null, ru: s, be: null })({ ...rest, semaphore: new Semaphore() });
       } finally {
         semaphore?.release();
