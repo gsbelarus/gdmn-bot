@@ -1,4 +1,5 @@
-import { IDate } from "./types";
+import { IDate, ICurrencyRate } from "./types";
+import { date2str } from "./util/utils";
 
 type FormatFunc = (...args: any[]) => string;
 
@@ -273,6 +274,147 @@ export const stringResources = {
     en: 'd.',
     ru: 'д.',
     be: 'д.'
+  },
+  paySlip_Department: {
+    en: 'Department:',
+    ru: 'Подразделение:',
+    be: 'Падраздзяленне:'
+  },
+  paySlip_Position: {
+    en: 'Position:',
+    ru: 'Должность:',
+    be: 'Пасада:'
+  },
+  paySlip_Salary: {
+    en: 'Salary:',
+    ru: 'Оклад:',
+    be: 'Аклад:'
+  },
+  paySlip_Hpr: {
+    en: 'HPR:',
+    ru: 'ЧТС:',
+    be: 'ГТС:'
+  },
+  paySlip_Accrued: {
+    en: 'Accrued:',
+    ru: 'Начислено:',
+    be: 'Налічана:'
+  },
+  paySlip_Netsalary: {
+    en: 'Net salary:',
+    ru: 'Начислено:',
+    be: 'Зарплата чыстымі:'
+  },
+  paySlip_Deductions: {
+    en: '  Deductions:',
+    ru: '  Удержания:',
+    be: '  Ўтрымання:'
+  },
+  paySlip_Advance: {
+    en: '  Advance:',
+    ru: '  Аванс:',
+    be: '  Аванс:'
+  },
+  paySlip_Payroll: {
+    en: '  PayRoll:',
+    ru: '  К выдаче:',
+    be: '  Да выдачы:'
+  },
+  paySlip_Taxes: {
+    en: 'Taxes:',
+    ru: 'Налоги:',
+    be: 'Падаткi:'
+  },
+  paySlip_Incometax: {
+    en: '  Income:',
+    ru: '  Подоходный:',
+    be: '  Падаходны:'
+  },
+  paySlip_PensionTax: {
+    en: '  Pension:',
+    ru: '  Подоходный:',
+    be: '  Падаходны:'
+  },
+  paySlip_TradeUnionTax: {
+    en: '  Trade-union:',
+    ru: '  Профсоюзный:',
+    be: '  Прафсаюзны:'
+  },
+  paySlip_Privilages: {
+    en: 'Privilages:',
+    ru: 'Льготы:',
+    be: 'Льготы:'
+  },
+  paySlip_DeductionsWOSpace: {
+    en: 'Deductions:',
+    ru: 'Удержания:',
+    be: 'Ўтрымання:'
+  },
+  paySlip_AdvanceWOSpace: {
+    en: 'Advance:',
+    ru: 'Аванс:',
+    be: 'Аванс:'
+  },
+  paySlip_TaxDeduction: {
+    en: 'Tax deduction:',
+    ru: 'Вычеты:',
+    be: 'Вылiкi:'
+  },
+  paySlip_Period: {
+    en: 'Period: ',
+    ru: 'Период: ',
+    be: 'Перыяд: '
+  },
+  paySlip_Currency: {
+    en: (currency: string, currencyRate?: ICurrencyRate) => 'Currency: ' + (
+      currencyRate
+        ? `${currency}, exchange rate ${currencyRate.rate.toFixed(2)} on ${date2str(currencyRate.date, 'DD.MM.YY')}`
+        : 'Belarusian ruble'),
+    ru: (currency: string, currencyRate?: ICurrencyRate) => 'Валюта: ' + (
+      currencyRate
+        ? `${currency}, курс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}`
+        : 'Белорусский рубль'),
+    be: (currency: string, currencyRate?: ICurrencyRate) => 'Валюта: ' + (
+      currencyRate
+        ? `${currency}, курс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}`
+        : 'Беларускі рубель')
+  },
+  paySlip_CurrencyCompare: {
+    en: (currency: string, currencyRate?: ICurrencyRate, currencyRate2?: ICurrencyRate) => 'Currency: ' + (
+      currencyRate && currencyRate2
+        ? `${currency}\exchange rate ${currencyRate.rate.toFixed(2)} on ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} on ${date2str(currencyRate2.date, 'DD.MM.YY')}`
+        : 'Belarusian ruble'),
+    ru: (currency: string, currencyRate?: ICurrencyRate, currencyRate2?: ICurrencyRate) => 'Валюта: ' + (
+      currencyRate && currencyRate2
+        ? `${currency}\nкурс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} на ${date2str(currencyRate2.date, 'DD.MM.YY')}`
+        : 'Белорусский рубль'),
+    be: (currency: string, currencyRate?: ICurrencyRate, currencyRate2?: ICurrencyRate) => 'Валюта: ' + (
+      currencyRate && currencyRate2
+        ? `${currency}\nкурс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} на ${date2str(currencyRate2.date, 'DD.MM.YY')}`
+        : 'Беларускі рубель')
+  },
+  paySlip_CurrencyPeriod: {
+    en: (db: IDate, de: IDate, db2: IDate, de2: IDate) => 'Period:\n' + (de.year !== db.year || de.month !== db.month
+        ? `${db.month + 1}.${db.year}-${de.month + 1}.${de.year}`
+        : `${new Date(db.year, db.month).toLocaleDateString('en', { month: 'long', year: 'numeric' })}`
+      ) + ' to ' + (de2.year !== db2.year || de2.month !== db2.month
+        ? `${db2.month + 1}.${db2.year}-${de2.month + 1}.${de2.year}`
+        : `${new Date(db2.year, db2.month).toLocaleDateString('en', { month: 'long', year: 'numeric' })}`
+      ),
+    ru: (db: IDate, de: IDate, db2: IDate, de2: IDate) => 'Период:\n' + (de.year !== db.year || de.month !== db.month
+        ? `${db.month + 1}.${db.year}-${de.month + 1}.${de.year}`
+        : `${new Date(db.year, db.month).toLocaleDateString('ru', { month: 'long', year: 'numeric' })}`
+      ) + ' к ' + (de2.year !== db2.year || de2.month !== db2.month
+        ? `${db2.month + 1}.${db2.year}-${de2.month + 1}.${de2.year}`
+        : `${new Date(db2.year, db2.month).toLocaleDateString('ru', { month: 'long', year: 'numeric' })}`
+      ),
+    be:(db: IDate, de: IDate, db2: IDate, de2: IDate) => 'Перыяд:\n' + (de.year !== db.year || de.month !== db.month
+        ? `${db.month + 1}.${db.year}-${de.month + 1}.${de.year}`
+        : `${new Date(db.year, db.month).toLocaleDateString('be', { month: 'long', year: 'numeric' })}`
+      ) + ' да ' + (de2.year !== db2.year || de2.month !== db2.month
+        ? `${db2.month + 1}.${db2.year}-${de2.month + 1}.${de2.year}`
+        : `${new Date(db2.year, db2.month).toLocaleDateString('be', { month: 'long', year: 'numeric' })}`
+      )
   }
 };
 

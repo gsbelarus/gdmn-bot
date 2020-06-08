@@ -127,3 +127,8 @@ export interface IPaySlipData {
   hourrate?: number;
   rate?: number;
 };
+
+export interface ICurrencyRate {
+  date: Date,
+  rate: number
+}

@@ -19,7 +19,7 @@ const BotEvents = vb.Events
 const TextMessage = vb.Message.Text;
 const KeyboardMessage = vb.Message.Keyboard;
 
-type Template = (string | [string, number | undefined] | undefined | ILocString | [number, number, number])[];
+type Template = (string | [string | ILocString, number | undefined] | undefined | ILocString | [number, number, number])[];
 
 //TODO: перенести в utils?
 const sum = (arr?: IPaySlipItem[], type?: AccDedType) =>
@@ -49,7 +49,7 @@ const getDetail = (valueDet: IDet, lng: Language) => {
   return `(${det})`;
 }
 
-/**Получить строку  по начилению или удержанию с дутальными данными */
+/**Получить строку  по начилению или удержанию с детальными данными */
 const getItemTemplate = (dataItem: IPaySlipItem[], lng: Language) => {
   const t: Template = [undefined];
   dataItem?.forEach( i => {
@@ -798,24 +798,24 @@ export class Bot {
       //employeeName,
       periodName,
       currencyName,
-      'Подразделение:',
+      stringResources.paySlip_Department,
       getLName(data.department, [lng]),
-      'Должность:',
+      stringResources.paySlip_Position,
       getLName(data.position, [lng]),
-      ['Оклад:', data.salary],
-      ['ЧТС:', data.hourrate],
+      [stringResources.paySlip_Salary, data.salary],
+      [stringResources.paySlip_Hpr, data.hourrate],
       '=',
-      ['Начислено:', accruals],
+      [stringResources.paySlip_Accrued, accruals],
       '=',
-      ['Зарплата чистыми:', accruals - taxes],
-      ['  Удержания:', deds],
-      ['  Аванс:', advances],
-      ['  К выдаче:', data.saldo?.s],
+      [stringResources.paySlip_Netsalary, accruals - taxes],
+      [stringResources.paySlip_Deductions, deds],
+      [stringResources.paySlip_Advance, advances],
+      [stringResources.paySlip_Payroll, data.saldo?.s],
       '=',
-      ['Налоги:', taxes],
-      ['  Подоходный:', incomeTax],
-      ['  Пенсионный:', pensionTax],
-      ['  Профсоюзный:', tradeUnionTax]
+      [stringResources.paySlip_Taxes, taxes],
+      [stringResources.paySlip_Incometax, incomeTax],
+      [stringResources.paySlip_PensionTax, pensionTax],
+      [stringResources.paySlip_TradeUnionTax, tradeUnionTax]
     ];
   }
 
@@ -833,21 +833,21 @@ export class Bot {
       //employeeName,
       periodName,
       currencyName,
-      'Оклад:',
+      stringResources.paySlip_Salary,
       [data.salary ?? 0, data2.salary ?? 0, (data2.salary ?? 0) - (data.salary ?? 0)],
-      'ЧТС:',
+      stringResources.paySlip_Hpr,
       [data.hourrate ?? 0, data2.hourrate ?? 0, (data2.hourrate ?? 0) - (data.hourrate ?? 0)],
       '=',
-      'Начислено:',
+      stringResources.paySlip_Accrued,
       [accruals, accruals2, accruals2 - accruals],
       '=',
-      'Зарплата чистыми:',
+      stringResources.paySlip_Netsalary,
       [accruals - taxes, accruals2 - taxes2, accruals2 - taxes2 - (accruals - taxes)],
       '=',
-      'Удержания:',
+      stringResources.paySlip_DeductionsWOSpace,
       [deds, deds2, deds2 - deds],
       '=',
-      'Налоги:',
+      stringResources.paySlip_Taxes,
       [taxes, taxes2, taxes2 - taxes],
     ];
   }
@@ -872,34 +872,34 @@ export class Bot {
       //employeeName,
       periodName,
       currencyName,
-      'Подразделение:',
+      stringResources.paySlip_Department,
       getLName(data.department, [lng]),
-      'Должность:',
+      stringResources.paySlip_Position,
       getLName(data.position, [lng]),
-      ['Оклад:', data.salary],
-      ['ЧТС:', data.hourrate],
+      [stringResources.paySlip_Salary, data.salary],
+      [stringResources.paySlip_Hpr, data.hourrate],
       '=',
-      ['Начисления:', accruals],
+      [stringResources.paySlip_Accrued, accruals],
       accruals ? '=' : '',
       ...strAccruals,
       accruals ? '=' : '',
-      ['Удержания:', deds],
+      [stringResources.paySlip_DeductionsWOSpace, deds],
       deds ? '=' : '',
       ...strDeductions,
       deds ? '=' : '',
-      ['Аванс:', advances],
+      [stringResources.paySlip_AdvanceWOSpace, advances],
       advances ? '=' : '',
       ...strAdvances,
       advances ? '=' : '',
-      ['Налоги:', taxes],
+      [stringResources.paySlip_Taxes, taxes],
       taxes ? '=' : '',
       ...strTaxes,
       taxes ? '=' : '',
-      ['Вычеты:', taxDeds],
+      [stringResources.paySlip_TaxDeduction, taxDeds],
       taxDeds ? '=' : '',
       ...strTaxDeds,
       taxDeds ? '=' : '',
-      ['Льготы:', privilages],
+      [stringResources.paySlip_Privilages, privilages],
       privilages ? '=' : '',
       ...strPrivilages,
       privilages ? '=' : ''
@@ -962,17 +962,13 @@ export class Bot {
     let s: Template;
 
     if (type !== 'COMPARE') {
-      const periodName = 'Период: ' + (de.year !== db.year || de.month !== db.month
+      const periodName = getLocString(stringResources.paySlip_Period, lng) + (de.year !== db.year || de.month !== db.month
         ? `${db.month + 1}.${db.year}-${de.month + 1}.${de.year}`
         : `${new Date(db.year, db.month).toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`
       );
 
       //TODO: локализация!
-      const currencyName = 'Валюта: ' + (
-        currencyRate
-          ? `${currency}, курс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}`
-          : 'Белорусский рубль'
-      );
+      const currencyName = getLocString(stringResources.paySlip_Currency, lng, currencyRate, currencyRate);
 
       s = type === 'CONCISE'
         ? this._formatShortPayslip(dataI, lng, periodName, currencyName)
@@ -1006,20 +1002,10 @@ export class Bot {
         dataII = this._calcPayslipByRate(dataII, currencyRate2.rate);
       }
 
-      const periodName = 'Период:\n' + (de.year !== db.year || de.month !== db.month
-        ? `${db.month + 1}.${db.year}-${de.month + 1}.${de.year}`
-        : `${new Date(db.year, db.month).toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`
-      ) + ' к ' + (de2.year !== db2.year || de2.month !== db2.month
-        ? `${db2.month + 1}.${db2.year}-${de2.month + 1}.${de2.year}`
-        : `${new Date(db2.year, db2.month).toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`
-      );
+      const periodName = getLocString(stringResources.paySlip_CurrencyPeriod, lng, db, de, db2, de2);
 
       //TODO: локализация!
-      const currencyName = 'Валюта: ' + (
-        currencyRate && currencyRate2
-          ? `${currency}\nкурс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} на ${date2str(currencyRate2.date, 'DD.MM.YY')}`
-          : 'Белорусский рубль'
-      );
+      const currencyName = getLocString(stringResources.paySlip_CurrencyCompare, lng, currency, currencyRate, currencyRate2);
 
       s = this._formatComparativePayslip(dataI, dataII, lng, periodName, currencyName);
     }
