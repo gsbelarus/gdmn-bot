@@ -188,11 +188,11 @@ process
     await logger.info(undefined, undefined, `Process exit event with code: ${code}`);
     await logger.shutdown();
   })
-  .on('SIGINT', () => process.exit())
+  .on('SIGINT', () => process.exit(0))
   .on('unhandledRejection', (reason, p) => {
     console.error({ err: reason }, `bot launch ${p}`);
   })
   .on('uncaughtException', err => {
     console.error({ err }, 'bot launch');
-    process.exit(1);
+    process.exit(2);
   });

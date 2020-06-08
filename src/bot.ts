@@ -12,7 +12,6 @@ import { Semaphore } from "./semaphore";
 import { getCurrRate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { payslipRoot, accDedRefFileName, employeeFileName } from "./constants";
-import fs from 'fs';
 import { Logger, ILogger } from "./log";
 
 //TODO: добавить типы для TS и заменить на import
@@ -75,24 +74,6 @@ const getItemTemplate = (dataItem: IPayslipItem[], lng: Language) => {
   });
   return t;
 }
-
-/*
-export const splitPaySlipString = (t: IPayslipItem, lng: Language) => {
-    const s = getLName(t.name, [lng]);
-    const arr: string[] = [];
-    let currS = '';
-
-    for(const w of s.split(' ').filter( n => n.trim() )) {
-      if (currS.length + 1 + w.length < 28 ) {
-        currS += (currS ? ' ' : '') + w;
-      } else {
-        arr.push(currS);
-        currS = '';
-      }
-    }
-    return arr.join('\n');
-  };
-*/
 
 export class Bot {
   private _telegramAccountLink: FileDB<IAccountLink>;
@@ -1152,10 +1133,18 @@ export class Bot {
     }
 
     //TODO: dangerous!
+    /*
     if (body === 'shutdown_gdmn_bot_server') {
+      if (platform === 'TELEGRAM') {
+        this._telegram.telegram.sendMessage(chatId, 'Goodbye!');
+      } else {
+        this._viber.sendMessage({ id: chatId }, [new TextMessage('Goodbye!')]);
+      }
       this._logger.info(chatId, undefined, 'Server shutting down...');
-      process.exit();
+      this.finalize();
+      setTimeout( () => process.exit(), 100 );
     }
+    */
 
     const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
     const accountLink = accountLinkDB.read(chatId);
