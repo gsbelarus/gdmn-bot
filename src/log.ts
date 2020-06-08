@@ -9,6 +9,10 @@ export interface ILoggerParams {
   level?: Level;
 };
 
+export type LoggerFunc = typeof console.log;
+
+export type ILogger = Pick<Console, 'info' | 'debug' | 'warn' | 'error'>;
+
 export class Logger {
   private _fileName?: string;
   private _maxSize?: number;
@@ -125,5 +129,14 @@ export class Logger {
 
   public async shutdown() {
     await this._closeFile();
+  }
+
+  public getLogger(chatId?: string, userId?: string): ILogger {
+    return {
+      info: (...args: any[]) => this.info(chatId, userId, ...args),
+      debug: (...args: any[]) => this.debug(chatId, userId, ...args),
+      warn: (...args: any[]) => this.warn(chatId, userId, ...args),
+      error: (...args: any[]) => this.error(chatId, userId, ...args)
+    };
   }
 }
