@@ -94,10 +94,6 @@ export const splitPaySlipString = (t: IPayslipItem, lng: Language) => {
   };
 */
 
-// TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
-//       надо предусмотреть обновление или просто сброс данных после загрузки на сервер
-//       из Гедымина.
-
 export class Bot {
   private _telegramAccountLink: FileDB<IAccountLink>;
   private _viberAccountLink: FileDB<IAccountLink>;
@@ -153,8 +149,7 @@ export class Bot {
         return;
       }
 
-      //TODO: языка может и не быть. подставлять дефолтный?
-      const language = this._accountLanguage[this.getUniqId('TELEGRAM', chatId)];
+      const language = this._accountLanguage[this.getUniqId('TELEGRAM', chatId)] ?? 'ru';
 
       const keyboard = menu && Markup.inlineKeyboard(
         menu.map(r => r.map(
@@ -276,8 +271,6 @@ export class Bot {
       const { customerId, employeeId, language, currency } = accountLink;
       await semaphore?.acquire();
       try {
-        //TODO: заменять на дефолтные язык и валюту
-        // валюта! преобразовать в ід
         const s = await this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', dateBegin, dateEnd, dateBegin2);
         reply({ en: null, ru: s, be: null })({ ...rest, semaphore: new Semaphore() });
       } finally {
@@ -309,8 +302,6 @@ export class Bot {
           const employeeName = employee
            ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
            : 'Bond, James Bond';
-
-          //TODO: языка и валюты может не быть. надо заменять на дефолтные
           reply(stringResources.showSettings, keyboardSettings, employeeName, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
         },
         sayGoodbye: reply(stringResources.goodbye),
@@ -327,10 +318,12 @@ export class Bot {
             const { accountLink, chatId, platform } = checkAccountLink(ctx);
             if (accountLink) {
               const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+              const language = str2Language(event.command.split('/')[1]);
               accountLinkDB.write(chatId, {
                 ...accountLink,
-                language: str2Language(event.command.split('/')[1])
+                language
               });
+              this._accountLanguage[this.getUniqId(platform, chatId)] = language;
             }
           }
         },
@@ -437,8 +430,7 @@ export class Bot {
         return;
       }
 
-      //TODO: языка может и не быть. подставлять дефолтный?
-      const language = this._accountLanguage[this.getUniqId('VIBER', chatId)];
+      const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
       const keyboard = menu && this._menu2ViberMenu(menu, language);
       const text = s && getLocString(s, language, ...args);
 
@@ -511,7 +503,6 @@ export class Bot {
           chatId,
           type: 'ACTION',
           body: message.text,
-          //TODO: язык может не передаваться, надо брать из профиля
           language: str2Language(response.userProfile.language)
         });
       }
@@ -528,15 +519,16 @@ export class Bot {
           chatId,
           type: 'MESSAGE',
           body: message.text,
-          //TODO: язык может не передаваться, надо брать из профиля
           language: str2Language(response.userProfile.language)
         });
       }
     });
 
-
     this._viber.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
-      //TODO: удалять accountLink?
+      //TODO: проверить когда вызывается это событие
+      const chatId = response.userProfile.id;
+      this._viberAccountLink.delete(chatId);
+      delete this._service[this.getUniqId('VIBER', chatId)];
       this._log.info(`User unsubscribed, ${response}`);
     });
 
@@ -685,9 +677,13 @@ export class Bot {
     // Подразделение получаем из массива подразделений dept,
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
     // Аналогично с должностью из массива pos
-    //let maxDate: Date = paySlip.dept[0].d;
 
-    //TODO: а может массив оказаться пустым? это где-то проверяется
+    if (!payslip.dept.length || !payslip.pos.length || !payslip.salary.length) {
+      const msg = `Missing departments, positions or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
+      this._log.error(msg);
+      throw new Error(msg)
+    }
+
     let department = payslip.dept[0].name;
     let maxDate = str2Date(payslip.dept[0].d);
 
@@ -1085,9 +1081,6 @@ export class Bot {
       .onTransition( (state, { type }) => {
         const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
 
-        //TODO: убрать!
-        fs.writeFileSync('c:/temp/state.json', JSON.stringify(state, undefined, 2), { encoding: 'utf8' });
-
         this._logger.debug(inChatId, undefined, `State: ${state.toStrings().join('->')}, Event: ${type}`);
         this._logger.debug(inChatId, undefined, `State value: ${JSON.stringify(state.value)}`);
         this._logger.debug(inChatId, undefined, `State context: ${JSON.stringify(state.context)}`);
@@ -1119,15 +1112,11 @@ export class Bot {
         } else {
           accountLinkDB.write(inChatId, {
             ...accountLink,
-            language,
             state: state.value instanceof Object ? { ...state.value } : state.value,
             context: rest,
             lastUpdated: new Date()
           });
         }
-
-        //TODO: временно!
-        accountLinkDB.flush();
       })
       .start();
     this._service[uniqId] = service;
@@ -1162,22 +1151,29 @@ export class Bot {
       return;
     }
 
+    //TODO: dangerous!
+    if (body === 'shutdown_gdmn_bot_server') {
+      this._logger.info(chatId, undefined, 'Server shutting down...');
+      process.exit();
+    }
+
     const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+    const accountLink = accountLinkDB.read(chatId);
     const uniqId = this.getUniqId(platform, chatId);
     let service = this._service[uniqId];
 
-    if (this._accountLanguage[uniqId] !== language) {
-      this._accountLanguage[uniqId] = language;
+    if (!this._accountLanguage[uniqId]) {
+      if (accountLink?.language) {
+        this._accountLanguage[uniqId] = accountLink.language;
+      } else {
+        this._accountLanguage[uniqId] = language;
+      }
     }
 
     const createNewService = (forceMainMenu = true) => {
-      const accountLink = accountLinkDB.read(chatId);
       const res = this.createService(platform, chatId);
 
       if (accountLink) {
-        //TODO: перед тем как выводить меню для существующего чата
-        // имеет смысл вывести еще тескт, типа "мы отвлеклись, пожалуйста
-        // начните снова"
         const { customerId, employeeId, } = accountLink;
         res.send({
           type: 'MAIN_MENU',
@@ -1254,7 +1250,6 @@ export class Bot {
     let customerAccDed = this._customerAccDeds[customerId];
 
     if (!customerAccDed) {
-      //TODO: а зачем каждый раз дергать getLogger?
       customerAccDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`), this._log);
       this._customerAccDeds[customerId] = customerAccDed;
     }

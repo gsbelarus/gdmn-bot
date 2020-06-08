@@ -134,8 +134,6 @@ app
 
 const koaCallback = app.callback();
 
-// TODO: Если у нас получится грузить из Гедымина по протоколу HTTPS, то HTTP сервер мы вообще уберем из программы.
-
 const httpServer = http.createServer(koaCallback);
 
 httpServer.listen(config.httpPort, () => log.info(`>>> SERVER: Сервер запущен: http://localhost:${config.httpPort}`) );
