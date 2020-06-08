@@ -1,4 +1,6 @@
 import { Language, LName } from "./stringResources";
+import { IBotMachineContext } from "./machine";
+import { StateValue } from "xstate";
 
 export interface IDate {
   year: number;
@@ -36,12 +38,13 @@ export interface IAccountLink {
   employeeId: string;
   currency?: string;
   language?: Language;
-  state?: any;
-  context?: any;
+  state?: StateValue;
+  context?: Pick<IBotMachineContext, 'dateBegin' | 'dateEnd' | 'dateBegin2'>;
   /**
    * надо для телеграма, чтобы подменять инлайн меню
    */
   lastMenuId?: number;
+  lastUpdated?: Date;
 };
 
 export interface IAccDeds {
@@ -87,7 +90,7 @@ export interface IDet {
   incYear?: number
 }
 
-export interface IPaySlip {
+export interface IPayslip {
   emplId: string;
   dept: IDepartment[];
   pos: IPosition[];
@@ -105,7 +108,7 @@ export interface IPaySlip {
 
 export type PayslipType = 'DETAIL' | 'CONCISE' | 'COMPARE';
 
-export interface IPaySlipItem {
+export interface IPayslipItem {
   id: string;
   name: LName;
   s: number;
@@ -113,16 +116,16 @@ export interface IPaySlipItem {
   det?: IDet;
 };
 
-export interface IPaySlipData {
+export interface IPayslipData {
   department: LName;
   position: LName;
-  saldo?: IPaySlipItem,
-  tax: IPaySlipItem[],
-  advance: IPaySlipItem[],
-  deduction: IPaySlipItem[],
-  accrual: IPaySlipItem[],
-  tax_deduction: IPaySlipItem[],
-  privilage: IPaySlipItem[],
+  saldo?: IPayslipItem,
+  tax: IPayslipItem[],
+  advance: IPayslipItem[],
+  deduction: IPayslipItem[],
+  accrual: IPayslipItem[],
+  tax_deduction: IPayslipItem[],
+  privilage: IPayslipItem[],
   salary?: number;
   hourrate?: number;
   rate?: number;

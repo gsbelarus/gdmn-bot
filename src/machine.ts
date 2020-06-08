@@ -72,7 +72,7 @@ export interface IBotMachineContext extends IMachineContextBase {
 };
 
 export type StartEvent        = { type: 'START' } & Required<IMachineContextBase>;
-export type MainMenuEvent     = { type: 'MAIN_MENU' } & Required<IMachineContextBase> & { customerId: string; employeeId: string; };
+export type MainMenuEvent     = { type: 'MAIN_MENU' } & Required<IMachineContextBase> & { customerId: string; employeeId: string; forceMainMenu: boolean; };
 export type EnterTextEvent    = { type: 'ENTER_TEXT';    text: string; };
 export type MenuCommandEvent  = { type: 'MENU_COMMAND';  command: string; };
 

@@ -6,20 +6,21 @@ import https from 'https';
 import path from 'path';
 import { initCurrencies } from "./currency";
 import * as fs from "fs";
-import { Logger } from "./log";
+import { Logger, ILogger } from "./log";
 
 // if not exists create configuration file using
 // config.ts.sample as an example
 import { config } from "./config";
 import { Bot } from "./bot";
 
-const log = new Logger(config.logger);
+const logger = new Logger(config.logger);
+const log = logger.getLogger();
 
 /**
  * Подгружаем некоторые справочники.
  */
 
-initCurrencies().then( () => log.info(undefined, undefined, 'Currencies have been loaded...') );
+initCurrencies(log).then( () => log.info('Currencies have been loaded...') );
 
 /**
  * Создаем объекты наших ботов.
@@ -56,7 +57,8 @@ const bot = new Bot(
   config.telegram.token,
   path.resolve(process.cwd(), 'data/telegram'),
   config.viber.token,
-  path.resolve(process.cwd(), 'data/viber')
+  path.resolve(process.cwd(), 'data/viber'),
+  logger
 );
 
 /**
@@ -77,6 +79,16 @@ router.get('/', (ctx, next) => {
   return next();
 });
 
+//TODO: dangerous!
+router.get('/zarobak/v1/shutdown_gdmn_bot_server', (ctx, next) => {
+  ctx.status = 200;
+  ctx.body = JSON.stringify({ status: 200, result: `ok` });
+  log.info('Server shutting down...');
+  bot.finalize();
+  setTimeout( () => process.exit(), 100 );
+  return next();
+});
+
 router.post('/zarobak/v1/upload_employees', (ctx, next) => {
   try {
     const { customerId, objData } = ctx.request.body;
@@ -84,7 +96,7 @@ router.post('/zarobak/v1/upload_employees', (ctx, next) => {
     ctx.status = 200;
     ctx.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {
-    console.log(`Error in employees uploading. ${err.message}`);
+    log.error(`Error in employees uploading. ${err.message}`);
     ctx.status = 500;
     ctx.body = JSON.stringify({ status: 500, result: err.message });
   }
@@ -98,7 +110,7 @@ router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
     ctx.status = 200;
     ctx.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {
-    console.log(`Error in accdedrefs uploading. ${err.message}`);
+    log.error(`Error in accdedrefs uploading. ${err.message}`);
     ctx.status = 500;
     ctx.body = JSON.stringify({ status: 500, result: err.message });
   }
@@ -115,7 +127,7 @@ router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
     ctx.status = 200;
     ctx.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {
-    console.log(`Error in payslips uploading. ${err.message}`);
+    log.error(`Error in payslips uploading. ${err.message}`);
     ctx.status = 500;
     ctx.body = JSON.stringify({ status: 500, result: err.message });
   }
@@ -132,11 +144,9 @@ app
 
 const koaCallback = app.callback();
 
-// TODO: Если у нас получится грузить из Гедымина по протоколу HTTPS, то HTTP сервер мы вообще уберем из программы.
-
 const httpServer = http.createServer(koaCallback);
 
-httpServer.listen(config.httpPort, () => log.info(undefined, undefined, `>>> SERVER: Сервер запущен: http://localhost:${config.httpPort}`) );
+httpServer.listen(config.httpPort, () => log.info(`>>> SERVER: Сервер запущен: http://localhost:${config.httpPort}`) );
 
 /**
  * HTTPS сервер с платным сертификатом нам нужен для подключения
@@ -166,9 +176,9 @@ https.createServer({ cert, ca, key },
 
     try {
       await bot.viber.setWebhook(viberWebhook);
-      log.info(undefined, undefined, `Viber webhook set at ${viberWebhook}`);
+      log.info(`Viber webhook set at ${viberWebhook}`);
     } catch(e) {
-      log.error(undefined, undefined, `Error setting Viber webhook at ${viberWebhook}: ${e}`);
+      log.error(`Error setting Viber webhook at ${viberWebhook}: ${e}`);
     }
 
     // раз в час пишем на диск все несохраненные данные
@@ -185,14 +195,14 @@ bot.launch();
 process
   .on('exit', async (code) => {
     bot.finalize();
-    await log.info(undefined, undefined, `Process exit event with code: ${code}`);
-    await log.shutdown();
+    await logger.info(undefined, undefined, `Process exit event with code: ${code}`);
+    await logger.shutdown();
   })
-  .on('SIGINT', () => process.exit())
+  .on('SIGINT', () => process.exit(0))
   .on('unhandledRejection', (reason, p) => {
-    console.log({ err: reason }, `bot launch ${p}`);
+    console.error({ err: reason }, `bot launch ${p}`);
   })
   .on('uncaughtException', err => {
-    console.log({ err }, 'bot launch');
-    process.exit(1);
+    console.error({ err }, 'bot launch');
+    process.exit(2);
   });

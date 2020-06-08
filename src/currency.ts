@@ -18,6 +18,7 @@ import { MINDATE } from './constants';
 import fetch from 'node-fetch';
 import { LName, Language, getLName } from './stringResources';
 import { IDate } from './types';
+import { ILogger } from './log';
 
 /**
  * Информация о валюте в справочнике валют. Краткая аббревиатура
@@ -37,10 +38,12 @@ let currenciesDB: FileDB<ICurrency> | undefined = undefined;
  * то справочник берется с сайта национального банка и записывается на диск для
  * последующего использования.
  */
-export async function initCurrencies() {
+export async function initCurrencies(log: ILogger) {
   const fdb = new FileDB<ICurrency>(
     path.resolve(process.cwd(), `data/nbrbcurrencies.json`),
+    log,
     {},
+    undefined,
     (data: IData<ICurrency>) => !Object.keys(data).length
       || (typeof Object.values(data)[0].abbreviation === 'string' && typeof Object.values(data)[0].name === 'object'),
     true
@@ -157,7 +160,7 @@ let ratesDB: FileDB<ICurrencyRates> | undefined = undefined;
  * @param forDate Дата.
  * @param currency Код валюты. Например, USD.
  */
-export const getCurrRate = async (forDate: IDate, currency: string) => {
+export const getCurrRate = async (forDate: IDate, currency: string, log: ILogger) => {
   if (!currenciesDB) {
     throw new Error('No currency db');
   }
@@ -178,7 +181,9 @@ export const getCurrRate = async (forDate: IDate, currency: string) => {
     // загружаем курсы с диска
     ratesDB = new FileDB<ICurrencyRates>(
       path.resolve(process.cwd(), `data/nbrbrates.json`),
+      log,
       {},
+      undefined,
       (data: IData<ICurrencyRates>) => !Object.keys(data).length || typeof Object.values(data)[0] === 'object',
       true
     );

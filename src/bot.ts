@@ -1,5 +1,5 @@
-import { FileDB } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IPaySlipData as IPayslipData, IPaySlip as IPayslip, IAccDed, IPaySlipItem, AccDedType, IDate, PayslipType, IDet } from "./types";
+import { FileDB, IData } from "./util/fileDB";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
@@ -11,8 +11,10 @@ import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguag
 import { Semaphore } from "./semaphore";
 import { getCurrRate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
-import { payslipRoot, accDedRefFileName, emploeeFileName as employeeFileName } from "./constants";
+import { payslipRoot, accDedRefFileName, employeeFileName } from "./constants";
+import { Logger, ILogger } from "./log";
 
+//TODO: добавить типы для TS и заменить на import
 const vb = require('viber-bot');
 const ViberBot = vb.Bot
 const BotEvents = vb.Events
@@ -21,12 +23,16 @@ const KeyboardMessage = vb.Message.Keyboard;
 
 type Template = (string | [string | ILocString, number | undefined] | undefined | ILocString | [number, number, number])[];
 
-//TODO: перенести в utils?
-const sum = (arr?: IPaySlipItem[], type?: AccDedType) =>
+/**
+ *
+ * @param arr
+ * @param type
+ */
+const sumPayslip = (arr?: IPayslipItem[], type?: AccDedType) =>
   arr?.reduce((prev, cur) => prev + (type ? (type === cur.type ? cur.s : 0) : cur.s), 0) ?? 0;
 
 /** */
-const fillInPayslipItem = (item: IPaySlipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, typeAccDed?: AccDedType) => {
+const fillInPayslipItem = (item: IPayslipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, typeAccDed?: AccDedType) => {
   const i = item.find( d => d.id === typeId );
   if (i) {
     i.s += s;
@@ -35,7 +41,11 @@ const fillInPayslipItem = (item: IPaySlipItem[], typeId: string, name: LName, s:
   }
 };
 
-/**Получить дополнительную строку по начилению или удержанию */
+/**
+ * Получить дополнительную строку по начислению или удержанию.
+ * @param valueDet
+ * @param lng
+ */
 const getDetail = (valueDet: IDet, lng: Language) => {
   let det = '';
 
@@ -49,8 +59,12 @@ const getDetail = (valueDet: IDet, lng: Language) => {
   return `(${det})`;
 }
 
-/**Получить строку  по начилению или удержанию с детальными данными */
-const getItemTemplate = (dataItem: IPaySlipItem[], lng: Language) => {
+/**
+ * Получить строку  по начилению или удержанию с детальными данными.
+ * @param dataItem
+ * @param lng
+ */
+const getItemTemplate = (dataItem: IPayslipItem[], lng: Language) => {
   const t: Template = [undefined];
   dataItem?.forEach( i => {
     t.push([getLName(i.name, [lng]), i.s]);
@@ -60,27 +74,6 @@ const getItemTemplate = (dataItem: IPaySlipItem[], lng: Language) => {
   });
   return t;
 }
-
-/** */
-export const splitPaySlipString = (t: IPaySlipItem, lng: Language) => {
-    const s = getLName(t.name, [lng]);
-    const arr: string[] = [];
-    let currS = '';
-
-    for(const w of s.split(' ').filter( n => n.trim() )) {
-      if (currS.length + 1 + w.length < 28 ) {
-        currS += (currS ? ' ' : '') + w;
-      } else {
-        arr.push(currS);
-        currS = '';
-      }
-    }
-    return arr.join('\n');
-  };
-
-// TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
-//       надо предусмотреть обновление или просто сброс данных после загрузки на сервер
-//       из Гедымина.
 
 export class Bot {
   private _telegramAccountLink: FileDB<IAccountLink>;
@@ -97,10 +90,24 @@ export class Bot {
   private _viber: any;
   private _viberCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
   private _viberMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
+  private _logger: Logger;
+  private _log: ILogger;
 
-  constructor(telegramToken: string, telegramRoot: string, viberToken: string, viberRoot: string) {
-    this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'));
-    this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'));
+  constructor(telegramToken: string, telegramRoot: string, viberToken: string, viberRoot: string, logger: Logger) {
+    this._logger = logger;
+    this._log = this._logger.getLogger();
+
+    const restorer = (data: IData<IAccountLink>): IData<IAccountLink> => Object.fromEntries(
+      Object.entries(data).map(
+        ([key, accountLink]) => [key, {
+          ...accountLink,
+          lastUpdated: accountLink.lastUpdated && new Date(accountLink.lastUpdated)
+        }]
+      )
+    );
+
+    this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'), this._log, {}, restorer);
+    this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'), this._log, {}, restorer);
 
     /**************************************************************/
     /**************************************************************/
@@ -114,17 +121,16 @@ export class Bot {
 
     const replyTelegram: ReplyFunc = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
-        console.log('No semaphore');
+        this._logger.error(chatId, undefined, 'No semaphore');
         return;
       }
 
       if (!chatId) {
-        console.log('Invalid chatId');
+        this._log.error('Invalid chatId');
         return;
       }
 
-      //TODO: языка может и не быть. подставлять дефолтный?
-      const language = this._accountLanguage[this.getUniqId('TELEGRAM', chatId)];
+      const language = this._accountLanguage[this.getUniqId('TELEGRAM', chatId)] ?? 'ru';
 
       const keyboard = menu && Markup.inlineKeyboard(
         menu.map(r => r.map(
@@ -162,7 +168,7 @@ export class Bot {
               await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId, undefined, keyboard && JSON.stringify(keyboard));
             }
           } catch (e) {
-            console.error(e);
+            this._logger.error(chatId, undefined, e);
           }
         };
 
@@ -194,7 +200,7 @@ export class Bot {
           }
         }
       } catch (e) {
-        console.error(e);
+        this._logger.error(chatId, undefined, e);
       } finally {
         semaphore.release();
       }
@@ -246,8 +252,6 @@ export class Bot {
       const { customerId, employeeId, language, currency } = accountLink;
       await semaphore?.acquire();
       try {
-        //TODO: заменять на дефолтные язык и валюту
-        // валюта! преобразовать в ід
         const s = await this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', dateBegin, dateEnd, dateBegin2);
         reply({ en: null, ru: s, be: null })({ ...rest, semaphore: new Semaphore() });
       } finally {
@@ -263,7 +267,11 @@ export class Bot {
         assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
         assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
         askPersonalNumber: reply(stringResources.askPersonalNumber),
-        showMainMenu: reply(stringResources.mainMenuCaption, keyboardMenu),
+        showMainMenu: (ctx, event) => {
+          if (event.type !== 'MAIN_MENU' || event.forceMainMenu) {
+            reply(stringResources.mainMenuCaption, keyboardMenu)(ctx);
+          }
+        },
         showPayslip: getShowPayslipFunc('CONCISE', reply),
         showDetailedPayslip: getShowPayslipFunc('DETAIL', reply),
         showPayslipForPeriod: getShowPayslipFunc('DETAIL', reply),
@@ -275,8 +283,6 @@ export class Bot {
           const employeeName = employee
            ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
            : 'Bond, James Bond';
-
-          //TODO: языка и валюты может не быть. надо заменять на дефолтные
           reply(stringResources.showSettings, keyboardSettings, employeeName, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
         },
         sayGoodbye: reply(stringResources.goodbye),
@@ -293,10 +299,12 @@ export class Bot {
             const { accountLink, chatId, platform } = checkAccountLink(ctx);
             if (accountLink) {
               const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+              const language = str2Language(event.command.split('/')[1]);
               accountLinkDB.write(chatId, {
                 ...accountLink,
-                language: str2Language(event.command.split('/')[1])
+                language
               });
+              this._accountLanguage[this.getUniqId(platform, chatId)] = language;
             }
           }
         },
@@ -326,14 +334,14 @@ export class Bot {
     this._telegram = new Telegraf(telegramToken);
 
     this._telegram.use((ctx, next) => {
-      console.log(`Telegram Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
+      this._logger.info(ctx.chat?.id.toString(), ctx.from?.id.toString(), `Telegram Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
       return next?.();
     });
 
     this._telegram.start(
       ctx => {
         if (!ctx.chat) {
-          console.error('Invalid chat context');
+          this._log.error('Invalid chat context');
         } else {
           this.onUpdate({
             platform: 'TELEGRAM',
@@ -349,10 +357,10 @@ export class Bot {
     this._telegram.on('message',
       ctx => {
         if (!ctx.chat) {
-          console.error('Invalid chat context');
+          this._log.error('Invalid chat context');
         }
         else if (ctx.message?.text === undefined) {
-          console.error('Invalid chat message');
+          this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat message');
         } else {
           this.onUpdate({
             platform: 'TELEGRAM',
@@ -368,10 +376,10 @@ export class Bot {
     this._telegram.on('callback_query',
       ctx => {
         if (!ctx.chat) {
-          console.error('Invalid chat context');
+          this._log.error('Invalid chat context');
         }
         else if (ctx.callbackQuery?.data === undefined) {
-          console.error('Invalid chat callback query');
+          this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat callback query');
         } else {
           this.onUpdate({
             platform: 'TELEGRAM',
@@ -394,17 +402,16 @@ export class Bot {
 
     const replyViber = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
-        console.log('No semaphore');
+        this._logger.error(chatId, undefined, 'No semaphore');
         return;
       }
 
       if (!chatId) {
-        console.log('Invalid chatId');
+        this._log.error('Invalid chatId');
         return;
       }
 
-      //TODO: языка может и не быть. подставлять дефолтный?
-      const language = this._accountLanguage[this.getUniqId('VIBER', chatId)];
+      const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
       const keyboard = menu && this._menu2ViberMenu(menu, language);
       const text = s && getLocString(s, language, ...args);
 
@@ -413,13 +420,13 @@ export class Bot {
         if (keyboard) {
           const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
           if (!Array.isArray(res)) {
-            console.log(JSON.stringify(res));
+            this._logger.warn(chatId, undefined, JSON.stringify(res));
           }
         } else {
           await this._viber.sendMessage({ id: chatId }, [new TextMessage(text)]);
         }
       } catch (e) {
-        console.error(e);
+        this._logger.error(chatId, undefined, e);
       } finally {
         semaphore.release();
       }
@@ -433,7 +440,6 @@ export class Bot {
 
     this._viber = new ViberBot({
       authToken: viberToken,
-     //logger: logger,
       name: 'Моя зарплата',
       avatar: ''
     });
@@ -446,15 +452,15 @@ export class Bot {
     //   }
     // });
 
-    this._viber.onError(console.error);
+    this._viber.onError( (...args: any[]) => this._log.error(...args) );
 
     this._viber.on(BotEvents.SUBSCRIBED, (response: any) => {
       const chatId = response.userProfile.id;
 
-      console.log(`SUBSCRIBED ${chatId}`);
+      this._logger.info(chatId, undefined, `SUBSCRIBED ${chatId}`);
 
       if (!chatId) {
-        console.error('Invalid viber response');
+        this._log.error('Invalid viber response');
       } else {
         this.onUpdate({
           platform: 'VIBER',
@@ -471,14 +477,13 @@ export class Bot {
       const chatId = response.userProfile.id;
 
       if (!chatId) {
-        console.error('Invalid viber response');
+        this._log.error('Invalid viber response');
       } else {
         this.onUpdate({
           platform: 'VIBER',
           chatId,
           type: 'ACTION',
           body: message.text,
-          //TODO: язык может не передаваться, надо брать из профиля
           language: str2Language(response.userProfile.language)
         });
       }
@@ -488,23 +493,24 @@ export class Bot {
       const chatId = response.userProfile.id;
 
       if (!chatId) {
-        console.error('Invalid viber response');
+        this._log.error('Invalid viber response');
       } else {
         this.onUpdate({
           platform: 'VIBER',
           chatId,
           type: 'MESSAGE',
           body: message.text,
-          //TODO: язык может не передаваться, надо брать из профиля
           language: str2Language(response.userProfile.language)
         });
       }
     });
 
-
     this._viber.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
-      //TODO: удалять accountLink
-      console.log(`User unsubscribed, ${response}`)
+      //TODO: проверить когда вызывается это событие
+      const chatId = response.userProfile.id;
+      this._viberAccountLink.delete(chatId);
+      delete this._service[this.getUniqId('VIBER', chatId)];
+      this._log.info(`User unsubscribed, ${response}`);
     });
 
     /*
@@ -565,7 +571,7 @@ export class Bot {
     let employees = this._employees[customerId];
 
     if (!employees) {
-      const db = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`));
+      const db = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`), this._log);
       if (!db.isEmpty()) {
         this._employees[customerId] = db;
         return db;
@@ -582,7 +588,7 @@ export class Bot {
 
   private _findCompany = (_: any, event: BotMachineEvent) => {
     if (isEnterTextEvent(event)) {
-      const customersDB = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'));
+      const customersDB = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), this._log);
       const customers = customersDB.getMutable(false);
       for (const [companyId, { aliases }] of Object.entries(customers)) {
         if (aliases.find( alias => testNormalizeStr(alias, event.text) )) {
@@ -609,7 +615,7 @@ export class Bot {
   }
 
   private _getPayslipData(customerId: string, employeeId: string, mb: IDate, me?: IDate): IPayslipData | undefined {
-    const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`))
+    const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`), this._log)
       .read(employeeId);
 
     if (!payslip) {
@@ -619,7 +625,7 @@ export class Bot {
     let accDed = this._customerAccDeds[customerId];
 
     if (!accDed) {
-      accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`), {});
+      accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`), this._log);
       this._customerAccDeds[customerId] = accDed;
     };
 
@@ -652,9 +658,13 @@ export class Bot {
     // Подразделение получаем из массива подразделений dept,
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
     // Аналогично с должностью из массива pos
-    //let maxDate: Date = paySlip.dept[0].d;
 
-    //TODO: а может массив оказаться пустым? это где-то проверяется
+    if (!payslip.dept.length || !payslip.pos.length || !payslip.salary.length) {
+      const msg = `Missing departments, positions or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
+      this._log.error(msg);
+      throw new Error(msg)
+    }
+
     let department = payslip.dept[0].name;
     let maxDate = str2Date(payslip.dept[0].d);
 
@@ -730,7 +740,7 @@ export class Bot {
             continue;
           }
 
-          console.error(`Отсутствует в справочнике тип начисления или удержания ${typeId}`);
+          this._log.error(`Отсутствует в справочнике тип начисления или удержания ${typeId}`);
           continue;
         }
 
@@ -785,13 +795,13 @@ export class Bot {
   }
 
   private _formatShortPayslip(data: IPayslipData, lng: Language, periodName: string, currencyName: string): Template {
-    const accruals = sum(data.accrual);
-    const taxes = sum(data.tax);
-    const deds = sum(data.deduction);
-    const advances = sum(data.advance);
-    const incomeTax = sum(data.tax, 'INCOME_TAX');
-    const pensionTax = sum(data.tax, 'PENSION_TAX');
-    const tradeUnionTax = sum(data.tax, 'TRADE_UNION_TAX');
+    const accruals = sumPayslip(data.accrual);
+    const taxes = sumPayslip(data.tax);
+    const deds = sumPayslip(data.deduction);
+    const advances = sumPayslip(data.advance);
+    const incomeTax = sumPayslip(data.tax, 'INCOME_TAX');
+    const pensionTax = sumPayslip(data.tax, 'PENSION_TAX');
+    const tradeUnionTax = sumPayslip(data.tax, 'TRADE_UNION_TAX');
 
     return [
       stringResources.payslipTitle,
@@ -820,13 +830,13 @@ export class Bot {
   }
 
   private _formatComparativePayslip(data: IPayslipData, data2: IPayslipData, lng: Language, periodName: string, currencyName: string): Template {
-    const accruals = sum(data.accrual);
-    const taxes = sum(data.tax);
-    const deds = sum(data.deduction);
+    const accruals = sumPayslip(data.accrual);
+    const taxes = sumPayslip(data.tax);
+    const deds = sumPayslip(data.deduction);
 
-    const accruals2 = sum(data2.accrual);
-    const taxes2 = sum(data2.tax);
-    const deds2 = sum(data2.deduction);
+    const accruals2 = sumPayslip(data2.accrual);
+    const taxes2 = sumPayslip(data2.tax);
+    const deds2 = sumPayslip(data2.deduction);
 
     return [
       stringResources.comparativePayslipTitle,
@@ -853,12 +863,12 @@ export class Bot {
   }
 
   private _formatDetailedPayslip(data: IPayslipData, lng: Language, periodName: string, currencyName: string): Template {
-    const accruals = sum(data.accrual);
-    const taxes = sum(data.tax);
-    const deds = sum(data.deduction);
-    const advances = sum(data.advance);
-    const taxDeds = sum(data.tax_deduction);
-    const privilages = sum(data.privilage);
+    const accruals = sumPayslip(data.accrual);
+    const taxes = sumPayslip(data.tax);
+    const deds = sumPayslip(data.deduction);
+    const advances = sumPayslip(data.advance);
+    const taxDeds = sumPayslip(data.tax_deduction);
+    const privilages = sumPayslip(data.privilage);
 
     const strAccruals = getItemTemplate(data.accrual, lng);
     const strDeductions = getItemTemplate(data.deduction, lng);
@@ -944,7 +954,7 @@ export class Bot {
       return getLocString(stringResources.noData, lng);
     }
 
-    const currencyRate = currency === 'BYN' ? undefined : await getCurrRate(db, currency);
+    const currencyRate = currency === 'BYN' ? undefined : await getCurrRate(db, currency, this._log);
 
     if (currency && currency !== 'BYN' && !currencyRate) {
       return getLocString(stringResources.cantLoadRate, lng, currency);
@@ -986,7 +996,7 @@ export class Bot {
         month: periodEnd % 12
       }
 
-      const currencyRate2 = currency === 'BYN' ? undefined : await getCurrRate(db2, currency);
+      const currencyRate2 = currency === 'BYN' ? undefined : await getCurrRate(db2, currency, this._log);
 
       if (currency && currency !== 'BYN' && !currencyRate2) {
         return getLocString(stringResources.cantLoadRate, lng, currency);
@@ -1038,11 +1048,11 @@ export class Bot {
       .onTransition( (state, { type }) => {
         const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
 
-        console.log(`State: ${state.toStrings().join('->')}, Event: ${type}`);
-        console.log(`State value: ${JSON.stringify(state.value)}`);
-        console.log(`State context: ${JSON.stringify(state.context)}`);
+        this._logger.debug(inChatId, undefined, `State: ${state.toStrings().join('->')}, Event: ${type}`);
+        this._logger.debug(inChatId, undefined, `State value: ${JSON.stringify(state.value)}`);
+        this._logger.debug(inChatId, undefined, `State context: ${JSON.stringify(state.context)}`);
         if (Object.keys(state.children).length) {
-          console.log(`State children: ${JSON.stringify(Object.values(state.children)[0].state.value)}`);
+          this._logger.debug(inChatId, undefined, `State children: ${JSON.stringify(Object.values(state.children)[0].state.value)}`);
         }
 
         if (state.done) {
@@ -1062,15 +1072,16 @@ export class Bot {
               employeeId,
               language,
               state: state.value instanceof Object ? { ...state.value } : state.value,
-              context: rest
+              context: rest,
+              lastUpdated: new Date()
             });
           }
         } else {
           accountLinkDB.write(inChatId, {
             ...accountLink,
-            language,
             state: state.value instanceof Object ? { ...state.value } : state.value,
-            context: rest
+            context: rest,
+            lastUpdated: new Date()
           });
         }
       })
@@ -1088,92 +1099,110 @@ export class Bot {
     this._callbacksReceived++;
 
     const { platform, chatId, type, body, language } = update;
-    const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-    const uniqId = this.getUniqId(platform, chatId);
-    const service = this._service[uniqId];
 
-    if (this._accountLanguage[uniqId] !== language) {
-      this._accountLanguage[uniqId] = language;
+    if (body === 'diagnostics') {
+      this.finalize();
+      const data = [
+        `Server started: ${this._botStarted}`,
+        `Node version: ${process.versions.node}`,
+        'Memory usage:',
+        JSON.stringify(process.memoryUsage(), undefined, 2),
+        `Services are running: ${Object.values(this._service).length}`,
+        `Callbacks received: ${this._callbacksReceived}`
+      ];
+      if (platform === 'TELEGRAM') {
+        this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
+      } else {
+        this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
+      }
+      return;
     }
 
-    const createNewService = () => {
-      const accountLink = accountLinkDB.read(chatId);
-      if (accountLink) {
-        //TODO: перед тем как выводить меню для существующего чата
-        // имеет смысл вывести еще тескт, типа "мы отвлеклись, пожалуйста
-        // начните снова"
+    const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+    const accountLink = accountLinkDB.read(chatId);
+    const uniqId = this.getUniqId(platform, chatId);
+    let service = this._service[uniqId];
 
+    if (!this._accountLanguage[uniqId]) {
+      if (accountLink?.language) {
+        this._accountLanguage[uniqId] = accountLink.language;
+      } else {
+        this._accountLanguage[uniqId] = language;
+      }
+    }
+
+    const createNewService = (forceMainMenu = true) => {
+      const res = this.createService(platform, chatId);
+
+      if (accountLink) {
         const { customerId, employeeId, } = accountLink;
-        this.createService(platform, chatId).send({
+        res.send({
           type: 'MAIN_MENU',
           platform,
           chatId,
           customerId,
           employeeId,
+          forceMainMenu,
           semaphore: new Semaphore()
         });
       } else {
-        this.createService(platform, chatId).send({
+        res.send({
           type: 'START',
           platform,
           chatId,
           semaphore: new Semaphore()
         });
       }
+
+      return res;
     }
 
-    if (body === '/start' || !service || service.state.done) {
-      createNewService();
-    } else {
-      let e: BotMachineEvent | undefined;
+    if (body === '/start' || service?.state.done) {
+      createNewService(true);
+      return;
+    }
 
-      switch (type) {
-        case 'MESSAGE':
-          if (body === 'diagnostics') {
-            this.finalize();
-            const data = [
-              `Server started: ${this._botStarted}`,
-              `Node version: ${process.versions.node}`,
-              'Memory usage:',
-              JSON.stringify(process.memoryUsage(), undefined, 2),
-              `Services are running: ${Object.values(this._service).length}`,
-              `Callbacks received: ${this._callbacksReceived}`
-            ];
-            if (platform === 'TELEGRAM') {
-              this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
-            } else {
-              this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
-            }
-            return;
-          }
+    if (!service) {
+      service = createNewService(false);
+    }
 
-          e = { type: 'ENTER_TEXT', text: body };
-          break;
+    let e: BotMachineEvent | undefined;
 
-        case 'ACTION': {
-          if (body.slice(0, 1) === '{') {
-            e = { ...JSON.parse(body), update };
-          } else {
-            e = { type: 'MENU_COMMAND', command: body };
-          }
-          break;
+    switch (type) {
+      case 'MESSAGE':
+        e = { type: 'ENTER_TEXT', text: body };
+        break;
+
+      case 'ACTION': {
+        if (body.slice(0, 1) === '{') {
+          e = { ...JSON.parse(body), update };
+        } else {
+          e = { type: 'MENU_COMMAND', command: body };
         }
-
-        default:
-          e = undefined;
+        break;
       }
 
-      if (e) {
-        if (service.nextState(e) === service.state) {
-          // мы каким-то образом попали в ситуацию, когда текущее состояние не
-          // может принять вводимую информацию. например, пользователь
-          // очистил чат или произошел сбой на стороне мессенджера и
-          // то, что видит пользователь отличается от внутреннего состояния
-          // машины
-          createNewService();
+      default:
+        e = undefined;
+    }
+
+    if (e) {
+      service.send(e);
+
+      if (!service.state.changed) {
+        // мы каким-то образом попали в ситуацию, когда текущее состояние не
+        // может принять вводимую информацию. например, пользователь
+        // очистил чат или произошел сбой на стороне мессенджера и
+        // то, что видит пользователь отличается от внутреннего состояния
+        // машины
+
+        if (platform === 'TELEGRAM') {
+          this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
         } else {
-          service.send(e);
+          this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
         }
+
+        createNewService(true);
       }
     }
   }
@@ -1182,7 +1211,7 @@ export class Bot {
     let customerAccDed = this._customerAccDeds[customerId];
 
     if (!customerAccDed) {
-      customerAccDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`));
+      customerAccDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`), this._log);
       this._customerAccDeds[customerId] = customerAccDed;
     }
 
@@ -1199,7 +1228,7 @@ export class Bot {
     let employee = this._employees[customerId];
 
     if (!employee) {
-      employee = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeFileName}`), {});
+      employee = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeFileName}`), this._log);
       this._employees[customerId] = employee;
     }
 
@@ -1214,7 +1243,7 @@ export class Bot {
 
   upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
     const employeeId = objData.emplId;
-    const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`));
+    const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`), this._log);
 
     if (rewrite) {
       payslip.clear();
