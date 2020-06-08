@@ -258,6 +258,16 @@ export const stringResources = {
     en: 'Comparative payslip',
     ru: 'Сравнительный листок',
     be: 'Параўнальны лісток'
+  },
+  hours: {
+    en: 'h.',
+    ru: 'ч.',
+    be: 'г.'
+  },
+  days: {
+    en: 'd.',
+    ru: 'д.',
+    be: 'д.'
   }
 };
 
