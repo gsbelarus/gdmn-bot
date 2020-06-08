@@ -49,6 +49,7 @@ const getDetail = (valueDet: IDet, lng: Language) => {
   return `(${det})`;
 }
 
+/**Получить строку  по начилению или удержанию с дутальными данными */
 const getItemTemplate = (dataItem: IPaySlipItem[], lng: Language) => {
   const t: Template = [undefined];
   dataItem?.forEach( i => {
@@ -859,19 +860,12 @@ export class Bot {
     const taxDeds = sum(data.tax_deduction);
     const privilages = sum(data.privilage);
 
-    //const strAccruals: Template = data.accrual?.map( i => [getLName(i.name, [lng]), i.s]) ?? [undefined];
-    // const strDeductions: Template = data.deduction?.map( i => [getLName(i.name, [lng]), i.s]) ?? [undefined];
-    // const strAdvances: Template = data.advance?.map( i => [getLName(i.name, [lng]), i.s]) ?? [undefined];
-    // const strTaxes: Template = data.tax?.map( i => [getLName(i.name, [lng]), i.s]) ?? [undefined];
-    // const strTaxDeds: Template = data.tax_deduction?.map( i => [getLName(i.name, [lng]), i.s]) ?? [undefined];
-    // const strPrivilages: Template = data.privilage?.map( i => [getLName(i.name, [lng]), i.s]) ?? [undefined];
-
     const strAccruals = getItemTemplate(data.accrual, lng);
     const strDeductions = getItemTemplate(data.deduction, lng);
     const strAdvances: Template = getItemTemplate(data.advance, lng);
-    const strTaxes: Template = getItemTemplate(data.tax, lng);;
-    const strTaxDeds: Template = getItemTemplate(data.tax_deduction, lng);;
-    const strPrivilages: Template = getItemTemplate(data.privilage, lng);;
+    const strTaxes: Template = getItemTemplate(data.tax, lng);
+    const strTaxDeds: Template = getItemTemplate(data.tax_deduction, lng);
+    const strPrivilages: Template = getItemTemplate(data.privilage, lng);
 
     return [
       stringResources.payslipTitle,
