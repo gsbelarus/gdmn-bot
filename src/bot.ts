@@ -35,6 +35,49 @@ const fillInPayslipItem = (item: IPaySlipItem[], typeId: string, name: LName, s:
   }
 };
 
+/**Получить дополнительную строку по начилению или удержанию */
+const getDetail = (valueDet: IDet, lng: Language) => {
+  let det = '';
+
+  det = valueDet.days ? `${valueDet.days}${getLocString(stringResources.days, lng)}` : '';
+  if (valueDet.hours) {
+    det = `${det}${det ?  ', ' : ''}${valueDet.hours}${getLocString(stringResources.hours, lng)}`;
+  }
+  if (valueDet.incMonth || valueDet.incYear) {
+    det = `${det}${det ?  ', ' : ''}${valueDet.incMonth}.${valueDet.incYear}`;
+  }
+  return `(${det})`;
+}
+
+/**Получить строку  по начилению или удержанию с дутальными данными */
+const getItemTemplate = (dataItem: IPaySlipItem[], lng: Language) => {
+  const t: Template = [undefined];
+  dataItem?.forEach( i => {
+    t.push([getLName(i.name, [lng]), i.s]);
+    if (i.det) {
+      t.push(getDetail(i.det, lng));
+    }
+  });
+  return t;
+}
+
+/** */
+export const splitPaySlipString = (t: IPaySlipItem, lng: Language) => {
+    const s = getLName(t.name, [lng]);
+    const arr: string[] = [];
+    let currS = '';
+
+    for(const w of s.split(' ').filter( n => n.trim() )) {
+      if (currS.length + 1 + w.length < 28 ) {
+        currS += (currS ? ' ' : '') + w;
+      } else {
+        arr.push(currS);
+        currS = '';
+      }
+    }
+    return arr.join('\n');
+  };
+
 // TODO: У нас сейчас серверная часть, которая отвечает за загрузку данных не связана с ботом
 //       надо предусмотреть обновление или просто сброс данных после загрузки на сервер
 //       из Гедымина.
@@ -817,12 +860,12 @@ export class Bot {
     const taxDeds = sum(data.tax_deduction);
     const privilages = sum(data.privilage);
 
-    const strAccruals: Template = data.accrual?.map( i => [getLName(i.name, [lng]), i.s]) ?? [undefined];
-    const strDeductions: Template = data.deduction?.map( i => [getLName(i.name, [lng]), i.s]) ?? [undefined];
-    const strAdvances: Template = data.advance?.map( i => [getLName(i.name, [lng]), i.s]) ?? [undefined];
-    const strTaxes: Template = data.tax?.map( i => [getLName(i.name, [lng]), i.s]) ?? [undefined];
-    const strTaxDeds: Template = data.tax_deduction?.map( i => [getLName(i.name, [lng]), i.s]) ?? [undefined];
-    const strPrivilages: Template = data.privilage?.map( i => [getLName(i.name, [lng]), i.s]) ?? [undefined];
+    const strAccruals = getItemTemplate(data.accrual, lng);
+    const strDeductions = getItemTemplate(data.deduction, lng);
+    const strAdvances: Template = getItemTemplate(data.advance, lng);
+    const strTaxes: Template = getItemTemplate(data.tax, lng);
+    const strTaxDeds: Template = getItemTemplate(data.tax_deduction, lng);
+    const strPrivilages: Template = getItemTemplate(data.privilage, lng);
 
     return [
       stringResources.payslipTitle,
