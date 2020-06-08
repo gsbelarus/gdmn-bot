@@ -1132,20 +1132,6 @@ export class Bot {
       return;
     }
 
-    //TODO: dangerous!
-    /*
-    if (body === 'shutdown_gdmn_bot_server') {
-      if (platform === 'TELEGRAM') {
-        this._telegram.telegram.sendMessage(chatId, 'Goodbye!');
-      } else {
-        this._viber.sendMessage({ id: chatId }, [new TextMessage('Goodbye!')]);
-      }
-      this._logger.info(chatId, undefined, 'Server shutting down...');
-      this.finalize();
-      setTimeout( () => process.exit(), 100 );
-    }
-    */
-
     const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
     const accountLink = accountLinkDB.read(chatId);
     const uniqId = this.getUniqId(platform, chatId);

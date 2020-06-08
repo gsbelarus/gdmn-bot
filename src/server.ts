@@ -79,6 +79,16 @@ router.get('/', (ctx, next) => {
   return next();
 });
 
+//TODO: dangerous!
+router.get('/zarobak/v1/shutdown_gdmn_bot_server', (ctx, next) => {
+  ctx.status = 200;
+  ctx.body = JSON.stringify({ status: 200, result: `ok` });
+  log.info('Server shutting down...');
+  bot.finalize();
+  setTimeout( () => process.exit(), 100 );
+  return next();
+});
+
 router.post('/zarobak/v1/upload_employees', (ctx, next) => {
   try {
     const { customerId, objData } = ctx.request.body;
