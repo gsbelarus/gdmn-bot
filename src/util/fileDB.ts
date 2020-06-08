@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { ILogger } from '../log';
 
 export interface IData<T> {
   [key: string]: T;
@@ -15,8 +16,10 @@ export class FileDB<T extends Object> {
   private _fn: string;
   private _modified: boolean = false;
   private _initData: IData<T>;
+  private _restore?: (data: IData<T>) => IData<T>;
   private _check?: (data: IData<T>) => boolean;
   private _ignore?: boolean;
+  private _logger: ILogger;
 
   /**
    * Конструктор.
@@ -25,11 +28,14 @@ export class FileDB<T extends Object> {
    * @param check Функция для проверки считанных из файла данных на корректность.
    * @param ignore Если true, то при наличии в файле некорректных данных не будет выдаваться сообщение об ошибке.
    */
-  constructor (fn: string, initData: IData<T> = {}, check?: (data: IData<T>) => boolean, ignore?: boolean) {
+  constructor (fn: string, logger?: ILogger, initData: IData<T> = {}, restore?: (data: IData<T>) => IData<T>,
+    check?: (data: IData<T>) => boolean, ignore?: boolean)
+  {
     this._fn = fn;
     this._initData = initData;
     this._check = check;
     this._ignore = ignore;
+    this._logger = logger ?? console;
   }
 
   private _load(): IData<T> {
@@ -39,9 +45,13 @@ export class FileDB<T extends Object> {
 
         try {
           parsed = JSON.parse(fs.readFileSync(this._fn, { encoding: 'utf8' }));
-          if (parsed.version === '1.0' && typeof parsed.data === 'object' && (!this._check || this._check(parsed.data))) {
-            console.log(`Data has been loaded from ${this._fn}. Keys: ${Object.keys(parsed.data).length}...`);
-            this._data = parsed.data;
+          if (parsed.version === '1.0' && typeof parsed.data === 'object') {
+            const data = this._restore?.(parsed.data) ?? parsed.data;
+
+            if (!this._check || this._check(data)) {
+              this._logger.info(`Data has been loaded from ${this._fn}. Keys: ${Object.keys(parsed.data).length}...`);
+              this._data = parsed.data;
+            }
           }
         }
         catch (e) {
@@ -97,12 +107,17 @@ export class FileDB<T extends Object> {
     }
   }
 
+  public has(key: string) {
+    this._load();
+    return this._data && key in this._data;
+  }
+
   public put(data: IData<T>) {
     this._data = data;
     this._modified = true;
   }
 
-  public merge(key: string, data: Partial<T>, omit?: string[]) {
+  public merge(key: string, data: Partial<T>, omit?: (keyof T)[]) {
     const prev = this._load()[key];
     this._data![key] = {...prev, ...data};
     if (omit) {
@@ -131,7 +146,7 @@ export class FileDB<T extends Object> {
 
       fs.writeFileSync(this._fn, JSON.stringify(envelope, undefined, 2), { encoding: 'utf8' });
       this._modified = false;
-      console.log(`Data has been written to ${this._fn}...`);
+      this._logger.info(`Data has been written to ${this._fn}...`);
     }
   }
 };

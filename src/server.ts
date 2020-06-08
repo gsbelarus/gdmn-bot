@@ -4,44 +4,23 @@ import Router from 'koa-router';
 import http from 'http';
 import https from 'https';
 import path from 'path';
-import { upload_employees, upload_accDedRefs, upload_paySlips } from "./util/upload";
-import { TelegramBot } from "./telegram";
 import { initCurrencies } from "./currency";
-import { Viber } from "./viber";
 import * as fs from "fs";
-import { getCustomers, getEmployeesByCustomer, getAccDeds, getPaySlipByUser, customers, employeesByCustomer } from "./data";
-import { Logger } from "./log";
+import { Logger, ILogger } from "./log";
 
 // if not exists create configuration file using
 // config.ts.sample as an example
 import { config } from "./config";
+import { Bot } from "./bot";
 
-const log = new Logger(config.logger);
-
-/**
- * Port number our HTTP server is accessible at.
- */
-const HTTP_PORT = 3000;
-
-/**
- * Port number our HTTPS server is accessible at.
- */
-const HTTPS_PORT = 8084; //443
-
-/**
- * Host name for Viber callback.
- */
-const ZAROBAK_VIBER_CALLBACK_HOST = process.env.ZAROBAK_VIBER_CALLBACK_HOST;
-
-if (typeof ZAROBAK_VIBER_CALLBACK_HOST !== 'string' || !ZAROBAK_VIBER_CALLBACK_HOST) {
-  throw new Error('ZAROBAK_VIBER_CALLBACK_HOST env variable is not specified.');
-}
+const logger = new Logger(config.logger);
+const log = logger.getLogger();
 
 /**
  * Подгружаем некоторые справочники.
  */
 
-initCurrencies().then( () => log.info('Currencies have been loaded...') );
+initCurrencies(log).then( () => log.info('Currencies have been loaded...') );
 
 /**
  * Создаем объекты наших ботов.
@@ -54,12 +33,11 @@ if (!config.telegram.token) {
   throw new Error('Telegram bot token isn\'t specified.');
 }
 
-const ZAROBAK_VIBER_BOT_TOKEN = process.env.ZAROBAK_VIBER_BOT_TOKEN;
-
-if (typeof ZAROBAK_VIBER_BOT_TOKEN !== 'string' || !ZAROBAK_VIBER_BOT_TOKEN) {
-  throw new Error('ZAROBAK_VIBER_BOT_TOKEN env variable is not specified.');
+if (!config.viber.token) {
+  throw new Error('Viber bot token isn\'t specified.');
 }
 
+/*
 const telegram = new TelegramBot(
   config.telegram.token,
   getCustomers,
@@ -73,6 +51,15 @@ const viber = new Viber(
   getEmployeesByCustomer,
   getAccDeds,
   getPaySlipByUser);
+*/
+
+const bot = new Bot(
+  config.telegram.token,
+  path.resolve(process.cwd(), 'data/telegram'),
+  config.viber.token,
+  path.resolve(process.cwd(), 'data/viber'),
+  logger
+);
 
 /**
  * Мы используем KOA для организации веб-сервера.
@@ -92,13 +79,41 @@ router.get('/', (ctx, next) => {
   return next();
 });
 
+//TODO: dangerous!
+router.get('/zarobak/v1/shutdown_gdmn_bot_server', (ctx, next) => {
+  ctx.status = 200;
+  ctx.body = JSON.stringify({ status: 200, result: `ok` });
+  log.info('Server shutting down...');
+  bot.finalize();
+  setTimeout( () => process.exit(), 100 );
+  return next();
+});
+
 router.post('/zarobak/v1/upload_employees', (ctx, next) => {
-  upload_employees(ctx);
+  try {
+    const { customerId, objData } = ctx.request.body;
+    bot.uploadEmployees(customerId, objData);
+    ctx.status = 200;
+    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+  } catch(err) {
+    log.error(`Error in employees uploading. ${err.message}`);
+    ctx.status = 500;
+    ctx.body = JSON.stringify({ status: 500, result: err.message });
+  }
   return next();
 });
 
 router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
-  upload_accDedRefs(ctx);
+  try {
+    const { customerId, objData } = ctx.request.body;
+    bot.uploadAccDeds(customerId, objData);
+    ctx.status = 200;
+    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+  } catch(err) {
+    log.error(`Error in accdedrefs uploading. ${err.message}`);
+    ctx.status = 500;
+    ctx.body = JSON.stringify({ status: 500, result: err.message });
+  }
   return next();
 });
 
@@ -106,13 +121,16 @@ router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
 // например: /zarobak/v1/upload_paySlips?employeeId=445566
 // тогда сразу будет видно на каком именно сотруднике произошла ошибка
 router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
-  upload_paySlips(ctx);
-
-  // TODO: Сделать, чтобы не просто надпись выводилась, а человек сразу получал в чат
-  //       краткий расчетный листок.
-  viber.showPaySlip(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
-  telegram.showPaySlip(ctx.request.body.customerId, ctx.request.body.objData.emplId, 'Пришли новые данные!');
-
+  try {
+    const { customerId, objData, rewrite } = ctx.request.body;
+    bot.upload_payslips(customerId, objData, rewrite);
+    ctx.status = 200;
+    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+  } catch(err) {
+    log.error(`Error in payslips uploading. ${err.message}`);
+    ctx.status = 500;
+    ctx.body = JSON.stringify({ status: 500, result: err.message });
+  }
   return next();
 });
 
@@ -126,24 +144,9 @@ app
 
 const koaCallback = app.callback();
 
-const flushData = () => {
-  customers.flush();
-
-  for (const ec of Object.values(employeesByCustomer)) {
-    ec.flush();
-  }
-
-  // FIXME: переименовать finalize в flush
-  telegram.finalize();
-  viber.finalize();
-};
-
-
-// TODO: Если у нас получится грузить из Гедымина по протоколу HTTPS, то HTTP сервер мы вообще уберем из программы.
-
 const httpServer = http.createServer(koaCallback);
 
-httpServer.listen(HTTP_PORT, () => log.info(`>>> SERVER: Сервер запущен: http://localhost:${HTTP_PORT}`) );
+httpServer.listen(config.httpPort, () => log.info(`>>> SERVER: Сервер запущен: http://localhost:${config.httpPort}`) );
 
 /**
  * HTTPS сервер с платным сертификатом нам нужен для подключения
@@ -157,7 +160,7 @@ const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bun
   .map(cert => cert +'-----END CERTIFICATE-----\r\n')
   .pop();
 
-const viberCallback = viber.bot.middleware();
+const viberCallback = bot.viber.middleware();
 
 https.createServer({ cert, ca, key },
   (req, res) => {
@@ -167,22 +170,23 @@ https.createServer({ cert, ca, key },
       koaCallback(req, res);
     }
   }
-).listen(HTTPS_PORT,
+).listen(config.httpsPort,
   async () => {
-    const viberWebhook = `https://${ZAROBAK_VIBER_CALLBACK_HOST}:${HTTPS_PORT}`;
+    const viberWebhook = `https://${config.viber.callbackHost}`;
 
     try {
-      await viber.bot.setWebhook(viberWebhook);
-      log.info(`Viber webhook set at ${viberWebhook}`)
+      await bot.viber.setWebhook(viberWebhook);
+      log.info(`Viber webhook set at ${viberWebhook}`);
     } catch(e) {
       log.error(`Error setting Viber webhook at ${viberWebhook}: ${e}`);
     }
 
     // раз в час пишем на диск все несохраненные данные
-    setInterval(flushData, 60 * 60 * 1000);
+    setInterval(() => bot.finalize(), 60 * 60 * 1000);
   }
 );
 
+bot.launch();
 
 /**
  * При завершении работы сервера скидываем на диск все данные.
@@ -190,15 +194,15 @@ https.createServer({ cert, ca, key },
 
 process
   .on('exit', async (code) => {
-    flushData();
-    await log.info(`Process exit event with code: ${code}`);
-    await log.shutdown();
+    bot.finalize();
+    await logger.info(undefined, undefined, `Process exit event with code: ${code}`);
+    await logger.shutdown();
   })
-  .on('SIGINT', () => process.exit())
+  .on('SIGINT', () => process.exit(0))
   .on('unhandledRejection', (reason, p) => {
-    console.log({ err: reason }, `bot launch ${p}`);
+    console.error({ err: reason }, `bot launch ${p}`);
   })
   .on('uncaughtException', err => {
-    console.log({ err }, 'bot launch');
-    process.exit(1);
+    console.error({ err }, 'bot launch');
+    process.exit(2);
   });

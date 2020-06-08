@@ -12,12 +12,13 @@
  */
 
 import path from 'path';
-import { Lang, LName } from './types';
 import { FileDB, IData } from './util/fileDB';
-import { getLName, date2str } from './util/utils';
-import { MINDATE } from './bot';
-
-const fetch = require("node-fetch");
+import { date2str } from './util/utils';
+import { MINDATE } from './constants';
+import fetch from 'node-fetch';
+import { LName, Language, getLName } from './stringResources';
+import { IDate } from './types';
+import { ILogger } from './log';
 
 /**
  * Информация о валюте в справочнике валют. Краткая аббревиатура
@@ -37,10 +38,12 @@ let currenciesDB: FileDB<ICurrency> | undefined = undefined;
  * то справочник берется с сайта национального банка и записывается на диск для
  * последующего использования.
  */
-export async function initCurrencies() {
+export async function initCurrencies(log: ILogger) {
   const fdb = new FileDB<ICurrency>(
     path.resolve(process.cwd(), `data/nbrbcurrencies.json`),
+    log,
     {},
+    undefined,
     (data: IData<ICurrency>) => !Object.keys(data).length
       || (typeof Object.values(data)[0].abbreviation === 'string' && typeof Object.values(data)[0].name === 'object'),
     true
@@ -83,7 +86,7 @@ export async function initCurrencies() {
             en: {
               name: currency.Cur_Name_Eng
             },
-            by: {
+            be: {
               name: currency.Cur_Name_Bel
             },
           }
@@ -105,7 +108,7 @@ export async function initCurrencies() {
  * @param lng ИД языка.
  * @param currencyId ИД валюты. Если не задано, функция вернет 'Белорусский рубль'.
  */
-export const getCurrencyNameById = (lng: Lang, currencyId?: string) => {
+export const getCurrencyNameById = (lng: Language, currencyId?: string) => {
   if (currenciesDB && currencyId) {
     const c = currenciesDB.read(currencyId);
     if (c) {
@@ -154,25 +157,43 @@ let ratesDB: FileDB<ICurrencyRates> | undefined = undefined;
  * Возвращает курс заданной валюты на заданную дату. Если курса нет, то пытаемся
  * загрузить с сайта. Если на сайте нет, то берем на максимальную предыдущую дату.
  * Если все равно нет курса валюты, то возвращаем ЧТО?
- * @param date Дата.
- * @param currId ИД валюты.
+ * @param forDate Дата.
+ * @param currency Код валюты. Например, USD.
  */
-export const getCurrRate = async (date: Date, currId: string) => {
+export const getCurrRate = async (forDate: IDate, currency: string, log: ILogger) => {
+  if (!currenciesDB) {
+    throw new Error('No currency db');
+  }
+
+  let currId = '';
+
+  for (const s of Object.entries(currenciesDB?.getMutable(false))) {
+    if (s[1].abbreviation === currency) {
+      currId = s[0];
+    }
+  }
+
+  if (!currId) {
+    throw new Error(`Invalid currency abbreviation ${currency}`);
+  }
+
   if (!ratesDB) {
     // загружаем курсы с диска
     ratesDB = new FileDB<ICurrencyRates>(
       path.resolve(process.cwd(), `data/nbrbrates.json`),
+      log,
       {},
+      undefined,
       (data: IData<ICurrencyRates>) => !Object.keys(data).length || typeof Object.values(data)[0] === 'object',
       true
     );
   }
 
-  let d = date;
+  let date = new Date(forDate.year, forDate.month);
   let rate: number | undefined = undefined;
 
-  while (true) {
-    const strDate = date2str(d, true);
+  while (date.getTime() > MINDATE.getTime()) {
+    const strDate = date2str(date, 'YYYY.MM.DD');
     const ratesForDate = ratesDB.read(strDate);
     rate = ratesForDate?.[currId];
 
@@ -220,12 +241,8 @@ export const getCurrRate = async (date: Date, currId: string) => {
       console.error(`Error fetching currencyRate list: ${e}`);
     }
 
-    d.setDate(d.getDate() - 1);
-
-    if (d.getTime() < MINDATE.getTime()) {
-      break;
-    }
+    date.setDate(date.getDate() - 1);
   }
 
-  return rate;
+  return rate ? { date, rate } : undefined;
 };

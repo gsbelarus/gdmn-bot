@@ -1,1316 +1,1319 @@
-import {
-  DialogState, IAccountLink, IDialogStateLoggingIn, IAccDed, IPaySlip, Lang, TypePaySlip,
-  ICustomers, IEmploeeByCustomer, IDialogStateGettingConcise, monthList, IDialogStateGettingCompare, IDialogStateGettingCurrency, addName, IDepartment, IPosition, LName, IPaySlipData, IPaySlipItem
-} from "./types";
 import { FileDB, IData } from "./util/fileDB";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip } from "./types";
+import Telegraf from "telegraf";
+import { Context, Markup, Extra } from "telegraf";
+import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
+import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
+import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
 import path from 'path';
-import { normalizeStr, getLName, getSumByRate, date2str, replaceIdentLetters, funcDate } from "./util/utils";
-import { getCurrencyNameById, getCurrencyAbbreviationById, getCurrRate } from "./currency";
+import { testNormalizeStr, testIdentStr, date2str } from "./util/utils";
+import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
+import { Semaphore } from "./semaphore";
+import { getCurrRate } from "./currency";
+import { ExtraEditMessage } from "telegraf/typings/telegram-types";
+import { payslipRoot, accDedRefFileName, employeeFileName } from "./constants";
+import { Logger, ILogger } from "./log";
 
-export const MINDATE = new Date(2018, 0, 1);
+//TODO: добавить типы для TS и заменить на import
+const vb = require('viber-bot');
+const ViberBot = vb.Bot
+const BotEvents = vb.Events
+const TextMessage = vb.Message.Text;
+const KeyboardMessage = vb.Message.Keyboard;
 
-export interface IMenuButton {
-  type: 'BUTTON';
-  caption: string;
-  command: string;
+type Template = (string | [string | ILocString, number | undefined] | undefined | ILocString | [number, number, number])[];
+
+/**
+ *
+ * @param arr
+ * @param type
+ */
+const sumPayslip = (arr?: IPayslipItem[], type?: AccDedType) =>
+  arr?.reduce((prev, cur) => prev + (type ? (type === cur.type ? cur.s : 0) : cur.s), 0) ?? 0;
+
+/** */
+const fillInPayslipItem = (item: IPayslipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, typeAccDed?: AccDedType) => {
+  const i = item.find( d => d.id === typeId );
+  if (i) {
+    i.s += s;
+  } else {
+    item.push({ id: typeId, name, s, det, type: typeAccDed });
+  }
 };
 
-export interface IMenuLink {
-  type: 'LINK';
-  caption: string;
-  url: string;
-};
+/**
+ * Получить дополнительную строку по начислению или удержанию.
+ * @param valueDet
+ * @param lng
+ */
+const getDetail = (valueDet: IDet, lng: Language) => {
+  let det = '';
 
-export type MenuItem = IMenuButton | IMenuLink;
+  det = valueDet.days ? `${valueDet.days}${getLocString(stringResources.days, lng)}` : '';
+  if (valueDet.hours) {
+    det = `${det}${det ?  ', ' : ''}${valueDet.hours}${getLocString(stringResources.hours, lng)}`;
+  }
+  if (valueDet.incMonth || valueDet.incYear) {
+    det = `${det}${det ?  ', ' : ''}${valueDet.incMonth}.${valueDet.incYear}`;
+  }
+  return `(${det})`;
+}
 
-export type Menu = MenuItem[][];
-
-export type Template = [string, number?, boolean?][];
-
-const keyboardLogin: Menu = [
-  [
-    { type: 'BUTTON', caption: '✏ Зарегистрироваться', command: 'login' },
-    { type: 'LINK', caption: '❓', url: 'http://gsbelarus.com' }
-  ]
-];
-
-export const keyboardMenu: Menu = [
-  [
-    { type: 'BUTTON', caption: '💰 Расчетный листок', command: 'paySlip' },
-    { type: 'BUTTON', caption: '💰 Подробный листок', command: 'detailPaySlip' }
-  ],
-  [
-    { type: 'BUTTON', caption: '💰 Листок за период', command: 'concisePaySlip' },
-    { type: 'BUTTON', caption: '⚖ Сравнить', command: 'comparePaySlip' }
-  ],
-  [
-    { type: 'BUTTON', caption: '🔧 Параметры', command: 'settings' },
-    { type: 'BUTTON', caption: '🚪 Выйти', command: 'logout' }
-  ],
-  [
-    { type: 'LINK', caption: '❓', url: 'http://gsbelarus.com' }
-  ]
-];
-
-export const keyboardSettings: Menu = [
-  [
-    { type: 'BUTTON', caption: 'Выбрать валюту', command: 'getCurrency' },
-    { type: 'BUTTON', caption: 'Меню', command: 'menu' }
-   ]
-];
-
-export const keyboardCalendar = (lng: Lang, year: number): Menu => {
-  const mm = [
-    [0, 1, 2, 3],
-    [4, 5, 6, 7],
-    [8, 9, 10, 11]
-  ];
-
-  return mm.map(mr => mr.map(m => ({ type: 'BUTTON', caption: getLName(monthList[m], ['ru']), command: `month;${year};${m}` } as IMenuButton)))
-    .concat([[
-      { type: 'BUTTON', caption: ' < ', command: `prevYear;${year}` },
-      { type: 'BUTTON', caption: `${year}`, command: `otherYear;${year}` },
-      { type: 'BUTTON', caption: ' > ', command: `nextYear;${year}` }
-    ]])
-    .concat([[{ type: 'BUTTON', caption: 'Меню', command: 'menu' }]]);
-};
-
-export const keyboardCurrency = (lng: Lang): Menu => {
-  const f = (currId: string) => ({ type: 'BUTTON', caption: getCurrencyNameById(lng, currId), command: `currency;${currId};${getCurrencyNameById(lng, currId)}` } as IMenuButton);
-
-  return [
-    [f('292'), f('145')],
-    [f('298'), { type: 'BUTTON', caption: 'Белорусский рубль', command: `currency;0;Белорусский рубль` }],
-    [{ type: 'BUTTON', caption: 'Меню', command: 'menu' }]
-  ];
-};
-
-export const separateCallBackData = (data: string) => {
-  return data.split(';');
+/**
+ * Получить строку  по начилению или удержанию с детальными данными.
+ * @param dataItem
+ * @param lng
+ */
+const getItemTemplate = (dataItem: IPayslipItem[], lng: Language) => {
+  const t: Template = [undefined];
+  dataItem?.forEach( i => {
+    t.push([getLName(i.name, [lng]), i.s]);
+    if (i.det) {
+      t.push(getDetail(i.det, lng));
+    }
+  });
+  return t;
 }
 
 export class Bot {
-  private _accountLink: FileDB<IAccountLink>;
-  private _dialogStates: FileDB<DialogState>;
-  private getCustomers: () => ICustomers;
-  private getEmployeesByCustomer: (customerId: string) => IEmploeeByCustomer;
-  private getAccDeds: (customerId: string) => IData<IAccDed>;
-  private getPaySlipByUser: (customerId: string, userId: string) => IPaySlip | undefined;
+  private _telegramAccountLink: FileDB<IAccountLink>;
+  private _viberAccountLink: FileDB<IAccountLink>;
+  private _accountLanguage: { [id: string]: Language } = {};
+  private _telegram: Telegraf<Context>;
+  private _service: { [id: string]: Interpreter<IBotMachineContext, any, BotMachineEvent> } = {};
+  private _telegramCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
+  private _telegramMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
+  private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
+  private _botStarted = new Date();
+  private _callbacksReceived = 0;
+  private _customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
+  private _viber: any;
+  private _viberCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
+  private _viberMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
+  private _logger: Logger;
+  private _log: ILogger;
 
-  constructor(dir: string,
-    getCustomers: () => ICustomers,
-    getEmployeesByCustomer: (customerId: string) => IEmploeeByCustomer,
-    getAccDeds: (customerId: string) => IData<IAccDed>,
-    getPaySlipByUser: (customerId: string, userId: string) => IPaySlip | undefined) {
-    this._accountLink = new FileDB<IAccountLink>(path.resolve(process.cwd(), `data/${dir}/accountlink.json`), {});
-    this._dialogStates = new FileDB<DialogState>(path.resolve(process.cwd(), `data/${dir}/dialogstates.json`), {});
-    this.getCustomers = getCustomers;
-    this.getEmployeesByCustomer = getEmployeesByCustomer;
-    this.getPaySlipByUser = getPaySlipByUser;
-    this.getAccDeds = getAccDeds;
-  }
+  constructor(telegramToken: string, telegramRoot: string, viberToken: string, viberRoot: string, logger: Logger) {
+    this._logger = logger;
+    this._log = this._logger.getLogger();
 
-  get accountLink() {
-    return this._accountLink;
-  }
+    const restorer = (data: IData<IAccountLink>): IData<IAccountLink> => Object.fromEntries(
+      Object.entries(data).map(
+        ([key, accountLink]) => [key, {
+          ...accountLink,
+          lastUpdated: accountLink.lastUpdated && new Date(accountLink.lastUpdated)
+        }]
+      )
+    );
 
-  get dialogStates() {
-    return this._dialogStates;
-  }
+    this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'), this._log, {}, restorer);
+    this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'), this._log, {}, restorer);
 
-  /**
-   * Посылает сообщение в чат пользователя.
-   * @param chatId
-   * @param message
-   */
-  async sendMessage(chatId: string, message: string, menu?: Menu, markdown?: boolean) {
+    /**************************************************************/
+    /**************************************************************/
+    /**                                                          **/
+    /**  Telegram bot initialization                             **/
+    /**                                                          **/
+    /**************************************************************/
+    /**************************************************************/
 
-  }
+    type ReplyFunc = (s: ILocString | undefined, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
 
-  editMessageReplyMarkup(chatId: string, menu: Menu) {
-
-  }
-
-  deleteMessage(chatId: string) {
-
-  }
-
-  /**
-   * Рассылка уведомления всем пользователям, кто зарегистрирован
-   * @param text - текст уведомления
-   */
-  sendMessageToEmployees(customerId: string, text: string) {
-    const dlgObj = this._dialogStates.getMutable(true);
-    Object.entries(this._accountLink.getMutable(true)).filter(([_, acc]) => acc.customerId === customerId).forEach(([chatId, acc]) => {
-      const dlg = dlgObj[chatId];
-      if (dlg && dlg.type !== 'INITIAL' && dlg.type !== 'LOGGING_IN') {
-        this.sendMessage(chatId, text, keyboardMenu);
+    const replyTelegram: ReplyFunc = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+      if (!semaphore) {
+        this._logger.error(chatId, undefined, 'No semaphore');
+        return;
       }
-    })
-  }
 
-  /**
-   * Рассылка уведомления одному пользователю
-   * @param text - текст уведомления
-   */
-  sendMessageToEmployee(customerId: string, employeeId: string, text: string) {
-    const dlgObj = this._dialogStates.getMutable(true);
-    const accountLink = Object.entries(this._accountLink.getMutable(true)).find(([_, acc]) => acc.customerId === customerId && acc.employeeId === employeeId);
-    if (accountLink) {
-      const chatId = accountLink[0];
-      const dlg = dlgObj[chatId];
-      if (dlg && dlg.type !== 'INITIAL' && dlg.type !== 'LOGGING_IN') {
-        this.sendMessage(chatId, text, keyboardMenu);
+      if (!chatId) {
+        this._log.error('Invalid chatId');
+        return;
       }
-    }
-  }
 
-  /**
-   * Рассылка уведомления одному пользователю
-   * @param text - текст уведомления
-   */
-  showPaySlip(customerId: string, employeeId: string, text: string) {
-    const dlgObj = this._dialogStates.getMutable(true);
-    const today = new Date();
-    const db = new Date(today.getFullYear(), today.getMonth(), 1);
-    const de = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const language = this._accountLanguage[this.getUniqId('TELEGRAM', chatId)] ?? 'ru';
 
-    Object.entries(this._accountLink.getMutable(true)).filter(([_, acc]) => acc.customerId === customerId && acc.employeeId === employeeId)
-    .forEach(async(acclink) => {
-      const chatId = acclink[0];
-      const dlg = dlgObj[chatId];
-      if (dlg && dlg.type !== 'INITIAL' && dlg.type !== 'LOGGING_IN') {
-        await this.sendMessage(chatId, text);
-        this.paySlip(chatId, 'CONCISE', 'ru', db, de);
+      const keyboard = menu && Markup.inlineKeyboard(
+        menu.map(r => r.map(
+          c => c.type === 'BUTTON'
+            ? Markup.callbackButton(getLocString(c.caption, language), c.command) as any
+            : c.type === 'LINK'
+            ? Markup.urlButton(getLocString(c.caption, language), c.url)
+            : Markup.callbackButton(c.label, 'noop') as any
+        ))
+      );
+
+      const text = s && getLocString(s, language, ...args);
+      const extra: ExtraEditMessage = keyboard ? Extra.markup(keyboard) : {};
+
+      if (text && text.slice(0, 3) === '```') {
+        extra.parse_mode = 'MarkdownV2';
       }
-    })
-  }
 
+      await semaphore.acquire();
+      try {
+        const accountLink = this._telegramAccountLink.read(chatId);
 
-  /**
-   * Диалог регистрации
-   * @param chatId
-   */
-  async loginDialog(chatId: string, message?: string, start = false) {
-    if (message === 'login') {
-      return
-    }
-
-    if (start) {
-      await this.sendMessage(chatId, 'Для регистрации в системе введите указанные данные.');
-      this._dialogStates.merge(chatId, { type: 'LOGGING_IN', lastUpdated: new Date().getTime(), employee: {} });
-    }
-
-    const dialogState = this._dialogStates.getMutable(true)[chatId];
-
-    if (!dialogState || dialogState.type !== 'LOGGING_IN') {
-      throw new Error('Invalid dialog state');
-    }
-
-    const text = !message ? '' : normalizeStr(message);
-    const { employee } = dialogState as IDialogStateLoggingIn;
-
-    if (text) {
-      if (!employee.customerId) {
-        const found = Object.entries(this.getCustomers()).find(([_, c]) =>
-          normalizeStr(c.name) === text || c.aliases.find(
-            (a: any) => normalizeStr(a) === text
-          )
-        );
-
-        if (found) {
-          employee.customerId = found[0];
-        } else {
-          await this.sendMessage(chatId, '😕 Такой организации нет в базе данных!', keyboardLogin);
-          this._dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() }, ['employee']);
+        if (!accountLink) {
+          await this._telegram.telegram.sendMessage(chatId, text ?? '<<Empty message>>', extra);
           return;
         }
-      }
-      else if (!employee.lastName) {
-        employee.lastName = text;
-      }
-      else if (!employee.firstName) {
-        employee.firstName = text;
-      }
-      else if (!employee.patrName) {
-        employee.patrName = text;
-      }
-      else if (!employee.passportId) {
-        employee.passportId = replaceIdentLetters(text);
-      }
-    }
 
-    if (employee.passportId && employee.customerId) {
-      let employees = this.getEmployeesByCustomer(employee.customerId);
+        const { lastMenuId } = accountLink;
 
-      const found = employees ? Object.entries(employees).find(
-        ([_, e]) =>
-          normalizeStr(e.lastName) === employee.lastName
-          &&
-          normalizeStr(e.firstName) === employee.firstName
-          &&
-          normalizeStr(e.patrName) === employee.patrName
-          &&
-         replaceIdentLetters(e.passportId) === employee.passportId
-      )
-        : undefined;
+        const editMessageReplyMarkup = async (remove = false) => {
+          try {
+            if (remove || !keyboard) {
+              await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId);
+            } else {
+              await this._telegram.telegram.editMessageReplyMarkup(chatId, lastMenuId, undefined, keyboard && JSON.stringify(keyboard));
+            }
+          } catch (e) {
+            this._logger.error(chatId, undefined, e);
+          }
+        };
 
-      if (found) {
-        this._accountLink.merge(chatId, {
-          customerId: employee.customerId,
-          employeeId: found[0]
-        });
-        this._accountLink.flush();
-        this._dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() }, ['employee']);
-        this.sendMessage(chatId, '🏁 Регистрация прошла успешно.', keyboardMenu);
+        if (lastMenuId) {
+          if (text && keyboard) {
+            await editMessageReplyMarkup(true);
+            const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
+            this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
+          }
+          else if (text && !keyboard) {
+            await editMessageReplyMarkup(true);
+            await this._telegram.telegram.sendMessage(chatId, text, extra);
+            this._telegramAccountLink.merge(chatId, {}, ['lastMenuId']);
+          }
+          else if (!text && keyboard) {
+            await editMessageReplyMarkup();
+          }
+        } else {
+          if (text && keyboard) {
+            const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
+            this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
+          }
+          else if (text && !keyboard) {
+            await this._telegram.telegram.sendMessage(chatId, text, extra);
+          }
+          else if (!text && keyboard) {
+            const message = await this._telegram.telegram.sendMessage(chatId, '<<<Empty message>>>', extra);
+            this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
+          }
+        }
+      } catch (e) {
+        this._logger.error(chatId, undefined, e);
+      } finally {
+        semaphore.release();
+      }
+    };
+
+    const calendarMachineOptions = (reply: ReplyFunc): Partial<MachineOptions<ICalendarMachineContext, CalendarMachineEvent>> => ({
+      actions: {
+        showSelectedDate: ctx => reply(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
+        showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
+          ? reply(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
+          : reply(dateKind === 'PERIOD_1_DB'
+              ? stringResources.selectDB
+              : dateKind === 'PERIOD_1_DE'
+              ? stringResources.selectDE
+              : dateKind === 'PERIOD_MONTH'
+              ? stringResources.selectMonth
+              : stringResources.selectDB2, keyboardCalendar(selectedDate.year)
+            )({ platform, chatId, semaphore })
+      }
+    });
+
+    this._telegramCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
+      calendarMachineOptions(replyTelegram));
+
+    const checkAccountLink = (ctx: IBotMachineContext) => {
+      const { platform, chatId, semaphore } = ctx;
+
+      if (!platform) {
+        throw new Error('No platform set');
+      }
+
+      if (!chatId) {
+        throw new Error('No chatId');
+      }
+
+      const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+      const accountLink = accountLinkDB.read(chatId);
+
+      if (!accountLink) {
+        throw new Error('No account link');
+      }
+
+      return { platform, chatId, semaphore, accountLink };
+    };
+
+    const getShowPayslipFunc = (payslipType: PayslipType, reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+      const { accountLink, semaphore, ...rest } = checkAccountLink(ctx);
+      const { dateBegin, dateEnd, dateBegin2 } = ctx;
+      const { customerId, employeeId, language, currency } = accountLink;
+      await semaphore?.acquire();
+      try {
+        const s = await this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', dateBegin, dateEnd, dateBegin2);
+        reply({ en: null, ru: s, be: null })({ ...rest, semaphore: new Semaphore() });
+      } finally {
+        semaphore?.release();
+      }
+    };
+
+    const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
+      actions: {
+        askCompanyName: reply(stringResources.askCompanyName),
+        unknownCompanyName: reply(stringResources.unknownCompanyName),
+        unknownEmployee: reply(stringResources.unknownEmployee),
+        assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
+        assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
+        askPersonalNumber: reply(stringResources.askPersonalNumber),
+        showMainMenu: (ctx, event) => {
+          if (event.type !== 'MAIN_MENU' || event.forceMainMenu) {
+            reply(stringResources.mainMenuCaption, keyboardMenu)(ctx);
+          }
+        },
+        showPayslip: getShowPayslipFunc('CONCISE', reply),
+        showDetailedPayslip: getShowPayslipFunc('DETAIL', reply),
+        showPayslipForPeriod: getShowPayslipFunc('DETAIL', reply),
+        showComparePayslip: getShowPayslipFunc('COMPARE', reply),
+        showSettings: ctx => {
+          const { accountLink, ...rest } = checkAccountLink(ctx);
+          const { customerId, employeeId } = ctx;
+          const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
+          const employeeName = employee
+           ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
+           : 'Bond, James Bond';
+          reply(stringResources.showSettings, keyboardSettings, employeeName, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
+        },
+        sayGoodbye: reply(stringResources.goodbye),
+        logout: ({ platform, chatId }) => {
+          if (platform && chatId) {
+            const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+            accountLinkDB.delete(chatId);
+            delete this._service[this.getUniqId(platform, chatId)];
+          }
+        },
+        showSelectLanguageMenu: reply(undefined, keyboardLanguage),
+        selectLanguage: (ctx, event) => {
+          if (event.type === 'MENU_COMMAND') {
+            const { accountLink, chatId, platform } = checkAccountLink(ctx);
+            if (accountLink) {
+              const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+              const language = str2Language(event.command.split('/')[1]);
+              accountLinkDB.write(chatId, {
+                ...accountLink,
+                language
+              });
+              this._accountLanguage[this.getUniqId(platform, chatId)] = language;
+            }
+          }
+        },
+        showSelectCurrencyMenu: reply(undefined, keyboardCurrency),
+        selectCurrency: (ctx, event) => {
+          if (event.type === 'MENU_COMMAND') {
+            const { accountLink, chatId, platform } = checkAccountLink(ctx);
+            if (accountLink) {
+              const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+              accountLinkDB.write(chatId, {
+                ...accountLink,
+                currency: event.command.split('/')[1]
+              });
+            }
+          }
+        }
+      },
+      guards: {
+        findCompany: (ctx, event) => !!this._findCompany(ctx, event),
+        findEmployee: (ctx, event) => !!this._findEmployee(ctx, event),
+      }
+    });
+
+    this._telegramMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._telegramCalendarMachine),
+      machineOptions(replyTelegram));
+
+    this._telegram = new Telegraf(telegramToken);
+
+    this._telegram.use((ctx, next) => {
+      this._logger.info(ctx.chat?.id.toString(), ctx.from?.id.toString(), `Telegram Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
+      return next?.();
+    });
+
+    this._telegram.start(
+      ctx => {
+        if (!ctx.chat) {
+          this._log.error('Invalid chat context');
+        } else {
+          this.onUpdate({
+            platform: 'TELEGRAM',
+            chatId: ctx.chat.id.toString(),
+            type: 'COMMAND',
+            body: '/start',
+            language: str2Language(ctx.from?.language_code)
+          });
+        }
+      }
+    );
+
+    this._telegram.on('message',
+      ctx => {
+        if (!ctx.chat) {
+          this._log.error('Invalid chat context');
+        }
+        else if (ctx.message?.text === undefined) {
+          this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat message');
+        } else {
+          this.onUpdate({
+            platform: 'TELEGRAM',
+            chatId: ctx.chat.id.toString(),
+            type: 'MESSAGE',
+            body: ctx.message.text,
+            language: str2Language(ctx.from?.language_code)
+          });
+        }
+      }
+    );
+
+    this._telegram.on('callback_query',
+      ctx => {
+        if (!ctx.chat) {
+          this._log.error('Invalid chat context');
+        }
+        else if (ctx.callbackQuery?.data === undefined) {
+          this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat callback query');
+        } else {
+          this.onUpdate({
+            platform: 'TELEGRAM',
+            chatId: ctx.chat.id.toString(),
+            type: 'ACTION',
+            body: ctx.callbackQuery.data,
+            language: str2Language(ctx.from?.language_code)
+          });
+        }
+      }
+    );
+
+    /**************************************************************/
+    /**************************************************************/
+    /**                                                          **/
+    /**  Viber bot initialization                                **/
+    /**                                                          **/
+    /**************************************************************/
+    /**************************************************************/
+
+    const replyViber = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+      if (!semaphore) {
+        this._logger.error(chatId, undefined, 'No semaphore');
+        return;
+      }
+
+      if (!chatId) {
+        this._log.error('Invalid chatId');
+        return;
+      }
+
+      const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
+      const keyboard = menu && this._menu2ViberMenu(menu, language);
+      const text = s && getLocString(s, language, ...args);
+
+      await semaphore.acquire();
+      try {
+        if (keyboard) {
+          const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
+          if (!Array.isArray(res)) {
+            this._logger.warn(chatId, undefined, JSON.stringify(res));
+          }
+        } else {
+          await this._viber.sendMessage({ id: chatId }, [new TextMessage(text)]);
+        }
+      } catch (e) {
+        this._logger.error(chatId, undefined, e);
+      } finally {
+        semaphore.release();
+      }
+    };
+
+    this._viberCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
+      calendarMachineOptions(replyViber));
+
+    this._viberMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._viberCalendarMachine),
+      machineOptions(replyViber));
+
+    this._viber = new ViberBot({
+      authToken: viberToken,
+      name: 'Моя зарплата',
+      avatar: ''
+    });
+
+    // this._viber.on(BotEvents.SUBSCRIBED, async (response: any) => {
+    //   if (!response?.userProfile) {
+    //     console.error('Invalid chat context');
+    //   } else {
+    //     this.start(response.userProfile.id.toString());
+    //   }
+    // });
+
+    this._viber.onError( (...args: any[]) => this._log.error(...args) );
+
+    this._viber.on(BotEvents.SUBSCRIBED, (response: any) => {
+      const chatId = response.userProfile.id;
+
+      this._logger.info(chatId, undefined, `SUBSCRIBED ${chatId}`);
+
+      if (!chatId) {
+        this._log.error('Invalid viber response');
       } else {
-        this.sendMessage(chatId,
-`Сотрудник не найден в базе данных.
+        this.onUpdate({
+          platform: 'VIBER',
+          chatId,
+          type: 'COMMAND',
+          body: '/start',
+          language: str2Language(response.userProfile.language)
+        });
+      }
+    });
 
-Обратитесь в отдел кадров или повторите регистрацию.
+    // команда меню
+    this._viber.onTextMessage(/(\.[A-Za-z0-9_]+)|(\{.+\})/, (message: any, response: any) => {
+      const chatId = response.userProfile.id;
 
-Были введены следующие данные:
-Организация: ${this.getCustomers()[employee.customerId].name}
-Фамилия: ${employee.lastName}
-Имя: ${employee.firstName}
-Отчество: ${employee.patrName}
-Идентификационный номер: ${employee.passportId}`,
-        keyboardLogin);
+      if (!chatId) {
+        this._log.error('Invalid viber response');
+      } else {
+        this.onUpdate({
+          platform: 'VIBER',
+          chatId,
+          type: 'ACTION',
+          body: message.text,
+          language: str2Language(response.userProfile.language)
+        });
+      }
+    });
 
-        this._dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() }, ['employee']);
+    this._viber.onTextMessage(/.+/, (message: any, response: any) => {
+      const chatId = response.userProfile.id;
+
+      if (!chatId) {
+        this._log.error('Invalid viber response');
+      } else {
+        this.onUpdate({
+          platform: 'VIBER',
+          chatId,
+          type: 'MESSAGE',
+          body: message.text,
+          language: str2Language(response.userProfile.language)
+        });
       }
-    } else {
-      if (!employee.customerId) {
-        this.sendMessage(chatId, 'Введите название организации:');
+    });
+
+    this._viber.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
+      //TODO: проверить когда вызывается это событие
+      const chatId = response.userProfile.id;
+      this._viberAccountLink.delete(chatId);
+      delete this._service[this.getUniqId('VIBER', chatId)];
+      this._log.info(`User unsubscribed, ${response}`);
+    });
+
+    /*
+    this._viber.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
+      if (!response?.userProfile) {
+        console.error('Invalid chat context');
+      } else {
+        this.start(response.userProfile.id.toString(),
+        `Здравствуйте${response?.userProfile.name ? ', ' + response.userProfile.name : ''}!\nДля подписки введите любое сообщение.`);
       }
-      else if (!employee.lastName) {
-        this.sendMessage(chatId, 'Введите фамилию:');
-      }
-      else if (!employee.firstName) {
-        this.sendMessage(chatId, 'Введите имя:');
-      }
-      else if (!employee.patrName) {
-        this.sendMessage(chatId, 'Введите отчество:');
-      }
-      else if (!employee.passportId) {
-        this.sendMessage(chatId, 'Введите идентификационный номер из паспорта:');
-      }
-    }
+    });
+    */
   }
 
-  calendarSelection(chatId: string, queryData: string, lng: Lang): Date | undefined {
-    const [action, year, month] = separateCallBackData(queryData);
+  get viber() {
+    return this._viber;
+  }
 
-    switch (action) {
-      case 'month': {
-        const selectedDate = new Date(parseInt(year), parseInt(month), 1);
-        return selectedDate;
+  private _menu2ViberMenu(menu: Menu, lng: Language) {
+    const Buttons: any[] = [];
+
+    for (const row of menu) {
+      const buttonWidth = row.length > 6 ? 1 : Math.floor(6 / row.length);
+      for (const col of row) {
+        if (col.type === 'BUTTON' || col.type === 'STATIC') {
+          Buttons.push({
+            Columns: buttonWidth,
+            Rows: 1,
+            ActionType: 'reply',
+            ActionBody: col.type === 'BUTTON' ? col.command : 'noop',
+            Text: `<font color=\"#ffffff\">${col.type === 'BUTTON' ? getLocString(col.caption, lng) : col.label}</font>`,
+            BgColor: '#7360f2',
+            Silent: true,
+
+          });
+        } else {
+          Buttons.push({
+            Columns: buttonWidth,
+            Rows: 1,
+            ActionType: 'open-url',
+            ActionBody: col.url,
+            Text: `<font color=\"#ffffff\">${getLocString(col.caption, lng)}</font>`,
+            BgColor: '#7360f2',
+            Silent: true
+          });
+        }
       }
-      case 'prevYear': {
-        this.editMessageReplyMarkup(chatId, keyboardCalendar(lng, parseInt(year) - 1));
-        break;
+    }
+
+    return {
+      Type: 'keyboard',
+      Buttons,
+      DefaultHeight: false
+    };
+  }
+
+  private _getEmployees(customerId: string) {
+    let employees = this._employees[customerId];
+
+    if (!employees) {
+      const db = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`), this._log);
+      if (!db.isEmpty()) {
+        this._employees[customerId] = db;
+        return db;
       }
-      case 'nextYear': {
-        this.editMessageReplyMarkup(chatId, keyboardCalendar(lng, parseInt(year) + 1));
-        break;
-      }
-      case 'otherYear': {
-        break;
+    }
+
+    return employees;
+  }
+
+  private _getEmployee(customerId: string, employeeId: string) {
+    const employees = this._getEmployees(customerId);
+    return employees && employees.read(employeeId);
+  }
+
+  private _findCompany = (_: any, event: BotMachineEvent) => {
+    if (isEnterTextEvent(event)) {
+      const customersDB = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), this._log);
+      const customers = customersDB.getMutable(false);
+      for (const [companyId, { aliases }] of Object.entries(customers)) {
+        if (aliases.find( alias => testNormalizeStr(alias, event.text) )) {
+          return companyId;
+        }
       }
     }
     return undefined;
   }
 
-  currencySelection(chatId: string, queryData: string, lng: Lang): string | undefined {
-    const [action, currencyId] = separateCallBackData(queryData);
-    switch (action) {
-      case 'currency': {
-        return currencyId;
+  private _findEmployee = ({ customerId }: IBotMachineContext, event: BotMachineEvent) => {
+    if (isEnterTextEvent(event) && customerId) {
+      const employees = this._getEmployees(customerId);
+
+      if (employees) {
+        for (const [employeeId, { passportId }] of Object.entries(employees.getMutable(false))) {
+          if (testIdentStr(passportId, event.text)) {
+            return employeeId;
+          }
+        }
       }
     }
     return undefined;
   }
 
-  async paySlipDialog(chatId: string, lng: Lang, queryData?: string, start = false) {
-    if (start) {
-      await this.sendMessage(chatId, 'Укажите начало периода:',
-        keyboardCalendar(lng, new Date().getFullYear()), true);
-      this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db: undefined, de: undefined });
-    }
+  private _getPayslipData(customerId: string, employeeId: string, mb: IDate, me?: IDate): IPayslipData | undefined {
+    const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`), this._log)
+      .read(employeeId);
 
-    const dialogState = this._dialogStates.getMutable(true)[chatId];
-
-    if (!dialogState || dialogState.type !== 'GETTING_CONCISE') {
-      throw new Error('Invalid dialog state');
-    }
-    if (queryData) {
-      const { db, de } = dialogState as IDialogStateGettingConcise;
-      if (!db) {
-        const db = this.calendarSelection(chatId, queryData, lng);
-        if (db) {
-          await this.sendMessage(chatId, date2str(db));
-          this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), db });
-          await this.sendMessage(chatId, 'Укажите окончание периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
-        }
-      } else if (!de) {
-        let de = this.calendarSelection(chatId, queryData, lng);
-        if (de) {
-          de = new Date(de.getFullYear(), de.getMonth() + 1, 0)
-          await this.sendMessage(chatId, date2str(de));
-          this._dialogStates.merge(chatId, { type: 'GETTING_CONCISE', lastUpdated: new Date().getTime(), de });
-          const cListok = await this.getPaySlip(chatId, 'CONCISE', lng, db, de);
-          if (cListok !== '') {
-            await this.sendMessage(chatId, cListok, keyboardMenu, true);
-          } else {
-            await this.sendMessage(chatId,
-              `Нет данных для расчетного листка 🤔`,
-              keyboardMenu);
-          }
-        }
-      }
-    }
-  }
-
-  async paySlipCompareDialog(chatId: string, lng: Lang, queryData?: string, start = false) {
-    if (start) {
-      await this.sendMessage(chatId, 'Укажите начало первого периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
-      this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDb: undefined, fromDe: undefined, toDb: undefined, toDe: undefined });
-    }
-
-    const dialogState = this._dialogStates.getMutable(true)[chatId];
-
-    if (!dialogState || dialogState.type !== 'GETTING_COMPARE') {
-      throw new Error('Invalid dialog state');
-    }
-
-    if (queryData) {
-      const { fromDb, fromDe, toDb, toDe } = dialogState as IDialogStateGettingCompare;
-      if (!fromDb) {
-        const db = this.calendarSelection(chatId, queryData, lng);
-        if (db) {
-          await this.sendMessage(chatId, date2str(db));
-          this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDb: db });
-          await this.sendMessage(chatId, 'Укажите окончание первого периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
-        }
-      } else if (!fromDe) {
-        let de = this.calendarSelection(chatId, queryData, lng);
-        if (de) {
-          de = new Date(de.getFullYear(), de.getMonth() + 1, 0);
-          await this.sendMessage(chatId, date2str(de));
-          this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), fromDe: de });
-          await this.sendMessage(chatId, 'Укажите начало второго периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
-        }
-      } else if (!toDb) {
-        let db = this.calendarSelection(chatId, queryData, lng);
-        if (db) {
-          await this.sendMessage(chatId, date2str(db));
-          this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDb: db });
-          await this.sendMessage(chatId, 'Укажите окончание второго периода:', keyboardCalendar(lng, new Date().getFullYear()), true);
-        }
-      } else if (!toDe) {
-        let de = this.calendarSelection(chatId, queryData, lng);
-        if (de) {
-          de = new Date(de.getFullYear(), de.getMonth() + 1, 0);
-          await this.sendMessage(chatId, date2str(de));
-          this._dialogStates.merge(chatId, { type: 'GETTING_COMPARE', lastUpdated: new Date().getTime(), toDe: de });
-          const cListok = await this.getPaySlip(chatId, 'COMPARE', lng, fromDb, fromDe, toDb, de);
-          if (cListok !== '') {
-            await this.sendMessage(chatId, cListok, keyboardMenu, true);
-          } else {
-            await this.sendMessage(chatId,
-              `Нет данных для расчетного листка 🤔`,
-              keyboardMenu);
-          }
-        }
-      }
-    }
-  }
-
-  /**
-   * Диалог для выбора валюты
-   * @param chatId - ИД чата
-   * @param lng - язык бота
-   * @param queryData - значение валюты, которое выбрал пользователь
-   * @param start - true при нажатии на кнопку Выбрать валюту
-   */
-  async currencyDialog(chatId: string, lng: Lang, queryData?: string, start = false) {
-    if (start) {
-      this.deleteMessage(chatId);
-      this._dialogStates.merge(chatId, { type: 'GETTING_CURRENCY', lastUpdated: new Date().getTime() });
-      await this.sendMessage(chatId, 'Выберите валюту:', keyboardCurrency(lng));
-      return;
-    }
-
-    const dialogState = this._dialogStates.getMutable(true)[chatId];
-
-    if (!dialogState || dialogState.type !== 'GETTING_CURRENCY') {
-      throw new Error('Invalid dialog state');
-    }
-
-    const { currencyId } = dialogState as IDialogStateGettingCurrency;
-
-    if (!currencyId && queryData) {
-      const currencyId = this.currencySelection(chatId, queryData, lng);
-      if (currencyId !== undefined) {
-        const link = this._accountLink.read(chatId);
-        this._accountLink.merge(chatId, { ...link, currencyId });
-        const currencyName = getCurrencyNameById(lng, currencyId);
-        this.deleteMessage(chatId);
-        this.sendMessage(chatId, `Валюта ${currencyName} сохранена. Выберите одно из предложенных действий.`, keyboardMenu);
-        this._accountLink.flush();
-      }
-    }
-  }
-
-  paySlipView(template: Template): string {
-    return ''
-  }
-
-  /**
-  * Разделяем длинную строку на несколько
-   */
-  getPaySlipString(t: IPaySlipItem, lng: Lang) {
-    return ''
-  }
-
-  getPaySlipData(customerId: string, employeeId: string, db: Date, de: Date): IPaySlipData | undefined {
-    let paySlip = this.getPaySlipByUser(customerId, employeeId);
-
-    if (!paySlip) {
+    if (!payslip) {
       return undefined;
     }
-    const accDedObj = this.getAccDeds(customerId);
 
-    const data: IPaySlipData = {
-      department: {},
-      position: {}
+    let accDed = this._customerAccDeds[customerId];
+
+    if (!accDed) {
+      accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`), this._log);
+      this._customerAccDeds[customerId] = accDed;
     };
+
+    const accDedObj = accDed.getMutable(false);
+
+    const str2Date = (date: Date | string) => {
+      if (typeof date === 'string') {
+        const [y, m, d] = date.split('.').map( s => Number(s) );
+        return new Date(y, m - 1, d);
+      } else {
+        return date;
+      }
+    };
+
+    const isGr = (d1: Date, d2: Date) => {
+      return d1.getTime() > d2.getTime();
+    }
+
+    const isLs = (d1: Date, d2: Date) => {
+      return d1.getTime() < d2.getTime();
+    }
+
+    const isGrOrEq = (d1: Date, d2: Date) => {
+      return d1.getTime() >= d2.getTime();
+    }
+
+    const db = new Date(mb.year, mb.month);
+    const de = me ? new Date(me.year, me.month + 1) : new Date(mb.year, mb.month + 1);
 
     // Подразделение получаем из массива подразделений dept,
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
     // Аналогично с должностью из массива pos
-    //let maxDate: Date = paySlip.dept[0].d;
-    paySlip.dept.reduce((prev, cur) => {
-      if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
-        data.department = cur.name;
-        return cur.d;
-      }
-      return prev;
-    }, paySlip.dept[0].d);
 
-    paySlip.pos.reduce((prev, cur) => {
-      if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
-        data.position = cur.name;
-        return cur.d;
-      }
-      return prev;
-    }, paySlip.pos[0].d);
+    if (!payslip.dept.length || !payslip.pos.length || !payslip.salary.length) {
+      const msg = `Missing departments, positions or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
+      this._log.error(msg);
+      throw new Error(msg)
+    }
 
-    paySlip.salary.reduce((prev, cur) => {
-      if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
-        data.salary = cur.s;
-        return cur.d;
-      }
-      return prev;
-    }, paySlip.salary[0].d);
+    let department = payslip.dept[0].name;
+    let maxDate = str2Date(payslip.dept[0].d);
 
-    if (paySlip.hourrate) {
-      paySlip.hourrate.reduce((prev, cur) => {
-        if (funcDate(cur.d, prev) && funcDate(de, cur.d)) {
-          data.hourrate = cur.s;
-          return cur.d
+    for (const dept of payslip.dept) {
+      const deptD = str2Date(dept.d);
+      if (isGr(deptD, maxDate) && isLs(deptD, de)) {
+        department = dept.name;
+        maxDate = deptD;
+      }
+    }
+
+    let position = payslip.pos[0].name;
+    maxDate = str2Date(payslip.pos[0].d);
+
+    for (const pos of payslip.pos) {
+      const posD = str2Date(pos.d);
+      if (isGr(posD, maxDate) && isLs(posD, de)) {
+        position = pos.name;
+        maxDate = posD;
+      }
+    }
+
+    let salary = payslip.salary[0].s;
+    maxDate = str2Date(payslip.salary[0].d);
+
+    for (const posS of payslip.salary) {
+      const posSD = str2Date(posS.d);
+      if (isGr(posSD, maxDate) && isLs(posSD, de)) {
+        salary = posS.s;
+        maxDate = posSD;
+      }
+    }
+
+    let hourrate: number | undefined = undefined;
+
+    if (payslip.hourrate?.length) {
+      hourrate = payslip.hourrate[0].s;
+      maxDate = str2Date(payslip.hourrate[0].d);
+
+      for (const posHR of payslip.hourrate) {
+        const posHRD = str2Date(posHR.d);
+        if (isGr(posHRD, maxDate) && isLs(posHRD, de)) {
+          hourrate = posHR.s;
+          maxDate = posHRD;
         }
-        return prev;
-      }, paySlip.hourrate[0].d)
+      }
     };
 
-    let isHavingData = false;
+    const data = {
+      department,
+      position,
+      salary,
+      hourrate,
+      tax: [],
+      advance: [],
+      deduction: [],
+      accrual: [],
+      tax_deduction: [],
+      privilage: []
+    } as IPayslipData;
+
     //Цикл по всем записям начислений-удержаний
-    for (const value of Object.values(paySlip.data)) {
-      if (value && value.db.getTime() >= db.getTime() && value.de.getTime() <= db.getTime()) {
+    for (const value of Object.values(payslip.data)) {
+      const valueDB = str2Date(value.db);
+      const valueDE = str2Date(value.de);
+      if (isGrOrEq(valueDB, db) && isLs(valueDE, de)) {
+        const { det, s, typeId } = value;
 
-        const name = accDedObj[value.typeId].name;
-        const det = value.det;
-        isHavingData = true;
+        if (!accDedObj[typeId]) {
+          if (typeId === 'saldo') {
+            //TODO: языки!
+            data.saldo = { id: 'saldo', name: { ru: { name: 'Остаток' }}, s };
+            continue;
+          }
 
-        switch (accDedObj[value.typeId].type) {
-          case 'SALDO':
-            data.saldo = {
-              name,
-              s: value.s
-            }
+          this._log.error(`Отсутствует в справочнике тип начисления или удержания ${typeId}`);
+          continue;
+        }
+
+        const { name, type } = accDedObj[typeId];
+
+        switch (type) {
           case 'INCOME_TAX':
           case 'PENSION_TAX':
-          case 'TRADE_UNION_TAX': {
-            data.tax?.push({
-              name,
-              s: value.s,
-              type: accDedObj[value.typeId].type,
-              det
-            })
+          case 'TRADE_UNION_TAX':
+            fillInPayslipItem(data.tax, typeId, name, s, det, type);
             break;
-          }
-          case 'ADVANCE': {
-            data.advance?.push({
-              name,
-              s: value.s,
-              det
-            })
+
+          case 'ADVANCE':
+            fillInPayslipItem(data.advance, typeId, name, s, det);
             break;
-          }
-          case 'DEDUCTION': {
-            data.deduction?.push({
-              name,
-              s: value.s,
-              det
-            })
+
+          case 'DEDUCTION':
+            fillInPayslipItem(data.deduction, typeId, name, s, det);
             break;
-          }
-          case 'ACCRUAL': {
-            data.accrual?.push({
-              name,
-              s: value.s,
-              det
-            })
+
+          case 'ACCRUAL':
+            fillInPayslipItem(data.accrual, typeId, name, s, det);
             break;
-          }
-          case 'TAX_DEDUCTION': {
-            data.tax_deduction?.push({
-              name,
-              s: value.s,
-              det
-            })
+
+          case 'TAX_DEDUCTION':
+            fillInPayslipItem(data.tax_deduction, typeId, name, s, det);
             break;
-          }
-          case 'PRIVILAGE': {
-            data.privilage?.push({
-              name,
-              s: value.s,
-              det
-            })
+
+          case 'PRIVILAGE':
+            fillInPayslipItem(data.privilage, typeId, name, s, det);
             break;
-          }
         }
       }
     };
-    return isHavingData ? data : undefined;
-  }
 
-  async getPaySlipByRate(data: IPaySlipData, currencyId: string, date: Date): Promise<IPaySlipData> {
-    const rate = currencyId && currencyId !== '0' ? await getCurrRate(date, currencyId) : undefined;
-    if (rate) {
-      const newData = {
-        department: data.department,
-        position: data.position,
-        saldo: data.saldo ? {...data.saldo, s: getSumByRate(data.saldo.s, rate)} : undefined,
-        tax: data.tax ? data.tax.map(i => ({...i, s: getSumByRate(i.s, rate)})) : undefined,
-        advance: data.advance ? data.advance.map(i => ({...i, s: getSumByRate(i.s, rate)})) : undefined,
-        deduction: data.deduction ? data.deduction.map(i => ({...i, s: getSumByRate(i.s, rate)})) : undefined,
-        accrual: data.accrual ? data.accrual.map(i => ({...i, s: getSumByRate(i.s, rate)})) : undefined,
-        tax_deduction: data.tax_deduction ? data.tax_deduction.map(i => ({...i, s: getSumByRate(i.s, rate)})) : undefined,
-        privilage: data.privilage ? data.privilage.map(i => ({...i, s: getSumByRate(i.s, rate)})) : undefined,
-        salary: data.salary ? getSumByRate(data.salary, rate) : undefined,
-        hourrate: data.hourrate,
-        rate
-      }
-      return newData;
-    }
-    return data;
-  }
+    return (data.saldo || data.accrual?.length || data.deduction?.length) ? data : undefined;
+  };
 
-  getShortPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Lang, currencyId?: string): Template {
-    const empls = this.getEmployeesByCustomer(customerId);
-    const emplName = `${empls[employeeId].lastName} ${empls[employeeId].firstName.slice(0, 1)}. ${empls[employeeId].patrName.slice(0, 1)}.`;
-    const period = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth()
-      ? `${date2str(db)}-${date2str(de)}`
-      : `${db.toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`;
-    const currencyAbbreviation = getCurrencyAbbreviationById(currencyId);
-
-    const accruals = data.accrual?.reduce((prev, cur) => prev + cur.s, 0) || 0;
-    const taxes = data.tax?.reduce((prev, cur) => prev + cur.s, 0) || 0;
-    const deds = data.deduction?.reduce((prev, cur) => prev + cur.s, 0);
-    const advances = data.advance?.reduce((prev, cur) => prev + cur.s, 0);
-    const incomeTax = data.tax?.reduce((prev, cur) => prev + (cur.type === 'INCOME_TAX' ? cur.s : 0), 0);
-    const pensionTax = data.tax?.reduce((prev, cur) => prev + (cur.type === 'PENSION_TAX' ? cur.s : 0), 0);
-    const tradeUnionTax = data.tax?.reduce((prev, cur) => prev + (cur.type === 'TRADE_UNION_TAX' ? cur.s : 0), 0);
-
-    return  [
-              ['Расчетный листок'],
-              [emplName],
-              [`Период: ${period}`],
-              [`Валюта: ${currencyAbbreviation}`],
-              [`Курс на ${date2str(db)}:`, data.rate],
-              ['='],
-              ['Начислено:', accruals, true],
-              ['='],
-              ['Зарплата чистыми:', accruals - taxes],
-              ['  Удержания:', deds, true],
-              ['  Аванс:', advances, true],
-              ['  К выдаче:', data.saldo?.s, true],
-              ['='],
-              ['Налоги:', taxes],
-              ['  Подоходный:', incomeTax, true],
-              ['  Пенсионный:', pensionTax, true],
-              ['  Профсоюзный:', tradeUnionTax, true],
-              ['='],
-              [`Информация на ${date2str(de)}:`],
-              ['Подразделение:'],
-              //[this.getPaySlipString('', getLName(data.department, [lng, 'ru']))],
-              ['Должность:'],
-              //[this.getPaySlipString('', getLName(data.position, [lng, 'ru']))],
-              ['Оклад:', data.salary, true],
-              ['ЧТС:', data.hourrate, true]
-            ];
-  }
-
-  getDetailPaySlip(data: IPaySlipData, customerId: string, employeeId: string, db: Date, de: Date, lng: Lang, currencyId?: string): Template {
-    const empls = this.getEmployeesByCustomer(customerId);
-    const emplName = `${empls[employeeId].lastName} ${empls[employeeId].firstName.slice(0, 1)}. ${empls[employeeId].patrName.slice(0, 1)}.`;
-    const period = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth()
-      ? `${date2str(db)}-${date2str(de)}`
-      : `${db.toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`;
-    const currencyAbbreviation = getCurrencyAbbreviationById(currencyId);
-
-    const accruals = data.accrual?.reduce((prev, cur) => prev + cur.s, 0);
-    const taxes = data.tax?.reduce((prev, cur) => prev + cur.s, 0);
-    const deds = data.deduction?.reduce((prev, cur) => prev + cur.s, 0);
-    const taxDeds = data.tax_deduction?.reduce((prev, cur) => prev + cur.s, 0);
-    const advances = data.advance?.reduce((prev, cur) => prev + cur.s, 0);
-    const privilages = data.privilage?.reduce((prev, cur) => prev + cur.s, 0);
-
-    const strAccruals = data.accrual?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
-    const strDeductions = data.deduction?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
-    const strAdvances = data.advance?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
-
-    //const strTaxes = data.tax?.map( t => `${getLName(t.name)} ${t.s}` ).join('\n');
-
-    const strTaxes = data.tax?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') ?? ''
-    const strTaxDeds = data.tax_deduction?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
-    const strPrivilages = data.privilage?.reduce((prev, cur) => this.getPaySlipString(cur, lng), '') || ''
-
-    return  [
-              ['Расчетный листок'],
-              [emplName],
-              [`Период: ${period}`],
-              [`Валюта: ${currencyAbbreviation}`],
-              [`Курс на ${date2str(db)}:`, data.rate],
-              ['='],
-              ['Начисления:', accruals, true],
-              [accruals ? '=' : ''],
-              [strAccruals],
-              [accruals ? '=' : ''],
-              ['Удержания:', deds, true],
-              [deds ? '=' : ''],
-              [strDeductions],
-              [deds ? '=' : ''],
-              ['Аванс:', advances, true],
-              [advances ? '=' : ''],
-              [strAdvances],
-              [advances ? '=' : ''],
-              ['Налоги:', taxes, true],
-              [taxes ? '=' : ''],
-              [strTaxes],
-              [taxes ? '=' : ''],
-              ['Вычеты:', taxDeds, true],
-              [taxDeds ? '=' : ''],
-              [strTaxDeds],
-              [taxDeds ? '=' : ''],
-              ['Льготы:', privilages, true],
-              [privilages ? '=' : ''],
-              [strPrivilages],
-              [privilages ? '=' : ''],
-              [`Информация на ${date2str(de)}:`],
-              ['Подразделение:'],
-              //[this.getPaySlipString('', getLName(data.department, [lng, 'ru']))],
-              ['Должность:'],
-              //[this.getPaySlipString('', getLName(data.position, [lng, 'ru']))],
-              ['Оклад:', data.salary, true],
-              ['ЧТС:', data.hourrate, true]
-            ];
-  }
-
-  getComparePaySlip(dataI: IPaySlipData, dataII: IPaySlipData, customerId: string, employeeId: string, dbI: Date, deI: Date, dbII: Date, deII: Date, lng: Lang, currencyId?: string):Template {
-    const empls = this.getEmployeesByCustomer(customerId);
-    const emplName = `${empls[employeeId].lastName} ${empls[employeeId].firstName.slice(0, 1)}. ${empls[employeeId].patrName.slice(0, 1)}.`;
-    const currencyAbbreviation = getCurrencyAbbreviationById(currencyId);
-
-    const accrualsI = dataI.accrual?.reduce((prev, cur) => prev + cur.s, 0) || 0;
-    const taxesI = dataI.tax?.reduce((prev, cur) => prev + cur.s, 0) || 0;
-    const dedsI = dataI.deduction?.reduce((prev, cur) => prev + cur.s, 0) || 0;
-    const advancesI = dataI.advance?.reduce((prev, cur) => prev + cur.s, 0) || 0;
-
-    const incomeTaxI = dataI.tax?.reduce((prev, cur) => prev + (cur.type === 'INCOME_TAX' ? cur.s : 0), 0) || 0;
-    const pensionTaxI = dataI.tax?.reduce((prev, cur) => prev + (cur.type === 'PENSION_TAX' ? cur.s : 0), 0) || 0;
-    const tradeUnionTaxI = dataI.tax?.reduce((prev, cur) => prev + (cur.type === 'TRADE_UNION_TAX' ? cur.s : 0), 0) || 0;
-
-    const accrualsII = dataII.accrual?.reduce((prev, cur) => prev + cur.s, 0) || 0;
-    const taxesII = dataII.tax?.reduce((prev, cur) => prev + cur.s, 0) || 0;
-    const dedsII = dataII.deduction?.reduce((prev, cur) => prev + cur.s, 0) || 0;
-    const advancesII = dataII.advance?.reduce((prev, cur) => prev + cur.s, 0) || 0;
-
-    const incomeTaxII = dataII.tax?.reduce((prev, cur) => prev + (cur.type === 'INCOME_TAX' ? cur.s : 0), 0) || 0;
-    const pensionTaxII = dataII.tax?.reduce((prev, cur) => prev + (cur.type === 'PENSION_TAX' ? cur.s : 0), 0) || 0;
-    const tradeUnionTaxII = dataII.tax?.reduce((prev, cur) => prev + (cur.type === 'TRADE_UNION_TAX' ? cur.s : 0), 0) || 0;
-
-    return  [
-              ['Сравнение расчетных листков'],
-              [emplName],
-              [`Валюта: ${currencyAbbreviation}`],
-              [` I: ${date2str(dbI)}-${date2str(deI)}`],
-              [`II: ${date2str(dbII)}-${date2str(deII)}`],
-              [`Курс на ${date2str(dbI)}:`, dataI.rate],
-              [`Курс на ${date2str(dbII)}:`, dataII.rate],
-              ['='],
-              ['Начислено  I:', accrualsI, true],
-              ['Начислено II:', accrualsII, true],
-              ['Разница:', accrualsII - accrualsI],
-              ['='],
-              ['Чистыми  I:', accrualsI - taxesI],
-              ['Чистыми II:', accrualsII - taxesII],
-              ['Разница:', accrualsII - taxesII - (accrualsI - taxesI)],
-              ['  К выдаче  I:', dataI.saldo?.s, true],
-              ['  К выдаче II:', dataII.saldo?.s, true],
-              ['  Разница:', dataII.saldo?.s || 0 - (dataI.saldo?.s || 0)],
-              [(accrualsII - taxesII) || (accrualsI - taxesI) ? '=' : ''],
-              ['  Удержания  I:', dedsI, true],
-              ['  Удержания II:', dedsII, true],
-              ['  Разница:', dedsII - dedsI],
-              ['  Аванс  I:', advancesI, true],
-              ['  Аванс II:', advancesII, true],
-              ['  Разница:', advancesII - advancesI],
-              [dedsI || dedsII ? '=' : ''],
-              ['Налоги  I:', taxesI, true],
-              ['Налоги II:', taxesII, true],
-              ['Разница:', taxesII - taxesI],
-              ['  Подоходный  I:', incomeTaxI, true],
-              ['  Подоходный II:', incomeTaxII, true],
-              ['  Разница:', incomeTaxII - incomeTaxI],
-              ['  Пенсионный  I:', pensionTaxI, true],
-              ['  Пенсионный II:', pensionTaxI, true],
-              ['  Разница:', pensionTaxII - pensionTaxI],
-              ['  Профсоюзный  I:', tradeUnionTaxI, true],
-              ['  Профсоюзный II:', tradeUnionTaxII, true],
-              ['  Разница:', tradeUnionTaxII - tradeUnionTaxI],
-              [taxesI || taxesII ? '=' : ''],
-              [`Информация на ${date2str(deI)}:`],
-              ['Подразделение:'],
-             // [this.getPaySlipString('', getLName(dataI.department, [lng, 'ru']))],
-              ['Должность:'],
-            //   [this.getPaySlipString('', getLName(dataI.position, [lng, 'ru']))],
-              ['='],
-              [`Информация на ${date2str(deII)}:`],
-              ['Подразделение:'],
-             // [this.getPaySlipString('', getLName(dataII.department, [lng, 'ru']))],
-              ['Должность:'],
-              //[this.getPaySlipString('', getLName(dataII.position, [lng, 'ru']))],
-              ['='],
-              [`Оклад на ${date2str(deI)}:`, dataI.salary, true],
-              [`Оклад на ${date2str(deII)}:`, dataII.salary, true],
-              ['Разница:', dataII.salary || 0 - (dataII.salary || 0)],
-              [`ЧТС на ${date2str(deI)}:`, dataI.hourrate, true],
-              [`ЧТС на ${date2str(deII)}:`, dataII.hourrate, true],
-              ['Разница:', dataII.hourrate || 0 - (dataI.hourrate || 0)]
-            ];
-  }
-
-
-  async getPaySlip(chatId: string, typePaySlip: TypePaySlip, lng: Lang, db: Date, de: Date, dbII?: Date, deII?: Date): Promise<string> {
-    const link = this._accountLink.read(chatId);
-
-    if (link?.customerId && link.employeeId) {
-      const { customerId, employeeId, currencyId } = link;
-
-      let paySlip = this.getPaySlipByUser(customerId, employeeId);
-
-      if (!paySlip) {
-          //continue;
-      } else {
-        let dataI = this.getPaySlipData(customerId, employeeId, db, de);
-        if (!dataI) {
-          return ''
-        }
-        if (currencyId) {
-          dataI = await this.getPaySlipByRate(dataI, currencyId, db);
-          if (!dataI.rate) {
-            return ('Курс валюты не был загружен')
-          }
-        }
-
-        let template: Template = [];
-
-        switch (typePaySlip) {
-          case 'DETAIL': {
-            template = this.getDetailPaySlip(dataI, customerId, employeeId, db, de, lng, currencyId);
-          }
-          case 'CONCISE': {
-            template = this.getShortPaySlip(dataI, customerId, employeeId, db, de, lng, currencyId);
-          }
-          case 'COMPARE': {
-            if (dbII && deII) {
-              let dataII = this.getPaySlipData(customerId, employeeId, dbII, deII);
-              if (!dataII) {
-                return ''
-              }
-              if (currencyId) {
-                dataII = await this.getPaySlipByRate(dataII, currencyId, dbII);
-                if (!dataII.rate) {
-                  return ('Курс валюты не был загружен')
-                }
-              }
-              template = this.getComparePaySlip(dataI, dataII, customerId, employeeId, db, de, dbII, deII, lng, currencyId);
-            }
-          }
-        }
-        return this.paySlipView(template);
-      }
-    }
-    return '';
-  }
-
-
-  // async getPaySlip1(chatId: string, typePaySlip: TypePaySlip, lng: Lang, db: Date, de: Date, toDb?: Date, toDe?: Date): Promise<string> {
-  //   const link = this._accountLink.read(chatId);
-
-  //   if (link?.customerId && link.employeeId) {
-  //     const { customerId, employeeId, currencyId } = link;
-  //     const rate = currencyId && currencyId !== '0' ? await getCurrRate(db, currencyId) : 1;
-  //     const currencyAbbreviation = currencyId && currencyId !== '0' ? getCurrencyAbbreviationById(currencyId) : 'BYN';
-
-  //     if (!rate) {
-  //       return ('Курс валюты не был загружен')
-  //     }
-
-  //     const empls = this.getEmployeesByCustomer(customerId);
-  //     const accDedObj = this.getAccDeds(customerId);
-
-  //     let allTaxes = [0, 0];
-
-  //     const accrual = [0, 0], salary = [0, 0], hourrate =[0, 0], tax = [0, 0], ded = [0, 0], saldo = [0, 0],
-  //       incomeTax = [0, 0], pensionTax = [0, 0], tradeUnionTax = [0, 0], advance = [0, 0], tax_ded = [0, 0], privilage = [0, 0];
-
-  //     // const data = {
-  //     //   accrual: {
-  //     //     caption: '',
-  //     //     values: [0, 0],
-  //     //     needDblLine: true
-  //     //   }
-  //     // };
-
-  //     let strAccruals = '', strAdvances = '', strDeductions = '', strTaxes = '', strPrivilages = '', strTaxDeds = '';
-
-  //     let deptName = ['', ''];
-  //     let posName = ['', ''];
-  //     const dbMonthName = db.toLocaleDateString(lng, { month: 'long', year: 'numeric' });
-  //     let isHavingData = false;
-
-  //     /** */
-
-  //     /**
-  //      * Получаем информацию по расчетным листкам за период
-  //      * @param fromDb - дата начала периода
-  //      * @param fromDe - дата окончания периода
-  //      * @param i
-  //      */
-  //     const getAccDedsByPeriod = (fromDb: Date, fromDe: Date, i: number) => {
-  //       let paySlip = this.getPaySlipByUser(customerId, employeeId);
-
-  //       if (!paySlip) {
-  //         //continue;
-  //       } else {
-  //         //Подразделение получаем из массива подразделений dept,
-  //         //как первый элемент с максимальной датой, но меньший даты начала расч. листка
-  //         //Аналогично с должностью из массива pos
-  //         const dept = paySlip.dept
-  //           .filter(deptItem => new Date(deptItem.d) <= fromDe)
-  //           .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
-
-  //         deptName[i] = dept[0] && getLName(dept[0].name, [lng, 'ru']);
-
-  //         const pos = paySlip.pos
-  //           .filter(posItem => new Date(posItem.d) <= fromDe)
-  //           .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
-
-  //         posName[i] = pos[0] && getLName(pos[0].name, [lng, 'ru']);
-
-  //         const sal = paySlip.salary
-  //           .filter(posItem => new Date(posItem.d) <= fromDe)
-  //           .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
-  //         if (sal?.length) {
-  //           salary[i] = sal[0]?.s
-  //         }
-
-  //         const hr = paySlip.hourrate
-  //           ?.filter(posItem => new Date(posItem.d) <= fromDe)
-  //           .sort((a, b) => new Date(b.d).getTime() - new Date(a.d).getTime());
-  //         if (hr?.length) {
-  //           hourrate[i] = hr[0]?.s;
-  //         }
-
-  //         //Цикл по всем записям начислений-удержаний
-  //         for (const [key, value] of Object.entries(paySlip.data)) {
-  //           if (new Date(value?.db) >= fromDb && new Date(value?.de) <= fromDe) {
-  //             isHavingData = true;
-
-  //             if (value.typeId === 'saldo') {
-  //               saldo[i] = saldo[i] + value.s;
-  //             } else if (accDedObj[value.typeId]) {
-
-  //               let accDedName = getLName(accDedObj[value.typeId].name, [lng, 'ru']);
-  //               let det = '';
-
-  //               det = value?.det?.days ? `${value.det.days}${getLName(addName['days'], [lng, 'ru'])}` : ''
-  //               if (value?.det?.hours) {
-  //                 det = `${det}${det ?  ', ' : ''}`;
-  //                 det = `${value.det.hours}${getLName(addName['hours'], [lng, 'ru'])}`;
-  //               }
-  //               if (value?.det?.incMonth || value?.det?.incYear) {
-  //                 det = `${det}${det ?  ', ' : ''}`;
-  //                 det = `${value.det.incMonth}.${value.det.incYear}`;
-  //               }
-  //               if (det) {
-  //                 accDedName = `${accDedName} (${det})`
-  //               }
-
-  //               switch (accDedObj[value.typeId].type) {
-  //                 case 'INCOME_TAX': {
-  //                   incomeTax[i] = incomeTax[i] + value.s;
-  //                   strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, getSumByRate(value.s, rate)) : ''
-  //                   break;
-  //                 }
-  //                 case 'PENSION_TAX': {
-  //                   pensionTax[i] = pensionTax[i] + value.s;
-  //                   strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString2(strTaxes, accDedName, getSumByRate(value.s, rate)) : ''
-  //                   break;
-  //                 }
-  //                 case 'TRADE_UNION_TAX': {
-  //                   tradeUnionTax[i] = tradeUnionTax[i] + value.s;
-  //                   strTaxes = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxes, accDedName, getSumByRate(value.s, rate)) : ''
-  //                   break;
-  //                 }
-  //                 case 'ADVANCE': {
-  //                   advance[i] = advance[i] + value.s;
-  //                   strAdvances = typePaySlip === 'DETAIL' ? this.getPaySlipString(strAdvances, accDedName, getSumByRate(value.s, rate)) : ''
-  //                   break;
-  //                 }
-  //                 case 'DEDUCTION': {
-  //                   ded[i] = ded[i] + value.s;
-  //                   strDeductions = typePaySlip === 'DETAIL' ? this.getPaySlipString(strDeductions, accDedName, getSumByRate(value.s, rate)) : ''
-  //                   break;
-  //                 }
-  //                 case 'TAX': {
-  //                   tax[i] = tax[i] + value.s;
-  //                   break;
-  //                 }
-  //                 case 'ACCRUAL': {
-  //                   accrual[i] = accrual[i] + value.s;
-  //                   strAccruals = typePaySlip === 'DETAIL' ? this.getPaySlipString(strAccruals, accDedName, getSumByRate(value.s, rate)) : ''
-  //                   break;
-  //                 }
-  //                 case 'TAX_DEDUCTION': {
-  //                   tax_ded[i] = tax_ded[i] + value.s;
-  //                   strTaxDeds = typePaySlip === 'DETAIL' ? this.getPaySlipString(strTaxDeds, accDedName, getSumByRate(value.s, rate)) : ''
-  //                   break;
-  //                 }
-  //                 case 'PRIVILAGE': {
-  //                   privilage[i] = privilage[i] + value.s;
-  //                   strPrivilages = typePaySlip === 'DETAIL' ? this.getPaySlipString(strPrivilages, accDedName, getSumByRate(value.s, rate)) : ''
-  //                   break;
-  //                 }
-  //               }
-  //             }
-  //           }
-  //         };
-
-  //         allTaxes[i] = getSumByRate(incomeTax[i], rate) + getSumByRate(pensionTax[i], rate) + getSumByRate(tradeUnionTax[i], rate);
-  //       }
-  //     };
-
-  //     //Данные по листку заносятся в массивы с индектом = 0
-  //     getAccDedsByPeriod(db, de, 0);
-
-  //     if (isHavingData || typePaySlip === 'COMPARE') {
-  //       let template: Template = [];
-  //       const emplName = `${empls[employeeId].lastName} ${empls[employeeId].firstName.slice(0, 1)}. ${empls[employeeId].patrName.slice(0, 1)}.`;
-
-  //       switch (typePaySlip) {
-  //         case 'DETAIL': {
-  //         /**
-  //           * Массив массивов следущего типа:
-  //           * Один элемент -- просто строка.
-  //           * Два элемента: строка и число. Название параметра и его значение.
-  //           * Три элемента: строка, число, true. Название параметра и значение. Будет пересчитано по курсу.
-  //           */
-  //           template = [
-  //             ['Расчетный листок'],
-  //             [emplName],
-  //             [`Период: ${dbMonthName}`],
-  //             [`Валюта: ${currencyAbbreviation}`],
-  //             ['='],
-  //             ['Начисления:', accrual[0], true],
-  //             [accrual[0] ? '=' : ''],
-  //             [strAccruals],
-  //             [accrual[0] ? '=' : ''],
-  //             ['Удержания:', ded[0], true],
-  //             [ded[0] ? '=' : ''],
-  //             [strDeductions],
-  //             [ded[0] ? '=' : ''],
-  //             ['Аванс:', advance[0], true],
-  //             [advance[0] ? '=' : ''],
-  //             [strAdvances],
-  //             [advance[0] ? '=' : ''],
-  //             ['Налоги:', allTaxes[0], true],
-  //             [allTaxes[0] ? '=' : ''],
-  //             [strTaxes],
-  //             [allTaxes[0] ? '=' : ''],
-  //             ['Вычеты:', tax_ded[0], true],
-  //             [tax_ded[0] ? '=' : ''],
-  //             [strTaxDeds],
-  //             [tax_ded[0] ? '=' : ''],
-  //             ['Льготы:', privilage[0], true],
-  //             [privilage[0] ? '=' : ''],
-  //             [strPrivilages],
-  //             [privilage[0] ? '=' : ''],
-  //             [`Информация на ${date2str(de)}:`],
-  //             ['Подразделение:'],
-  //             [this.getPaySlipString('', deptName[0])],
-  //             ['Должность:'],
-  //             [this.getPaySlipString('', posName[0])],
-  //             ['Оклад:', salary[0], true],
-  //             ['ЧТС:', hourrate[0], true]
-  //           ];
-  //           break;
-  //         }
-  //         case 'CONCISE': {
-  //           const m = de.getFullYear() !== db.getFullYear() || de.getMonth() !== db.getMonth() ? `${date2str(db)}-${date2str(de)}` : `${dbMonthName}`;
-  //           template = [
-  //             ['Расчетный листок'],
-  //             [emplName],
-  //             [`Период: ${m}`],
-  //             [`Валюта: ${currencyAbbreviation}`],
-  //             ['='],
-  //             ['Начислено:', accrual[0], true],
-  //             ['='],
-  //             ['Зарплата чистыми:', getSumByRate(accrual[0], rate) - allTaxes[0]],
-  //             ['  Удержания:', ded[0], true],
-  //             ['  Аванс:', advance[0], true],
-  //             ['  К выдаче:', saldo[0], true],
-  //             ['='],
-  //             ['Налоги:', allTaxes[0]],
-  //             ['  Подоходный:', incomeTax[0], true],
-  //             ['  Пенсионный:', pensionTax[0], true],
-  //             ['  Профсоюзный:', tradeUnionTax[0], true],
-  //             ['='],
-  //             [`Информация на ${date2str(de)}:`],
-  //             ['Подразделение:'],
-  //             [this.getPaySlipString('', deptName[0])],
-  //             ['Должность:'],
-  //             [this.getPaySlipString('', posName[0])],
-  //             ['Оклад:', salary[0], true],
-  //             ['ЧТС:', hourrate[0], true]
-  //           ];
-  //           break;
-  //         }
-  //         case 'COMPARE': {
-  //           if (toDb && toDe) {
-  //             //Данные по листку за второй период заносятся в массивы с индектом = 1
-  //             getAccDedsByPeriod(toDb, toDe, 1);
-  //             if (!isHavingData) {
-  //               return ''
-  //             };
-  //             template = [
-  //               ['Сравнение расчетных листков'],
-  //               [emplName],
-  //               [`Валюта: ${currencyAbbreviation}`],
-  //               [` I: ${date2str(db)}-${date2str(de)}`],
-  //               [`II: ${date2str(toDb)}-${date2str(toDe)}`],
-  //               ['='],
-  //               ['Начислено  I:', accrual[0], true],
-  //               ['Начислено II:', accrual[1], true],
-  //               ['Разница:', (getSumByRate(accrual[1], rate) - getSumByRate(accrual[0], rate))],
-  //               ['='],
-  //               ['Чистыми  I:', getSumByRate(accrual[0], rate) - allTaxes[0]],
-  //               ['Чистыми II:', getSumByRate(accrual[1], rate) - allTaxes[1]],
-  //               ['Разница:', getSumByRate(accrual[1], rate) - allTaxes[1] - (getSumByRate(accrual[0], rate) - allTaxes[0])],
-  //               ['  К выдаче  I:', saldo[0], true],
-  //               ['  К выдаче II:', saldo[1], true],
-  //               ['  Разница:', getSumByRate(saldo[1], rate) - getSumByRate(saldo[0], rate)],
-  //               [(getSumByRate(accrual[0], rate) - allTaxes[0]) || (getSumByRate(accrual[1], rate) - allTaxes[1]) ? '=' : ''],
-  //               ['  Удержания  I:', ded[0], true],
-  //               ['  Удержания II:', ded[1], true],
-  //               ['  Разница:', getSumByRate(ded[1], rate) - getSumByRate(ded[0], rate)],
-  //               ['  Аванс  I:', advance[0], true],
-  //               ['  Аванс II:', advance[1], true],
-  //               ['  Разница:', getSumByRate(advance[1], rate) - getSumByRate(advance[0], rate)],
-  //               [ded[0] || ded[1] ? '=' : ''],
-  //               ['Налоги  I:', allTaxes[0], true],
-  //               ['Налоги II:', allTaxes[1], true],
-  //               ['Разница:', allTaxes[1] - allTaxes[0]],
-  //               ['  Подоходный  I:', incomeTax[0], true],
-  //               ['  Подоходный II:', incomeTax[1], true],
-  //               ['  Разница:', getSumByRate(incomeTax[1], rate) - getSumByRate(incomeTax[0], rate)],
-  //               ['  Пенсионный  I:', pensionTax[0], true],
-  //               ['  Пенсионный II:', pensionTax[1], true],
-  //               ['  Разница:', getSumByRate(pensionTax[1], rate) - getSumByRate(pensionTax[0], rate)],
-  //               ['  Профсоюзный  I:', tradeUnionTax[0], true],
-  //               ['  Профсоюзный II:', tradeUnionTax[1], true],
-  //               ['  Разница:', getSumByRate(tradeUnionTax[1], rate) - getSumByRate(tradeUnionTax[0], rate)],
-  //               [allTaxes[0] || allTaxes[1] ? '=' : ''],
-  //               [`Информация на ${date2str(de)}:`],
-  //               ['Подразделение:'],
-  //               [this.getPaySlipString('', deptName[0])],
-  //               ['Должность:'],
-  //               [this.getPaySlipString('', posName[0])],
-  //               ['='],
-  //               [`Информация на ${date2str(toDe)}:`],
-  //               ['Подразделение:'],
-  //               [this.getPaySlipString('', deptName[1])],
-  //               ['Должность:'],
-  //               [this.getPaySlipString('', posName[1])],
-  //               ['='],
-  //               [`Оклад на ${date2str(de)}:`, salary[0], true],
-  //               [`Оклад на ${date2str(toDe)}:`, salary[1], true],
-  //               ['Разница:', getSumByRate(salary[1], rate) - getSumByRate(salary[0], rate)],
-  //               [`ЧТС на ${date2str(de)}:`, hourrate[0], true],
-  //               [`ЧТС на ${date2str(toDe)}:`, hourrate[1], true],
-  //               ['Разница:', getSumByRate(hourrate[1], rate) - getSumByRate(hourrate[0], rate)]
-  //             ]
-  //             break;
-  //           }
-  //         }
-  //       }
-  //       if (currencyId && currencyId !== '0') {
-  //         template = [...template, [`Курс на ${date2str(db)}:`, rate]]
-  //       }
-  //       return this.paySlipView(template)
-  //     } else {
-  //       return ''
-  //     }
-  //   }
-  //   return ''
-  // }
-
-  /**
-   * Обработка поступившего текста или команды из чата.
-   * @param chatId
-   * @param message
-   */
-  process(chatId: string, message: string, fromId?: string, fromUserName?: string) {
-    //console.log(`Из чата ${chatId} нам пришел такой текст: ${message}`)
-
-    const dialogState = this._dialogStates.read(chatId);
-
-    if (message === 'login' || message === 'logout' || message === 'settings' || message === 'getCurrency' || message === 'paySlip'
-      || message === 'detailPaySlip' || message === 'concisePaySlip' || message === 'comparePaySlip' || message === 'menu' || message === 'http://gsbelarus.com') {
-      return
-    }
-
-    if (dialogState?.type === 'LOGGING_IN') {
-      this.loginDialog(chatId, message);
-    } else if (dialogState?.type === 'INITIAL') {
-      this.sendMessage(chatId,
-        'Для получения информации о заработной плате необходимо зарегистрироваться в системе.',
-        keyboardLogin);
-    } else if (dialogState?.type !== 'GETTING_CURRENCY' && dialogState?.type !== 'GETTING_CONCISE' && dialogState?.type !== 'GETTING_COMPARE')  {
-      this.sendMessage(chatId,
-        `
-  🤔 Ваша команда непонятна.
-
-Выберите одно из предложенных действий.
-  `, keyboardMenu);
+  private _calcPayslipByRate(data: IPayslipData, rate: number) {
+    const { saldo, tax, advance, deduction, accrual, tax_deduction, privilage, salary, ...rest } = data;
+    return {
+      ...rest,
+      saldo: saldo && { ...saldo, s: saldo.s / rate },
+      tax: tax && tax.map( i => ({ ...i, s: i.s / rate }) ),
+      advance: advance && advance.map( i => ({ ...i, s: i.s / rate }) ),
+      deduction: deduction && deduction.map( i => ({ ...i, s: i.s / rate }) ),
+      accrual: accrual && accrual.map( i => ({ ...i, s: i.s / rate }) ),
+      tax_deduction: tax_deduction && tax_deduction.map( i => ({ ...i, s: i.s / rate }) ),
+      privilage: privilage && privilage.map( i => ({ ...i, s: i.s / rate }) ),
+      salary: salary && salary / rate
     }
   }
 
-  callback_query(chatId: string, lng: Lang, queryData: string) {
-    const dialogState = this._dialogStates.read(chatId);
+  private _formatShortPayslip(data: IPayslipData, lng: Language, periodName: string, currencyName: string): Template {
+    const accruals = sumPayslip(data.accrual);
+    const taxes = sumPayslip(data.tax);
+    const deds = sumPayslip(data.deduction);
+    const advances = sumPayslip(data.advance);
+    const incomeTax = sumPayslip(data.tax, 'INCOME_TAX');
+    const pensionTax = sumPayslip(data.tax, 'PENSION_TAX');
+    const tradeUnionTax = sumPayslip(data.tax, 'TRADE_UNION_TAX');
 
-    if (dialogState?.type === 'GETTING_CONCISE') {
-      this.paySlipDialog(chatId, lng, queryData);
-    } else if (dialogState?.type === 'GETTING_COMPARE') {
-      this.paySlipCompareDialog(chatId, lng, queryData);
-    } else if (dialogState?.type === 'GETTING_CURRENCY') {
-      this.currencyDialog(chatId, lng, queryData);
-    }
+    return [
+      stringResources.payslipTitle,
+      //employeeName,
+      periodName,
+      currencyName,
+      stringResources.payslipDepartment,
+      getLName(data.department, [lng]),
+      stringResources.payslipPosition,
+      getLName(data.position, [lng]),
+      [stringResources.payslipSalary, data.salary],
+      [stringResources.payslipHpr, data.hourrate],
+      '=',
+      [stringResources.payslipAccrued, accruals],
+      '=',
+      [stringResources.payslipNetsalary, accruals - taxes],
+      [stringResources.payslipDeductions, deds],
+      [stringResources.payslipAdvance, advances],
+      [stringResources.payslipPayroll, data.saldo?.s],
+      '=',
+      [stringResources.payslipTaxes, taxes],
+      [stringResources.payslipIncometax, incomeTax],
+      [stringResources.payslipPensionTax, pensionTax],
+      [stringResources.payslipTradeUnionTax, tradeUnionTax]
+    ];
   }
 
-  /**
-   * Вызывается при запуске чат бота клиентом.
-   * @param chatId
-   */
-  start(chatId: string, startMessage: string) {
-    const link = this.accountLink.read(chatId);
+  private _formatComparativePayslip(data: IPayslipData, data2: IPayslipData, lng: Language, periodName: string, currencyName: string): Template {
+    const accruals = sumPayslip(data.accrual);
+    const taxes = sumPayslip(data.tax);
+    const deds = sumPayslip(data.deduction);
 
-    console.log('start');
+    const accruals2 = sumPayslip(data2.accrual);
+    const taxes2 = sumPayslip(data2.tax);
+    const deds2 = sumPayslip(data2.deduction);
 
-    if (!link) {
-      this.dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() });
-      this.sendMessage(chatId, startMessage, keyboardLogin);
+    return [
+      stringResources.comparativePayslipTitle,
+      //employeeName,
+      periodName,
+      currencyName,
+      stringResources.payslipSalary,
+      [data.salary ?? 0, data2.salary ?? 0, (data2.salary ?? 0) - (data.salary ?? 0)],
+      stringResources.payslipHpr,
+      [data.hourrate ?? 0, data2.hourrate ?? 0, (data2.hourrate ?? 0) - (data.hourrate ?? 0)],
+      '=',
+      stringResources.payslipAccrued,
+      [accruals, accruals2, accruals2 - accruals],
+      '=',
+      stringResources.payslipNetsalary,
+      [accruals - taxes, accruals2 - taxes2, accruals2 - taxes2 - (accruals - taxes)],
+      '=',
+      stringResources.payslipDeductionsWOSpace,
+      [deds, deds2, deds2 - deds],
+      '=',
+      stringResources.payslipTaxes,
+      [taxes, taxes2, taxes2 - taxes],
+    ];
+  }
+
+  private _formatDetailedPayslip(data: IPayslipData, lng: Language, periodName: string, currencyName: string): Template {
+    const accruals = sumPayslip(data.accrual);
+    const taxes = sumPayslip(data.tax);
+    const deds = sumPayslip(data.deduction);
+    const advances = sumPayslip(data.advance);
+    const taxDeds = sumPayslip(data.tax_deduction);
+    const privilages = sumPayslip(data.privilage);
+
+    const strAccruals = getItemTemplate(data.accrual, lng);
+    const strDeductions = getItemTemplate(data.deduction, lng);
+    const strAdvances: Template = getItemTemplate(data.advance, lng);
+    const strTaxes: Template = getItemTemplate(data.tax, lng);
+    const strTaxDeds: Template = getItemTemplate(data.tax_deduction, lng);
+    const strPrivilages: Template = getItemTemplate(data.privilage, lng);
+
+    return [
+      stringResources.payslipTitle,
+      //employeeName,
+      periodName,
+      currencyName,
+      stringResources.payslipDepartment,
+      getLName(data.department, [lng]),
+      stringResources.payslipPosition,
+      getLName(data.position, [lng]),
+      [stringResources.payslipSalary, data.salary],
+      [stringResources.payslipHpr, data.hourrate],
+      '=',
+      [stringResources.payslipAccrued, accruals],
+      accruals ? '=' : '',
+      ...strAccruals,
+      accruals ? '=' : '',
+      [stringResources.payslipDeductionsWOSpace, deds],
+      deds ? '=' : '',
+      ...strDeductions,
+      deds ? '=' : '',
+      [stringResources.payslipAdvanceWOSpace, advances],
+      advances ? '=' : '',
+      ...strAdvances,
+      advances ? '=' : '',
+      [stringResources.payslipTaxes, taxes],
+      taxes ? '=' : '',
+      ...strTaxes,
+      taxes ? '=' : '',
+      [stringResources.payslipTaxDeduction, taxDeds],
+      taxDeds ? '=' : '',
+      ...strTaxDeds,
+      taxDeds ? '=' : '',
+      [stringResources.payslipPrivilages, privilages],
+      privilages ? '=' : '',
+      ...strPrivilages,
+      privilages ? '=' : ''
+    ];
+  }
+
+  async getPayslip(customerId: string, employeeId: string, type: PayslipType, lng: Language, currency: string, db: IDate, de: IDate, db2?: IDate): Promise<string> {
+
+    const translate = (s: string | ILocString) => typeof s === 'object'
+      ? getLocString(s, lng)
+      : s;
+
+    const format = new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format;
+
+    const payslipView = (template: Template) => {
+      /**
+       * Ширина колонки с названием показателя в расчетном листке.
+       */
+      const lLabel = 23;
+      /**
+       * Ширина колонки с числовым значением в расчетном листке.
+       */
+      const lValue = 8;
+      /**
+       * Ширина колонки в сравнительном листке.
+       */
+      const lCol = 10;
+      return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
+        .map(t => Array.isArray(t) && t.length === 3
+          ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}`
+          : Array.isArray(t) && t.length === 2
+          ? `${translate(t[0]).slice(0, lLabel - 1).padEnd(lLabel)} ${format(t[1]!).padStart(lValue)}` // -1 for keeping one space btw label and value
+          : t === '='
+          ? '='.padEnd(lLabel + lValue, '=')
+          : translate(t!))
+        .join('\n');
+    };
+
+    let dataI = this._getPayslipData(customerId, employeeId, db, de);
+
+    if (!dataI) {
+      return getLocString(stringResources.noData, lng);
+    }
+
+    const currencyRate = currency === 'BYN' ? undefined : await getCurrRate(db, currency, this._log);
+
+    if (currency && currency !== 'BYN' && !currencyRate) {
+      return getLocString(stringResources.cantLoadRate, lng, currency);
+    }
+
+    if (currencyRate) {
+      dataI = this._calcPayslipByRate(dataI, currencyRate.rate);
+    }
+
+    //const employee = this._getEmployee(customerId, employeeId);
+    //const employeeName = employee
+    //  ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
+    //  : 'Bond, James Bond';
+
+    let s: Template;
+
+    if (type !== 'COMPARE') {
+      const periodName = getLocString(stringResources.payslipPeriod, lng) + (de.year !== db.year || de.month !== db.month
+        ? `${db.month + 1}.${db.year}-${de.month + 1}.${de.year}`
+        : `${new Date(db.year, db.month).toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`
+      );
+
+      //TODO: локализация!
+      const currencyName = getLocString(stringResources.payslipCurrency, lng, currencyRate, currencyRate);
+
+      s = type === 'CONCISE'
+        ? this._formatShortPayslip(dataI, lng, periodName, currencyName)
+        : this._formatDetailedPayslip(dataI, lng, periodName, currencyName);
     } else {
-      this.dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() });
-      this.sendMessage(chatId,
-        `Здравствуйте! Вы зарегистрированы в системе.\nВыберите одно из предложенных действий.`,
-        keyboardMenu);
-    }
-  }
-
-  unsubscribe(chatId: string) {
-    this.dialogStates.delete(chatId);
-    this.accountLink.delete(chatId);
-  }
-
-  menu(chatId: string) {
-    const dialogState = this._dialogStates.read(chatId);
-    if (dialogState?.type === 'GETTING_COMPARE' || dialogState?.type === 'GETTING_SETTINGS' || dialogState?.type === 'GETTING_CURRENCY' || dialogState?.type === 'GETTING_CONCISE') {
-      this.deleteMessage(chatId);
-    }
-    this.dialogStates.merge(chatId, { type: 'LOGGED_IN', lastUpdated: new Date().getTime() });
-    this.sendMessage(chatId, 'Выберите одно из предложенных действий.', keyboardMenu);
-  }
-
-  settings(chatId: string) {
-    this._dialogStates.merge(chatId, { type: 'GETTING_SETTINGS', lastUpdated: new Date().getTime() });
-    this.sendMessage(chatId, 'Выберите необходимый пункт из параметров.', keyboardSettings);
-  }
-
-  async logout(chatId: string) {
-    this.dialogStates.merge(chatId, { type: 'INITIAL', lastUpdated: new Date().getTime() }, ['employee']);
-    await this.sendMessage(chatId, '💔 До свидания!', keyboardLogin);
-    this.accountLink.delete(chatId);
-  }
-
-  async paySlip(chatId: string, typePaySlip: TypePaySlip, lng: Lang, db: Date, de: Date) {
-    let dBegin = db;
-    let dEnd = de;
-    while (true) {
-      const cListok = await this.getPaySlip(chatId, typePaySlip, lng, dBegin, dEnd);
-      if (cListok) {
-        await this.sendMessage(chatId, cListok, keyboardMenu, true);
-        return;
+      if (!db2) {
+        throw new Error('db2 is not specified');
       }
 
-      dEnd.setMonth(dBegin.getMonth());
-      dEnd.setDate(0);
-      dBegin.setMonth(dBegin.getMonth() - 1);
-
-      if (dBegin.getTime() < MINDATE.getTime()) {
-        await this.sendMessage(chatId,
-          `Нет данных для расчетного листка 🤔`,
-          keyboardMenu);
-        return;
+      const periodLength = (de.year - db.year) * 12 + (de.month - db.month);
+      const periodStart = db2.year * 12 + db2.month;
+      const periodEnd = periodStart + periodLength;
+      const de2 = {
+        year: Math.floor(periodEnd / 12),
+        month: periodEnd % 12
       }
+
+      const currencyRate2 = currency === 'BYN' ? undefined : await getCurrRate(db2, currency, this._log);
+
+      if (currency && currency !== 'BYN' && !currencyRate2) {
+        return getLocString(stringResources.cantLoadRate, lng, currency);
+      }
+
+      let dataII = this._getPayslipData(customerId, employeeId, db2, de2);
+
+      if (!dataII) {
+        return getLocString(stringResources.noData, lng);
+      }
+
+      if (currencyRate2) {
+        dataII = this._calcPayslipByRate(dataII, currencyRate2.rate);
+      }
+
+      const periodName = getLocString(stringResources.payslipCurrencyPeriod, lng, db, de, db2, de2);
+
+      //TODO: локализация!
+      const currencyName = getLocString(stringResources.payslipCurrencyCompare, lng, currency, currencyRate, currencyRate2);
+
+      s = this._formatComparativePayslip(dataI, dataII, lng, periodName, currencyName);
     }
+
+    return '```ini\n' + payslipView(s) + '```';
+  }
+
+  launch() {
+    this._telegram.launch();
   }
 
   /**
-   * Вызов справки.
+   * Прибавляет к идентификатору чата идентификатор платформы.
+   * На всякий случай, чтобы не пересеклись идентификаторы из разных мессенджеров.
+   * @param platform
    * @param chatId
-   * @param state
    */
-  help(chatId: string, state: DialogState) {
-    this.sendMessage(chatId, 'Help message')
+  getUniqId(platform: Platform, chatId: string) {
+    return chatId + (platform === 'TELEGRAM' ? 't' : 'v');
   }
 
   finalize() {
-    this.accountLink.flush();
-    this.dialogStates.flush();
+    this._telegramAccountLink.flush();
+    this._viberAccountLink.flush();
+  }
+
+  createService(inPlatform: Platform, inChatId: string) {
+    const uniqId = this.getUniqId(inPlatform, inChatId);
+    const service = (inPlatform === 'TELEGRAM' ? interpret(this._telegramMachine) : interpret(this._viberMachine))
+      .onTransition( (state, { type }) => {
+        const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+
+        this._logger.debug(inChatId, undefined, `State: ${state.toStrings().join('->')}, Event: ${type}`);
+        this._logger.debug(inChatId, undefined, `State value: ${JSON.stringify(state.value)}`);
+        this._logger.debug(inChatId, undefined, `State context: ${JSON.stringify(state.context)}`);
+        if (Object.keys(state.children).length) {
+          this._logger.debug(inChatId, undefined, `State children: ${JSON.stringify(Object.values(state.children)[0].state.value)}`);
+        }
+
+        if (state.done) {
+          return;
+        }
+
+        // при изменении состояния сохраним его в базе, чтобы
+        // потом вернуться к состоянию после перезагрузки машины
+        const language = this._accountLanguage[uniqId];
+        const accountLink = accountLinkDB.read(inChatId);
+        const { customerId, employeeId, platform, chatId, semaphore, ...rest } = state.context;
+
+        if (!accountLink) {
+          if (customerId && employeeId) {
+            accountLinkDB.write(inChatId, {
+              customerId,
+              employeeId,
+              language,
+              state: state.value instanceof Object ? { ...state.value } : state.value,
+              context: rest,
+              lastUpdated: new Date()
+            });
+          }
+        } else {
+          accountLinkDB.write(inChatId, {
+            ...accountLink,
+            state: state.value instanceof Object ? { ...state.value } : state.value,
+            context: rest,
+            lastUpdated: new Date()
+          });
+        }
+      })
+      .start();
+    this._service[uniqId] = service;
+    return service;
+  }
+
+  /**
+   * Сюда поступают все события из чатов пользователей: ввод текста,
+   * выбор пункта в меню, вызов команды и т.п.
+   * @param update IUpdate
+   */
+  onUpdate(update: IUpdate) {
+    this._callbacksReceived++;
+
+    const { platform, chatId, type, body, language } = update;
+
+    if (body === 'diagnostics') {
+      this.finalize();
+      const data = [
+        `Server started: ${this._botStarted}`,
+        `Node version: ${process.versions.node}`,
+        'Memory usage:',
+        JSON.stringify(process.memoryUsage(), undefined, 2),
+        `Services are running: ${Object.values(this._service).length}`,
+        `Callbacks received: ${this._callbacksReceived}`
+      ];
+      if (platform === 'TELEGRAM') {
+        this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
+      } else {
+        this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
+      }
+      return;
+    }
+
+    const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+    const accountLink = accountLinkDB.read(chatId);
+    const uniqId = this.getUniqId(platform, chatId);
+    let service = this._service[uniqId];
+
+    if (!this._accountLanguage[uniqId]) {
+      if (accountLink?.language) {
+        this._accountLanguage[uniqId] = accountLink.language;
+      } else {
+        this._accountLanguage[uniqId] = language;
+      }
+    }
+
+    const createNewService = (forceMainMenu = true) => {
+      const res = this.createService(platform, chatId);
+
+      if (accountLink) {
+        const { customerId, employeeId, } = accountLink;
+        res.send({
+          type: 'MAIN_MENU',
+          platform,
+          chatId,
+          customerId,
+          employeeId,
+          forceMainMenu,
+          semaphore: new Semaphore()
+        });
+      } else {
+        res.send({
+          type: 'START',
+          platform,
+          chatId,
+          semaphore: new Semaphore()
+        });
+      }
+
+      return res;
+    }
+
+    if (body === '/start' || service?.state.done) {
+      createNewService(true);
+      return;
+    }
+
+    if (!service) {
+      service = createNewService(false);
+    }
+
+    let e: BotMachineEvent | undefined;
+
+    switch (type) {
+      case 'MESSAGE':
+        e = { type: 'ENTER_TEXT', text: body };
+        break;
+
+      case 'ACTION': {
+        if (body.slice(0, 1) === '{') {
+          e = { ...JSON.parse(body), update };
+        } else {
+          e = { type: 'MENU_COMMAND', command: body };
+        }
+        break;
+      }
+
+      default:
+        e = undefined;
+    }
+
+    if (e) {
+      service.send(e);
+
+      if (!service.state.changed) {
+        // мы каким-то образом попали в ситуацию, когда текущее состояние не
+        // может принять вводимую информацию. например, пользователь
+        // очистил чат или произошел сбой на стороне мессенджера и
+        // то, что видит пользователь отличается от внутреннего состояния
+        // машины
+
+        if (platform === 'TELEGRAM') {
+          this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
+        } else {
+          this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
+        }
+
+        createNewService(true);
+      }
+    }
+  }
+
+  uploadAccDeds(customerId: string, objData: Object) {
+    let customerAccDed = this._customerAccDeds[customerId];
+
+    if (!customerAccDed) {
+      customerAccDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`), this._log);
+      this._customerAccDeds[customerId] = customerAccDed;
+    }
+
+    customerAccDed.clear();
+
+    for (const [key, value] of Object.entries(objData)) {
+      customerAccDed.write(key, value as any);
+    }
+
+    customerAccDed.flush();
+  }
+
+  uploadEmployees(customerId: string, objData: Object) {
+    let employee = this._employees[customerId];
+
+    if (!employee) {
+      employee = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeFileName}`), this._log);
+      this._employees[customerId] = employee;
+    }
+
+    employee.clear();
+
+    for (const [key, value] of Object.entries(objData)) {
+      employee.write(key, value as any);
+    }
+
+    employee.flush();
+  }
+
+  upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
+    const employeeId = objData.emplId;
+    const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`), this._log);
+
+    if (rewrite) {
+      payslip.clear();
+    }
+
+    const prevPayslipData = payslip.read(employeeId);
+
+    // если на диске не было файла или там было пусто, то
+    // просто запишем данные, которые пришли из интернета
+    if (!prevPayslipData) {
+      payslip.write(employeeId, objData);
+    } else {
+      // данные есть. надо объединить прибывшие данные с тем
+      // что уже есть на диске
+      const newPayslipData = {
+        ...prevPayslipData,
+        data: [...prevPayslipData.data],
+        dept: [...prevPayslipData.dept],
+        pos: [...prevPayslipData.pos],
+        salary: [...prevPayslipData.salary]
+      };
+
+      // объединяем начисления
+      for (const d of objData.data) {
+        const i = newPayslipData.data.findIndex( a => a.typeId === d.typeId && a.db === d.db && a.de === d.de );
+        if (i === -1) {
+          newPayslipData.data.push(d);
+        } else {
+          newPayslipData.data[i] = d;
+        }
+      }
+
+      // объединяем подразделения
+      for (const d of objData.dept) {
+        const i = newPayslipData.dept.findIndex( a => a.id === d.id && a.d === d.d );
+        if (i === -1) {
+          newPayslipData.dept.push(d);
+        } else {
+          newPayslipData.dept[i] = d;
+        }
+      }
+
+      // объединяем должности
+      for (const p of objData.pos) {
+        const i = newPayslipData.pos.findIndex( a => a.id === p.id && a.d === p.d );
+        if (i === -1) {
+          newPayslipData.pos.push(p);
+        } else {
+          newPayslipData.pos[i] = p;
+        }
+      }
+
+      // объединяем оклады
+      for (const p of objData.salary) {
+        const i = newPayslipData.salary.findIndex( a => a.d === p.d );
+        if (i === -1) {
+          newPayslipData.salary.push(p);
+        } else {
+          newPayslipData.salary[i] = p;
+        }
+      }
+
+      payslip.write(employeeId, newPayslipData);
+    }
+
+    payslip.flush();
+
+    //TODO: оповестить всех клиентов о новых расчетных листках
+    // надо организовать цикл по всем аккаунт линк и если текущий диалог
+    // находится в состоянии главного меню, вывести там через машину
+    // состояний кратский расчетный листок
   }
 };

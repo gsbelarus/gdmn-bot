@@ -3,14 +3,26 @@ import { ILoggerParams } from "./log";
 interface IConfig {
   telegram: {
     token: string;
-  }
+  },
+  viber: {
+    token: string;
+    callbackHost: string;
+  },
+  httpPort: number,
+  httpsPort: number,
   logger: ILoggerParams;
 };
 
 export const config: IConfig = {
   telegram: {
-    token: 'put_token_here'
+    token: ''
   },
+  viber: {
+    token: '',
+    callbackHost: 'host:port'
+  },
+  httpPort: 3000,
+  httpsPort: 8084,
   logger: {
     fileName: '',
     maxSize: 10 * 1024 * 1024,

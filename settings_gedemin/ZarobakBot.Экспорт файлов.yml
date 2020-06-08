@@ -5,10 +5,10 @@ Properties:
   RUID: 1193786287_1320926324
   Name: "ZarobakBot.Экспорт файлов"
   Caption: "ZarobakBot.Экспорт файлов"
-  Version: "1.0.0.17"
+  Version: "1.0.0.21"
   Optional: False
   Internal: True
-  MD5: 5A6C332E10D299A8C98680715EA86C2F
+  MD5: 3F188F17DA1DE4CAD9E2EE8B341BFC8D
 Uses: 
   - "158513268_1444931844 ZarobakBot.Сбор данных"
 Objects: 
@@ -62,7 +62,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-13T12:35:22+03:00
+      EDITIONDATE: 2020-06-08T10:23:18+03:00
       DISPLAYSCRIPT: | 
         BOT_SENDFILE
         
@@ -81,15 +81,13 @@ Objects:
         
         Function bot_SendFile(JSON, URL)
         
-         On Error Resume Next
+          on error resume next
           dim oXMLHTTP
           set oXMLHTTP = CreateObject("MSXML2.XMLHTTP")
           call oXMLHTTP.Open("POST", url, false)
           call oXMLHTTP.setRequestHeader("Content-Type", "application/json")
           on error resume next
           call oXMLHTTP.Send(JSON)
-          on error goto 0
-        
           if Err.Number <> 0 then
             MsgBox "Ошибка передачи файла " & Err.Message
             bot_SendFile = false
@@ -99,6 +97,7 @@ Objects:
           else
             bot_SendFile = true
           end If
+          on error goto 0
         
         End Function
         

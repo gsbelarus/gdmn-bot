@@ -5,10 +5,10 @@ Properties:
   RUID: 158513268_1444931844
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.13"
+  Version: "1.0.0.22"
   Optional: False
   Internal: True
-  MD5: 854DE3FE069724ACF0776745FE4EAF95
+  MD5: 8185CCF993C893165876EF41F198AA08
 Objects: 
   - 
     Properties: 
@@ -77,7 +77,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-13T18:11:32+03:00
+      EDITIONDATE: 2020-06-05T17:40:26+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREPAYSLIP
         BOT_PREPAREPAYSLIP_ROLLBACK
@@ -103,6 +103,21 @@ Objects:
         
           except bot_PreparePaySlipByEmploee_RollBack(Transaction)
         
+          'pDate - дата окончания последнего итогового
+          dim qSelDate, pDate
+          set qSelDate = Creator.GetObject(nil, "TIBSQL", "")
+          qSelDate.Transaction = gdcBaseManager.ReadTransaction
+          qSelDate.SQL.Text = _
+            "  SELECT FIRST 1 t.USR$DATEEND " & _
+            "  FROM USR$WG_TOTAL t " & _
+            "    JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
+            "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
+            "  WHERE doc.COMPANYKEY = :companyId " & _
+            "  ORDER BY t.USR$DATEEND DESC "
+          qSelDate.ParamByName("companyId").AsInteger = companyId
+          qSelDate.ExecQuery
+          pDate = qSelDate.FieldByName("USR$DATEEND").AsDateTime
+        
           if isManual then
             dim qSelCount
             set qSelCount = Creator.GetObject(nil, "TIBSQL", "")
@@ -115,13 +130,16 @@ Objects:
               "    LEFT JOIN USR$WG_MOVEMENTLINE ml ON ml.DOCUMENTKEY = state.ID " & _
               "    LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = tline.USR$EMPLKEY " & _
               "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
-              "  WHERE COALESCE(p.PERSONALNUMBER, '') <> '' AND " & _
+              "    JOIN USR$WG_EMPLWORKTERM w ON w.USR$FIRSTMOVEKEY = ml.USR$FIRSTMOVE " & _
+              "  WHERE COALESCE(TRIM(p.PERSONALNUMBER), '') <> '' AND " & _
               "    t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
               "    AND doc.COMPANYKEY = :companyId " & _
+              "    AND (w.USR$DATEEND > :pDate OR w.USR$DATEEND IS NULL) " & _
               "    AND (ml.USR$MOVEMENTTYPE <> 3 OR tline.USR$CREDIT <> 0 OR tline.USR$DEBIT <> 0)  "
             qSelCount.ParamByName("DB").AsDateTime = Period(0)
             qSelCount.ParamByName("DE").AsDateTime = Period(1)
             qSelCount.ParamByName("companyId").AsInteger = companyId
+            qSelCount.ParamByName("pDate").AsDateTime = pDate
             qSelCount.ExecQuery
         
             dim count
@@ -131,28 +149,23 @@ Objects:
             P.StartWork "ZarobakBot", "Формируем данные..", count, True, True
           end if
         
+          'Формируем расчетные листки за период,
+          'но сотрудников берем тех, кто работает на дату окончания последнего итогового начисления - pDate
           set qSel = Creator.GetObject(nil, "TIBSQL", "")
           qSel.Transaction = Transaction
           qSel.SQL.Text = _
-            "EXECUTE BLOCK (DB DATE = :DB, DE DATE = :DE, COMPANYID dintkey = :COMPANYID) " & _
+            "EXECUTE BLOCK (DB DATE = :DB, DE DATE = :DE, PDATE DATE = :PDATE, COMPANYID dintkey = :COMPANYID) " & _
             "RETURNS ( " & _
             "  EmployeeKey     dforeignkey,      " & _
             "  EmployeeRuid    VARCHAR(40), " & _
             "  NickName        VARCHAR(160), " & _
-            "  HiringDate      DATE, " & _
-            "  accdedStr       VARCHAR(4000) " & _
+            "  accdedStr       VARCHAR(10000) " & _
             "  ) " & _
             "AS " & _
             "  DECLARE TotalDocKey         dintkey; " & _
             "  DECLARE CurMonth            INTEGER; " & _
             "  DECLARE CurYear             INTEGER; " & _
             "  DECLARE IncDate             DATE; " & _
-            "  DECLARE pDate               DATE; " & _
-            "  DECLARE pName               VARCHAR(60); " & _
-            "  DECLARE posDB               DATE; " & _
-            "  DECLARE posDE               DATE; " & _
-            "  DECLARE posName             VARCHAR(60); " & _
-            "  DECLARE pRuid               VARCHAR(40); " & _
             "  DECLARE DetStr              VARCHAR(240); " & _
             "  DECLARE IncMonth            INTEGER; " & _
             "  DECLARE IncYear             INTEGER; " & _
@@ -164,8 +177,6 @@ Objects:
             "  DECLARE S                   DECIMAL(15,4); " & _
             "  DECLARE OnDateBegin         DATE; " & _
             "  DECLARE OnDateEnd           DATE; " & _
-            "  DECLARE Salary              DECIMAL(15,4); " & _
-            "  DECLARE DismissalDate       DATE; " & _
             "  DECLARE EndSaldo            DECIMAL(15,4); " & _
             "BEGIN " & _
             "  FOR " & _
@@ -176,8 +187,6 @@ Objects:
             "      t.DOCUMENTKEY               AS TotalDocKey, " & _
             "      t.USR$DATEBEGIN             AS OnDateBegin, " & _
             "      t.USR$DATEEND               AS OnDateEnd, " & _
-            "      workterm.USR$DATEBEGIN      AS HiringDate, " & _
-            "      coalesce(workterm.USR$DATEEND, null)        AS DismissalDate, " & _
             "      SUM(tline.USR$ENDSALDO) " & _
             "    FROM USR$WG_TOTAL t " & _
             "      LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
@@ -187,16 +196,16 @@ Objects:
             "      LEFT JOIN GD_CONTACT dep ON dep.ID = ml.USR$DEPTKEY " & _
             "      LEFT JOIN WG_POSITION pos ON pos.ID = ml.USR$POSITIONKEY " & _
             "      LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = tline.USR$EMPLKEY " & _
-            "      LEFT JOIN usr$wg_emplworkterm workterm ON workterm.USR$FIRSTMOVEKEY = ml.USR$FIRSTMOVE " & _
+            "      JOIN usr$wg_emplworkterm workterm ON workterm.USR$FIRSTMOVEKEY = ml.USR$FIRSTMOVE " & _
             "      LEFT JOIN GD_P_GETRUID(p.CONTACTKEY) r ON 1 = 1 " & _
             "    WHERE COALESCE(p.PERSONALNUMBER, '') <> '' AND " & _
             "      t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
             "      AND (ml.USR$MOVEMENTTYPE <> 3 OR tline.USR$CREDIT <> 0 OR tline.USR$DEBIT <> 0) " & _
             "      AND doc.COMPANYKEY = :companyId " & _
-            "    GROUP BY 1,2,3,4,5,6,7,8 " & _
+            "      AND (workterm.USR$DATEEND > :pDate OR workterm.USR$DATEEND IS NULL) " & _
+            "    GROUP BY 1,2,3,4,5,6 " & _
             "    ORDER BY NickName, EmployeeRuid, t.USR$DATEBEGIN " & _
-            "    INTO :NickName, :EmployeeRuid, :EmployeeKey, :TotalDocKey,  :OnDateBegin, :OnDateEnd, " & _
-            "      :HiringDate, :DismissalDate, :EndSaldo " & _
+            "    INTO :NickName, :EmployeeRuid, :EmployeeKey, :TotalDocKey,  :OnDateBegin, :OnDateEnd, :EndSaldo " & _
             "    DO " & _
             "    BEGIN " & _
             "      CurMonth = EXTRACT(MONTH FROM OnDateBegin); " & _
@@ -263,8 +272,8 @@ Objects:
             "                BEGIN " & _
             "                  detStr = detStr || ','; " & _
             "                END " & _
-            "              detStr = detStr || '""IncMonth"":' || IncMonth || ','; " & _
-            "              detStr = detStr || '""IncYear"":' || IncYear; " & _
+            "              detStr = detStr || '""incMonth"":' || IncMonth || ','; " & _
+            "              detStr = detStr || '""incYear"":' || IncYear; " & _
             "            END " & _
             "            ELSE " & _
             "              BEGIN " & _
@@ -345,7 +354,7 @@ Objects:
             "      /*Сальдо на конец*/ " & _
             "      FeeTypeName = 'Сальдо на конец'; " & _
             "      typeId = 'saldo'; " & _
-            "      Category = ''; " & _
+            "      Category = 'SALDO'; " & _
             "      S = EndSaldo; " & _
             "      IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
             "          accdedStr = accdedStr || '{' || '""typeId"":""' || typeId || " & _
@@ -353,13 +362,14 @@ Objects:
             "            '"",""de"":""' || EXTRACT(YEAR FROM OnDateEnd) || '.' || EXTRACT(MONTH FROM OnDateEnd) || '.' || EXTRACT(DAY FROM OnDateEnd) || " & _
             "            '"",""s"":' || S || '}'; " & _
             " " & _
-            "      SUSPEND; " & _
+            "      IF (accdedStr <> '') THEN SUSPEND; " & _
             " " & _
             "    END " & _
             "END; "
         
           qSel.ParamByName("DB").AsDateTime = Period(0)
           qSel.ParamByName("DE").AsDateTime = Period(1)
+          qSel.ParamByName("pDate").AsDateTime = pDate
           qSel.ParamByName("companyId").AsInteger = companyId
           qSel.ExecQuery
         
@@ -508,7 +518,6 @@ Objects:
               end if
         
               objItem = "{""emplId"":""" & EmployeeRuid & """," & _
-                """hiringDate"":""" & hiringdate_prev & """," & _
                 """dept"":" & JsonDept & "," & _
                 """pos"":" & JsonPos & "," & _
                 """salary"":" & JsonSalary & "," & _
@@ -530,7 +539,6 @@ Objects:
             employeeItems = employeeItems & qSel.FieldByName("accdedStr").AsString
             EmployeeRuid = qSel.FieldByName("EmployeeRuid").AsString
             emplkey_prev = qSel.FieldByName("EmployeeKey").AsInteger
-            hiringdate_prev = qSel.FieldByName("HiringDate").AsString
             nickname_prev = qSel.FieldByName("NickName").AsString
             qSel.Next
           wend
@@ -549,7 +557,6 @@ Objects:
             end if
         
             objItem = "{""emplId"":""" & qSel.FieldByName("EmployeeRuid").AsString & """," & _
-              """hiringDate"":""" & qSel.FieldByName("HiringDate").AsString & """," & _
               """dept"":" & JsonDept & "," & _
               """pos"":" & JsonPos & "," & _
               """salary"":" & JsonSalary & "," & _
@@ -600,7 +607,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-13T12:11:35+03:00
+      EDITIONDATE: 2020-05-27T17:47:27+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREACCDED
         BOT_PREPAREACCDED_ROLLBACK
@@ -710,6 +717,11 @@ Objects:
           if Transaction.InTransaction then
             Transaction.Commit
           end if
+          
+          if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+          Json.Add("""" & "saldo" & """:{" & _
+            """type"":""" & "SALDO" & """," & _
+            """name"":{""ru"":{""name"":""" & "Сальдо" & """}}}")
         
           Json.Text = "{" & _
             """version"":""1.0""," & _
@@ -758,7 +770,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-13T12:10:19+03:00
+      EDITIONDATE: 2020-05-26T14:57:26+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREEMPLOYEES
         BOT_PREPAREEMPLOYEES_ROLLBACK
@@ -783,20 +795,38 @@ Objects:
         
           except bot_prepareEmployees_RollBack(Transaction)
           
+          'pDate - дата окончания последнего итогового
+          dim qSelDate, pDate
+          set qSelDate = Creator.GetObject(nil, "TIBSQL", "")
+          qSelDate.Transaction = gdcBaseManager.ReadTransaction
+          qSelDate.SQL.Text = _
+            "  SELECT FIRST 1 t.USR$DATEEND " & _
+            "  FROM USR$WG_TOTAL t " & _
+            "    JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
+            "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
+            "  WHERE doc.COMPANYKEY = :companyId " & _
+            "  ORDER BY t.USR$DATEEND DESC "
+          qSelDate.ParamByName("companyId").AsInteger = companyId
+          qSelDate.ExecQuery
+          pDate = qSelDate.FieldByName("USR$DATEEND").AsDateTime
+          
           if isManual then
             dim qSelCount
             set qSelCount = Creator.GetObject(nil, "TIBSQL", "")
             qSelCount.Transaction = gdcBaseManager.ReadTransaction
             qSelCount.SQL.Text = _
-              "SELECT COUNT(c.ID) AS C " & _
-              "FROM GD_CONTACT c " & _
+              "SELECT COUNT(DISTINCT TRIM(p.PERSONALNUMBER)) " & _
+              "FROM GD_CONTACT own " & _
+              "  LEFT JOIN GD_CONTACT c ON own.LB <= c.LB AND own.RB >= c.RB " & _
+              "  JOIN USR$WG_TOTALLINE l ON l.USR$EMPLKEY = c.ID " & _
               "  JOIN GD_EMPLOYEE empl ON empl.CONTACTKEY = c.ID " & _
-              "  LEFT JOIN GD_CONTACT par ON par.ID = c.PARENT " & _
-              "  LEFT JOIN GD_CONTACT own ON own.LB <= par.LB AND own.RB >= par.RB " & _
-              "  LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = c.ID " & _
+              "  JOIN GD_PEOPLE p ON p.CONTACTKEY = c.ID " & _
+              "  JOIN USR$WG_EMPLWORKTERM w ON w.USR$EMPLKEY = c.ID " & _
               "WHERE own.ID = :companyId " & _
-              "  AND COALESCE(p.PERSONALNUMBER, '') <> '' "
+              "  AND COALESCE(TRIM(p.PERSONALNUMBER), '') <> '' " & _
+              "  AND (w.USR$DATEEND > :pDate OR w.USR$DATEEND IS NULL) "
             qSelCount.ParamByName("companyId").AsInteger = companyId
+            qSelCount.ParamByName("pDate").AsDateTime = pDate
             qSelCount.ExecQuery
             
             dim count
@@ -812,32 +842,40 @@ Objects:
           qSel.SQL.Text = _
             "SELECT DISTINCT p.SURNAME, p.FIRSTNAME, p.MIDDLENAME, " & _
             "  TRIM(p.PERSONALNUMBER)  AS PERSONALNUMBER, " & _
-            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12))  AS ID " & _
-            "FROM GD_CONTACT c " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12))  AS ID, " & _
+            "  c.EDITIONDATE " & _
+            "FROM GD_CONTACT own " & _
+            "  LEFT JOIN GD_CONTACT c ON own.LB <= c.LB AND own.RB >= c.RB " & _
+            "  JOIN USR$WG_TOTALLINE l ON l.USR$EMPLKEY = c.ID " & _
             "  JOIN GD_EMPLOYEE empl ON empl.CONTACTKEY = c.ID " & _
-            "  LEFT JOIN GD_CONTACT par ON par.ID = c.PARENT " & _
-            "  LEFT JOIN GD_CONTACT own ON own.LB <= par.LB AND own.RB >= par.RB " & _
-            "  LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = c.ID " & _
+            "  JOIN GD_PEOPLE p ON p.CONTACTKEY = c.ID " & _
             "  LEFT JOIN GD_P_GETRUID(p.CONTACTKEY) r ON 1 = 1 " & _
+            "  JOIN USR$WG_EMPLWORKTERM w ON w.USR$EMPLKEY = c.ID " & _
             "WHERE own.ID = :companyId " & _
-            "  AND COALESCE(p.PERSONALNUMBER, '') <> '' " & _
-            "ORDER BY p.SURNAME, c.ID "
+            "  AND COALESCE(TRIM(p.PERSONALNUMBER), '') <> '' " & _
+            "  AND (w.USR$DATEEND > :pDate OR w.USR$DATEEND IS NULL) " & _
+            "ORDER BY TRIM(p.PERSONALNUMBER), c.EDITIONDATE DESC, p.SURNAME "
           qSel.ParamByName("companyId").AsInteger = companyId
+          qSel.ParamByName("pDate").AsDateTime = pDate
           qSel.ExecQuery
         
-          dim canceled
+          dim canceled, persNumber
           canceled = false
+          persNumber = ""
           while not qSel.eof and not canceled
-            if isManual then
-              canceled = P.Canceled
-              P.StartStep "Сотрудник: " & qSel.FieldByName("SURNAME").AsString & " " & qSel.FieldByName("FIRSTNAME").AsString & " " & qSel.FieldByName("MIDDLENAME").AsString, 1
+            if persNumber <> qSel.FieldByName("PERSONALNUMBER").AsString then
+              if isManual then
+                canceled = P.Canceled
+                P.StartStep "Сотрудник: " & qSel.FieldByName("SURNAME").AsString & " " & qSel.FieldByName("FIRSTNAME").AsString & " " & qSel.FieldByName("MIDDLENAME").AsString, 1
+              end if
+              if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+              Json.Add("""" & qSel.FieldByName("ID").AsString & """:{" & _
+                """firstName"":""" & bot_strRepl(qSel.FieldByName("FIRSTNAME").AsString) & """," & _
+                """lastName"":""" & bot_strRepl(qSel.FieldByName("SURNAME").AsString) & """," & _
+                """patrName"":""" & bot_strRepl(qSel.FieldByName("MIDDLENAME").AsString) & """," & _
+                """passportId"":""" & bot_strRepl(qSel.FieldByName("PERSONALNUMBER").AsString) & """}")
             end if
-            if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
-            Json.Add("""" & qSel.FieldByName("ID").AsString & """:{" & _
-              """firstName"":""" & bot_strRepl(qSel.FieldByName("FIRSTNAME").AsString) & """," & _
-              """lastName"":""" & bot_strRepl(qSel.FieldByName("SURNAME").AsString) & """," & _
-              """patrName"":""" & bot_strRepl(qSel.FieldByName("MIDDLENAME").AsString) & """," & _
-              """passportId"":""" & bot_strRepl(qSel.FieldByName("PERSONALNUMBER").AsString) & """}")
+            persNumber = qSel.FieldByName("PERSONALNUMBER").AsString
             qSel.Next
           wend
         

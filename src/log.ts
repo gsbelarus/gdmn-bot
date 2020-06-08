@@ -9,6 +9,10 @@ export interface ILoggerParams {
   level?: Level;
 };
 
+export type LoggerFunc = typeof console.log;
+
+export type ILogger = Pick<Console, 'info' | 'debug' | 'warn' | 'error'>;
+
 export class Logger {
   private _fileName?: string;
   private _maxSize?: number;
@@ -68,17 +72,17 @@ export class Logger {
     }
   }
 
-  private _formatMsg(level: Level, data: any, chatId?: string, userId?: string) {
+  private _formatMsg(level: Level, chatId: string | undefined, userId: string | undefined, ...data: any[]) {
     const d = new Date();
     const date = `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`;
     const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds()}`;
     const chat = chatId ? `, chatId: ${chatId}` : '';
     const user = userId ? `, userId: ${userId}` : '';
-    return `[${level}] ${date} ${time}${user}${chat}: ${data}`;
+    return `[${level}] ${date} ${time}${user}${chat}: ${data.length === 1 ? data[0] : data}`;
   }
 
-  private async _log(level: Level, data: any, chatId?: string, userId?: string) {
-    const msg = this._formatMsg(level, data, chatId, userId);
+  private async _log(level: Level, chatId: string | undefined, userId: string | undefined, ...data: any[]) {
+    const msg = this._formatMsg(level, chatId, userId, data);
 
     await this._openFile();
 
@@ -101,29 +105,38 @@ export class Logger {
     this._maxSize = maxSize;
   }
 
-  public async info(data: any, chatId?: string, userId?: string) {
+  public async info(chatId: string | undefined, userId: string | undefined, ...data: any[]) {
     if (!this._level || (this._level  !== 'ERROR' && this._level !== 'WARNING' && this._level !== 'DEBUG')) {
-      await this._log('INFO', data, chatId, userId);
+      await this._log('INFO', chatId, userId, data);
     }
   }
 
-  public async debug(data: any, chatId?: string, userId?: string) {
+  public async debug(chatId: string | undefined, userId: string | undefined, ...data: any[]) {
     if (!this._level || (this._level  !== 'ERROR' && this._level !== 'WARNING')) {
-      await this._log('DEBUG', data, chatId, userId);
+      await this._log('DEBUG', chatId, userId, data);
     }
   }
 
-  public async warn(data: any, chatId?: string, userId?: string) {
+  public async warn(chatId: string | undefined, userId: string | undefined, ...data: any[]) {
     if (!this._level || (this._level  !== 'ERROR')) {
-      await this._log('WARNING', data, chatId, userId);
+      await this._log('WARNING', chatId, userId, data);
     }
   }
 
-  public async error(data: any, chatId?: string, userId?: string) {
-    await this._log('ERROR', data, chatId, userId);
+  public async error(chatId: string | undefined, userId: string | undefined, ...data: any[]) {
+    await this._log('ERROR', chatId, userId, data);
   }
 
   public async shutdown() {
     await this._closeFile();
+  }
+
+  public getLogger(chatId?: string, userId?: string): ILogger {
+    return {
+      info: (...args: any[]) => this.info(chatId, userId, ...args),
+      debug: (...args: any[]) => this.debug(chatId, userId, ...args),
+      warn: (...args: any[]) => this.warn(chatId, userId, ...args),
+      error: (...args: any[]) => this.error(chatId, userId, ...args)
+    };
   }
 }
