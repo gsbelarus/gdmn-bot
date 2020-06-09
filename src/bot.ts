@@ -1063,12 +1063,14 @@ export class Bot {
     service = service.onTransition( (state, { type }) => {
         const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
 
+        /*
         this._logger.debug(inChatId, undefined, `State: ${state.toStrings().join('->')}, Event: ${type}`);
         this._logger.debug(inChatId, undefined, `State value: ${JSON.stringify(state.value)}`);
         this._logger.debug(inChatId, undefined, `State context: ${JSON.stringify(state.context)}`);
         if (Object.keys(state.children).length) {
           this._logger.debug(inChatId, undefined, `State children: ${JSON.stringify(Object.values(state.children)[0].state.value)}`);
         }
+        */
 
         if (state.done) {
           return;
