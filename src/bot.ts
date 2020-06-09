@@ -6,7 +6,7 @@ import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions }
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
 import path from 'path';
-import { testNormalizeStr, testIdentStr, date2str } from "./util/utils";
+import { testNormalizeStr, testIdentStr } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate } from "./currency";
@@ -855,7 +855,7 @@ export class Bot {
     ];
   }
 
-  private _formatComparativePayslip(data: IPayslipData, data2: IPayslipData, lng: Language, periodName: string, currencyName: string): Template {
+  private _formatComparativePayslip(data: IPayslipData, data2: IPayslipData, periodName: string, currencyName: string): Template {
     const accruals = sumPayslip(data.accrual);
     const taxes = sumPayslip(data.tax);
     const deds = sumPayslip(data.deduction);
@@ -1041,7 +1041,7 @@ export class Bot {
 
       const currencyName = getLocString(stringResources.payslipCurrencyCompare, lng, currency, currencyRate, currencyRate2);
 
-      s = this._formatComparativePayslip(dataI, dataII, lng, periodName, currencyName);
+      s = this._formatComparativePayslip(dataI, dataII, periodName, currencyName);
     }
 
     return '```ini\n' + payslipView(s) + '```';
@@ -1080,7 +1080,7 @@ export class Bot {
       service = interpret(this._viberMachine);
     }
 
-    service = service.onTransition( (state, { type }) => {
+    service = service.onTransition( (state) => {
         const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
 
         /*
