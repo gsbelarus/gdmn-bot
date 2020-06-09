@@ -117,9 +117,9 @@ export class Bot {
     /**************************************************************/
     /**************************************************************/
 
-    type ReplyFunc = (s: ILocString | undefined, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
+    type ReplyFunc = (s: ILocString | string | undefined | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
 
-    const replyTelegram: ReplyFunc = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+    const replyTelegram: ReplyFunc = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
         this._logger.error(chatId, undefined, 'No semaphore');
         return;
@@ -142,15 +142,33 @@ export class Bot {
         ))
       );
 
-      const text = s && getLocString(s, language, ...args);
-      const extra: ExtraEditMessage = keyboard ? Extra.markup(keyboard) : {};
+      // function isPromise(obj: any) {
+      //   return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
+      // }
 
-      if (text && text.slice(0, 3) === '```') {
-        extra.parse_mode = 'MarkdownV2';
-      }
+      // let logText = typeof s === 'string'
+      //   ? s.replace(/\n/g, ' ').slice(0, 40)
+      //   : isPromise(s)
+      //   ? '<promise>'
+      //   : typeof s === 'object'
+      //   ? getLocString(s as ILocString, language, ...args).replace(/\n/g, ' ').slice(0, 40)
+      //   : undefined;
+      // console.log(`>> wait ${semaphore.id}:${semaphore.permits} ` + logText);
 
       await semaphore.acquire();
       try {
+        const t = await s;
+        const text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
+        const extra: ExtraEditMessage = keyboard ? Extra.markup(keyboard) : {};
+
+        if (text && text.slice(0, 3) === '```') {
+          extra.parse_mode = 'MarkdownV2';
+        }
+
+        // logText = text?.replace(/\n/g, ' ').slice(0, 40);
+
+        // console.log(`>> send ${semaphore.id}:${semaphore.permits} ` + logText);
+
         const accountLink = this._telegramAccountLink.read(chatId);
 
         if (!accountLink) {
@@ -202,7 +220,9 @@ export class Bot {
       } catch (e) {
         this._logger.error(chatId, undefined, e);
       } finally {
+        // console.log(`>> done ${semaphore.id}:${semaphore.permits} ` + logText);
         semaphore.release();
+        // console.log(`>> release ${semaphore.id}:${semaphore.permits} ` + logText);
       }
     };
 
@@ -247,17 +267,10 @@ export class Bot {
     };
 
     const getShowPayslipFunc = (payslipType: PayslipType, reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
-      const { accountLink, semaphore, ...rest } = checkAccountLink(ctx);
+      const { accountLink, ...rest } = checkAccountLink(ctx);
       const { dateBegin, dateEnd, dateBegin2 } = ctx;
       const { customerId, employeeId, language, currency } = accountLink;
-      await semaphore?.acquire();
-      try {
-        const s = await this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', dateBegin, dateEnd, dateBegin2);
-        //TODO: криво!
-        reply({ en: null, ru: s, be: null })({ ...rest, semaphore: new Semaphore() });
-      } finally {
-        semaphore?.release();
-      }
+      reply(this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', dateBegin, dateEnd, dateBegin2))(rest);
     };
 
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
@@ -402,8 +415,7 @@ export class Bot {
     /**************************************************************/
 
     if (viberToken) {
-
-      const replyViber = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+      const replyViber = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
         if (!semaphore) {
           this._logger.error(chatId, undefined, 'No semaphore');
           return;
@@ -416,10 +428,13 @@ export class Bot {
 
         const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
         const keyboard = menu && this._menu2ViberMenu(menu, language);
-        const text = s && getLocString(s, language, ...args);
 
         await semaphore.acquire();
+
         try {
+          const t = await s;
+          const text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
+
           if (keyboard) {
             const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
             if (!Array.isArray(res)) {
@@ -739,8 +754,15 @@ export class Bot {
 
         if (!accDedObj[typeId]) {
           if (typeId === 'saldo') {
-            //TODO: языки!
-            data.saldo = { id: 'saldo', name: { ru: { name: 'Остаток' }}, s };
+            data.saldo = {
+              id: 'saldo',
+              name: {
+                ru: { name: 'Остаток' },
+                be: { name: 'Рэшта' },
+                en: { name: 'Balance' }
+              },
+              s
+            };
             continue;
           }
 
@@ -981,7 +1003,6 @@ export class Bot {
         : `${new Date(db.year, db.month).toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`
       );
 
-      //TODO: локализация!
       const currencyName = getLocString(stringResources.payslipCurrency, lng, currencyRate, currencyRate);
 
       s = type === 'CONCISE'
@@ -1018,7 +1039,6 @@ export class Bot {
 
       const periodName = getLocString(stringResources.payslipCurrencyPeriod, lng, db, de, db2, de2);
 
-      //TODO: локализация!
       const currencyName = getLocString(stringResources.payslipCurrencyCompare, lng, currency, currencyRate, currencyRate2);
 
       s = this._formatComparativePayslip(dataI, dataII, lng, periodName, currencyName);
