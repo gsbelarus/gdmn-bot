@@ -19,7 +19,8 @@ export const config: IConfig = {
   },
   viber: {
     token: '',
-    callbackHost: 'host:port'
+    callbackHost: 'host:port',
+    disabled: false
   },
   httpPort: 3000,
   httpsPort: 8084,

@@ -87,9 +87,9 @@ export class Bot {
   private _botStarted = new Date();
   private _callbacksReceived = 0;
   private _customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
-  private _viber: any;
-  private _viberCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
-  private _viberMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
+  private _viber: any = undefined;
+  private _viberCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent> | undefined = undefined;
+  private _viberMachine: StateMachine<IBotMachineContext, any, BotMachineEvent> | undefined = undefined;
   private _logger: Logger;
   private _log: ILogger;
 
@@ -401,129 +401,132 @@ export class Bot {
     /**************************************************************/
     /**************************************************************/
 
-    const replyViber = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
-      if (!semaphore) {
-        this._logger.error(chatId, undefined, 'No semaphore');
-        return;
-      }
+    if (viberToken) {
 
-      if (!chatId) {
-        this._log.error('Invalid chatId');
-        return;
-      }
-
-      const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
-      const keyboard = menu && this._menu2ViberMenu(menu, language);
-      const text = s && getLocString(s, language, ...args);
-
-      await semaphore.acquire();
-      try {
-        if (keyboard) {
-          const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
-          if (!Array.isArray(res)) {
-            this._logger.warn(chatId, undefined, JSON.stringify(res));
-          }
-        } else {
-          await this._viber.sendMessage({ id: chatId }, [new TextMessage(text)]);
+      const replyViber = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+        if (!semaphore) {
+          this._logger.error(chatId, undefined, 'No semaphore');
+          return;
         }
-      } catch (e) {
-        this._logger.error(chatId, undefined, e);
-      } finally {
-        semaphore.release();
-      }
-    };
 
-    this._viberCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
-      calendarMachineOptions(replyViber));
+        if (!chatId) {
+          this._log.error('Invalid chatId');
+          return;
+        }
 
-    this._viberMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._viberCalendarMachine),
-      machineOptions(replyViber));
+        const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
+        const keyboard = menu && this._menu2ViberMenu(menu, language);
+        const text = s && getLocString(s, language, ...args);
 
-    this._viber = new ViberBot({
-      authToken: viberToken,
-      name: 'Моя зарплата',
-      avatar: ''
-    });
+        await semaphore.acquire();
+        try {
+          if (keyboard) {
+            const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
+            if (!Array.isArray(res)) {
+              this._logger.warn(chatId, undefined, JSON.stringify(res));
+            }
+          } else {
+            await this._viber.sendMessage({ id: chatId }, [new TextMessage(text)]);
+          }
+        } catch (e) {
+          this._logger.error(chatId, undefined, e);
+        } finally {
+          semaphore.release();
+        }
+      };
 
-    // this._viber.on(BotEvents.SUBSCRIBED, async (response: any) => {
-    //   if (!response?.userProfile) {
-    //     console.error('Invalid chat context');
-    //   } else {
-    //     this.start(response.userProfile.id.toString());
-    //   }
-    // });
+      this._viberCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
+        calendarMachineOptions(replyViber));
 
-    this._viber.onError( (...args: any[]) => this._log.error(...args) );
+      this._viberMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._viberCalendarMachine),
+        machineOptions(replyViber));
 
-    this._viber.on(BotEvents.SUBSCRIBED, (response: any) => {
-      const chatId = response.userProfile.id;
+      this._viber = new ViberBot({
+        authToken: viberToken,
+        name: 'Моя зарплата',
+        avatar: ''
+      });
 
-      this._logger.info(chatId, undefined, `SUBSCRIBED ${chatId}`);
+      // this._viber.on(BotEvents.SUBSCRIBED, async (response: any) => {
+      //   if (!response?.userProfile) {
+      //     console.error('Invalid chat context');
+      //   } else {
+      //     this.start(response.userProfile.id.toString());
+      //   }
+      // });
 
-      if (!chatId) {
-        this._log.error('Invalid viber response');
-      } else {
-        this.onUpdate({
-          platform: 'VIBER',
-          chatId,
-          type: 'COMMAND',
-          body: '/start',
-          language: str2Language(response.userProfile.language)
-        });
-      }
-    });
+      this._viber.onError( (...args: any[]) => this._log.error(...args) );
 
-    // команда меню
-    this._viber.onTextMessage(/(\.[A-Za-z0-9_]+)|(\{.+\})/, (message: any, response: any) => {
-      const chatId = response.userProfile.id;
+      this._viber.on(BotEvents.SUBSCRIBED, (response: any) => {
+        const chatId = response.userProfile.id;
 
-      if (!chatId) {
-        this._log.error('Invalid viber response');
-      } else {
-        this.onUpdate({
-          platform: 'VIBER',
-          chatId,
-          type: 'ACTION',
-          body: message.text,
-          language: str2Language(response.userProfile.language)
-        });
-      }
-    });
+        this._logger.info(chatId, undefined, `SUBSCRIBED ${chatId}`);
 
-    this._viber.onTextMessage(/.+/, (message: any, response: any) => {
-      const chatId = response.userProfile.id;
+        if (!chatId) {
+          this._log.error('Invalid viber response');
+        } else {
+          this.onUpdate({
+            platform: 'VIBER',
+            chatId,
+            type: 'COMMAND',
+            body: '/start',
+            language: str2Language(response.userProfile.language)
+          });
+        }
+      });
 
-      if (!chatId) {
-        this._log.error('Invalid viber response');
-      } else {
-        this.onUpdate({
-          platform: 'VIBER',
-          chatId,
-          type: 'MESSAGE',
-          body: message.text,
-          language: str2Language(response.userProfile.language)
-        });
-      }
-    });
+      // команда меню
+      this._viber.onTextMessage(/(\.[A-Za-z0-9_]+)|(\{.+\})/, (message: any, response: any) => {
+        const chatId = response.userProfile.id;
 
-    this._viber.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
-      //TODO: проверить когда вызывается это событие
-      const chatId = response.userProfile.id;
-      this._viberAccountLink.delete(chatId);
-      delete this._service[this.getUniqId('VIBER', chatId)];
-      this._log.info(`User unsubscribed, ${response}`);
-    });
+        if (!chatId) {
+          this._log.error('Invalid viber response');
+        } else {
+          this.onUpdate({
+            platform: 'VIBER',
+            chatId,
+            type: 'ACTION',
+            body: message.text,
+            language: str2Language(response.userProfile.language)
+          });
+        }
+      });
 
-    /*
-    this._viber.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      } else {
-        this.start(response.userProfile.id.toString(),
-        `Здравствуйте${response?.userProfile.name ? ', ' + response.userProfile.name : ''}!\nДля подписки введите любое сообщение.`);
-      }
-    });
-    */
+      this._viber.onTextMessage(/.+/, (message: any, response: any) => {
+        const chatId = response.userProfile.id;
+
+        if (!chatId) {
+          this._log.error('Invalid viber response');
+        } else {
+          this.onUpdate({
+            platform: 'VIBER',
+            chatId,
+            type: 'MESSAGE',
+            body: message.text,
+            language: str2Language(response.userProfile.language)
+          });
+        }
+      });
+
+      this._viber.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
+        //TODO: проверить когда вызывается это событие
+        const chatId = response.userProfile.id;
+        this._viberAccountLink.delete(chatId);
+        delete this._service[this.getUniqId('VIBER', chatId)];
+        this._log.info(`User unsubscribed, ${response}`);
+      });
+
+      /*
+      this._viber.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
+        if (!response?.userProfile) {
+          console.error('Invalid chat context');
+        } else {
+          this.start(response.userProfile.id.toString(),
+          `Здравствуйте${response?.userProfile.name ? ', ' + response.userProfile.name : ''}!\nДля подписки введите любое сообщение.`);
+        }
+      });
+      */
+    }
   }
 
   get viber() {
@@ -1045,8 +1048,19 @@ export class Bot {
 
   createService(inPlatform: Platform, inChatId: string) {
     const uniqId = this.getUniqId(inPlatform, inChatId);
-    const service = (inPlatform === 'TELEGRAM' ? interpret(this._telegramMachine) : interpret(this._viberMachine))
-      .onTransition( (state, { type }) => {
+
+    let service;
+
+    if (inPlatform === 'TELEGRAM') {
+      service = interpret(this._telegramMachine);
+    } else {
+      if (!this._viberMachine) {
+        throw new Error('Viber machine is not defined!');
+      }
+      service = interpret(this._viberMachine);
+    }
+
+    service = service.onTransition( (state, { type }) => {
         const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
 
         this._logger.debug(inChatId, undefined, `State: ${state.toStrings().join('->')}, Event: ${type}`);

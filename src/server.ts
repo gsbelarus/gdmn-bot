@@ -6,7 +6,7 @@ import https from 'https';
 import path from 'path';
 import { initCurrencies } from "./currency";
 import * as fs from "fs";
-import { Logger, ILogger } from "./log";
+import { Logger } from "./log";
 
 // if not exists create configuration file using
 // config.ts.sample as an example
@@ -34,29 +34,13 @@ if (!config.telegram.token) {
 }
 
 if (!config.viber.token) {
-  throw new Error('Viber bot token isn\'t specified.');
+  log.warn('Viber bot token isn\'t specified.');
 }
-
-/*
-const telegram = new TelegramBot(
-  config.telegram.token,
-  getCustomers,
-  getEmployeesByCustomer,
-  getAccDeds,
-  getPaySlipByUser);
-
-const viber = new Viber(
-  ZAROBAK_VIBER_BOT_TOKEN,
-  getCustomers,
-  getEmployeesByCustomer,
-  getAccDeds,
-  getPaySlipByUser);
-*/
 
 const bot = new Bot(
   config.telegram.token,
   path.resolve(process.cwd(), 'data/telegram'),
-  config.viber.token,
+  config.viber.disabled ? '' : config.viber.token,
   path.resolve(process.cwd(), 'data/viber'),
   logger
 );
@@ -160,25 +144,29 @@ const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bun
   .map(cert => cert +'-----END CERTIFICATE-----\r\n')
   .pop();
 
-const viberCallback = bot.viber.middleware();
+const viberCallback = bot.viber?.middleware();
 
 https.createServer({ cert, ca, key },
   (req, res) => {
     if (req.headers['x-viber-content-signature']) {
-      viberCallback(req, res);
+      viberCallback?.(req, res);
     } else {
       koaCallback(req, res);
     }
   }
 ).listen(config.httpsPort,
   async () => {
-    const viberWebhook = `https://${config.viber.callbackHost}`;
+    if (config.viber.token && !config.viber.disabled) {
+      const viberWebhook = `https://${config.viber.callbackHost}`;
 
-    try {
-      await bot.viber.setWebhook(viberWebhook);
-      log.info(`Viber webhook set at ${viberWebhook}`);
-    } catch(e) {
-      log.error(`Error setting Viber webhook at ${viberWebhook}: ${e}`);
+      try {
+        await bot.viber.setWebhook(viberWebhook);
+        log.info(`Viber webhook set at ${viberWebhook}`);
+      } catch(e) {
+        log.error(`Error setting Viber webhook at ${viberWebhook}: ${e}`);
+      }
+    } else {
+      log.warn('Viber bot isn\'t activated.')
     }
 
     // раз в час пишем на диск все несохраненные данные
