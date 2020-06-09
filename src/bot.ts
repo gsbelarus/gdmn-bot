@@ -1204,7 +1204,16 @@ export class Bot {
     if (e) {
       service.send(e);
 
-      if (!service.state.changed) {
+      let childrenStateChanged = false;
+
+      for (const [_key, ch] of service.children) {
+        if (ch.state.changed) {
+          childrenStateChanged = true;
+          break;
+        }
+      }
+
+      if (!service.state.changed && !childrenStateChanged) {
         // мы каким-то образом попали в ситуацию, когда текущее состояние не
         // может принять вводимую информацию. например, пользователь
         // очистил чат или произошел сбой на стороне мессенджера и
