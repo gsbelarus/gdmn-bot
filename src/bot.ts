@@ -935,7 +935,7 @@ export class Bot {
       taxDeds ? '=' : '',
       ...strTaxDeds,
       taxDeds ? '=' : '',
-      [stringResources.payslipPrivilages, privilages],
+      [stringResources.payslipPrivileges, privilages],
       privilages ? '=' : '',
       ...strPrivilages,
       privilages ? '=' : ''
@@ -1003,11 +1003,11 @@ export class Bot {
         : `${new Date(db.year, db.month).toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`
       );
 
-      const currencyName = getLocString(stringResources.payslipCurrency, lng, currencyRate, currencyRate);
+      const currencyAndRate = getLocString(stringResources.payslipCurrency, lng, currency, currencyRate);
 
       s = type === 'CONCISE'
-        ? this._formatShortPayslip(dataI, lng, periodName, currencyName)
-        : this._formatDetailedPayslip(dataI, lng, periodName, currencyName);
+        ? this._formatShortPayslip(dataI, lng, periodName, currencyAndRate)
+        : this._formatDetailedPayslip(dataI, lng, periodName, currencyAndRate);
     } else {
       if (!db2) {
         throw new Error('db2 is not specified');
@@ -1039,9 +1039,9 @@ export class Bot {
 
       const periodName = getLocString(stringResources.payslipCurrencyPeriod, lng, db, de, db2, de2);
 
-      const currencyName = getLocString(stringResources.payslipCurrencyCompare, lng, currency, currencyRate, currencyRate2);
+      const currencyAndRate = getLocString(stringResources.payslipCurrencyCompare, lng, currency, currencyRate, currencyRate2);
 
-      s = this._formatComparativePayslip(dataI, dataII, periodName, currencyName);
+      s = this._formatComparativePayslip(dataI, dataII, periodName, currencyAndRate);
     }
 
     return '```ini\n' + payslipView(s) + '```';

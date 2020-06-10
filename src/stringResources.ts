@@ -146,14 +146,14 @@ export const stringResources = {
     be: '💰 Разліковы лісток',
   },
   menuDetailedPayslip: {
-    en: '💰 Detailed payslip',
-    ru: '💰 Подробный листок',
-    be: '💰 Падрабязны лісток',
+    en: '🔎 Detailed payslip',
+    ru: '🔎 Подробный листок',
+    be: '🔎 Падрабязны лісток',
   },
   menuPayslipForPeriod: {
-    en: '💰 Payslip for period',
-    ru: '💰 Листок за период',
-    be: '💰 Лісток за перыяд',
+    en: '📅 Payslip for period',
+    ru: '📅 Листок за период',
+    be: '📅 Лісток за перыяд',
   },
   menuComparePayslip: {
     en: '⚖ Compare...',
@@ -176,59 +176,59 @@ export const stringResources = {
     be: '❓'
   },
   menuSelectLanguage: {
-    en: null,
+    en: 'Select language',
     ru: 'Выбрать язык',
-    be: null
+    be: 'Выбраць мову'
   },
   menuSelectCurrency: {
-    en: null,
+    en: 'Select currency',
     ru: 'Выбрать валюту',
-    be: null
+    be: 'Выбраць валюту'
   },
   languageRU: {
-    en: null,
+    en: 'Russian',
     ru: 'Русский',
-    be: null
+    be: 'Руская'
   },
   languageBE: {
-    en: null,
+    en: 'Belarusian',
     ru: 'Белорусский',
     be: 'Беларуская'
   },
   languageEN: {
-    en: null,
+    en: 'English',
     ru: 'Английский',
-    be: null
+    be: 'Ангельская'
   },
   currencyBYN: {
-    en: null,
+    en: 'BYN',
     ru: 'Белорусский рубль',
-    be: null
+    be: 'Беларускі рубель'
   },
   currencyUSD: {
-    en: null,
+    en: 'USD',
     ru: 'Доллар США',
-    be: null
+    be: 'Даляр ЗША'
   },
   currencyEUR: {
-    en: null,
+    en: 'EUR',
     ru: 'Евро',
-    be: null
+    be: 'Эўра'
   },
   currencyRUR: {
-    en: null,
+    en: 'RUR',
     ru: 'Российский рубль',
-    be: null
+    be: 'Расейскі рубель'
   },
   currencyPLN: {
-    en: null,
+    en: 'PLN',
     ru: 'Польский злотый',
-    be: null
+    be: 'Польскі злоты'
   },
   currencyUAH: {
-    en: null,
+    en: 'UAH',
     ru: 'Украинская гривна',
-    be: null
+    be: 'Украінская грыўна'
   },
   btnPrevYear: {
     en: null,
@@ -241,19 +241,19 @@ export const stringResources = {
     be: null
   },
   btnBackToMenu: {
-    en: null,
+    en: 'Back to main menu...',
     ru: 'Вернуться в главное меню...',
-    be: null
+    be: 'Вярнуцца ў галоўнае меню...'
   },
   btnBackToSettingsMenu: {
-    en: null,
-    ru: 'Вернуться в меню параметров...',
-    be: null
+    en: 'Back to settings menu...',
+    ru: 'Вернуться в меню настроек...',
+    be: 'Вярнуцца ў меню настроек...'
   },
   cantLoadRate: {
-    en: null,
+    en: (currencyId: string) => `Unable to get currency rate for ${currencyId}`,
     ru: (currencyId: string) => `Невозможно загрузить курс валюты ${currencyId}`,
-    be: null
+    be: (currencyId: string) => `Немагчыма загрузіць курс валюты ${currencyId}`
   } as ILocString,
   payslipTitle: {
     en: 'Payslip',
@@ -302,7 +302,7 @@ export const stringResources = {
   },
   payslipNetsalary: {
     en: 'Net salary:',
-    ru: 'Начислено:',
+    ru: 'Зарплата чистыми:',
     be: 'Зарплата чыстымі:'
   },
   payslipDeductions: {
@@ -316,7 +316,7 @@ export const stringResources = {
     be: '  Аванс:'
   },
   payslipPayroll: {
-    en: '  PayRoll:',
+    en: '  Payable:',
     ru: '  К выдаче:',
     be: '  Да выдачы:'
   },
@@ -326,24 +326,24 @@ export const stringResources = {
     be: 'Падаткi:'
   },
   payslipIncometax: {
-    en: '  Income:',
+    en: '  Income tax:',
     ru: '  Подоходный:',
     be: '  Падаходны:'
   },
   payslipPensionTax: {
-    en: '  Pension:',
-    ru: '  Подоходный:',
-    be: '  Падаходны:'
+    en: '  Pension tax:',
+    ru: '  Пенсионный:',
+    be: '  Пенсійны:'
   },
   payslipTradeUnionTax: {
     en: '  Trade-union:',
     ru: '  Профсоюзный:',
     be: '  Прафсаюзны:'
   },
-  payslipPrivilages: {
-    en: 'Privilages:',
+  payslipPrivileges: {
+    en: 'Privileges:',
     ru: 'Льготы:',
-    be: 'Льготы:'
+    be: 'Ільготы:'
   },
   payslipDeductionsWOSpace: {
     en: 'Deductions:',
