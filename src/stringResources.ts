@@ -379,7 +379,7 @@ export const stringResources = {
         ? `${currency}, курс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}`
         : 'Беларускі рубель')
   },
-  payslipCurrencyCompare: {
+  comparativePayslipCurrency: {
     en: (currency: string, currencyRate?: ICurrencyRate, currencyRate2?: ICurrencyRate) => 'Currency: ' + (
       currencyRate && currencyRate2
         ? `${currency}\exchange rate ${currencyRate.rate.toFixed(2)} on ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} on ${date2str(currencyRate2.date, 'DD.MM.YY')}`
@@ -393,7 +393,7 @@ export const stringResources = {
         ? `${currency}\nкурс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} на ${date2str(currencyRate2.date, 'DD.MM.YY')}`
         : 'Беларускі рубель')
   },
-  payslipCurrencyPeriod: {
+  comparativePayslipPeriod: {
     en: (db: IDate, de: IDate, db2: IDate, de2: IDate) => 'Period:\n' + (de.year !== db.year || de.month !== db.month
         ? `${db.month + 1}.${db.year}-${de.month + 1}.${de.year}`
         : `${new Date(db.year, db.month).toLocaleDateString('en', { month: 'long', year: 'numeric' })}`

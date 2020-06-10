@@ -1019,7 +1019,7 @@ export class Bot {
       const de2 = {
         year: Math.floor(periodEnd / 12),
         month: periodEnd % 12
-      }
+      };
 
       const currencyRate2 = currency === 'BYN' ? undefined : await getCurrRate(db2, currency, this._log);
 
@@ -1037,9 +1037,9 @@ export class Bot {
         dataII = this._calcPayslipByRate(dataII, currencyRate2.rate);
       }
 
-      const periodName = getLocString(stringResources.payslipCurrencyPeriod, lng, db, de, db2, de2);
+      const periodName = getLocString(stringResources.comparativePayslipPeriod, lng, db, de, db2, de2);
 
-      const currencyAndRate = getLocString(stringResources.payslipCurrencyCompare, lng, currency, currencyRate, currencyRate2);
+      const currencyAndRate = getLocString(stringResources.comparativePayslipCurrency, lng, currency, currencyRate, currencyRate2);
 
       s = this._formatComparativePayslip(dataI, dataII, periodName, currencyAndRate);
     }
