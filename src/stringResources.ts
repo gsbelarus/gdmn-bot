@@ -11,52 +11,52 @@ export interface ILocString {
 
 export const stringResources = {
   askCompanyName: {
-    en: 'Hi!\n\nTo receive payslips you need to sign up.\n\nEnter organization name.',
-    ru: 'Здравствуйте!\n\nДля получения расчетных листков необходимо зарегистрироваться.\n\nВведите наименование организации.',
-    be: 'Прывітанне!\n\nДля атрымання разліковых лісткоў неабходна зарэгістравацца.\n\nУвядзіце назву арганізацыі.'
+    en: 'Hi!\n\nTo receive payslips you need to sign up.\n\nEnter your company or organization name.',
+    ru: 'Здравствуйте!\n\nДля получения расчетных листков необходимо зарегистрироваться.\n\nВведите наименование вашего предприятия или организации.',
+    be: 'Прывітанне!\n\nДля атрымання разліковых лісткоў неабходна зарэгістравацца.\n\nУвядзіце назву вашага прадпрыемства альбо арганізацыі.'
   },
   unknownCompanyName: {
-    en: null,
-    ru: 'Мы не можем найти организацию с таким именем.\n\nВозможно вы ошиблись при вводе или ваша организация не использует систему "Гедымин: Расчет заработной платы".\n\nПопробуйте ввести еще раз.',
-    be: null
+    en: 'We can\'t find a company or organization with such name.\n\nApparently you have made a typo while entering the name or your company doesn\'t use system "Gedemin: Payroll calculation".\n\nTry again.',
+    ru: 'Мы не можем найти предприятие или организацию с таким названием.\n\nВозможно вы ошиблись при вводе или ваше предприятие не использует систему "Гедымин: Расчет заработной платы".\n\nПопробуйте ввести еще раз.',
+    be: 'Мы ня можам знайсці прадпрыемства альбо арганізацыю з такой назвай.\n\nМагчыма Вы памыліліся пры ўводзе, альбо вашае прадпрыемства не выкарыстоўвае сістэму "Гедымін: Разлік зарабку".\n\nПаспрабуйце яшчэ раз.'
   },
   unknownEmployee: {
-    en: null,
+    en: 'We can\'t find an employee with such personal identification umber.\n\nCheck the data and repeat the enter.',
     ru: 'Мы не можем найти сотрудника с таким идентификационным номером.\n\nПроверьте, правильно ли Вы указали данные и повторите ввод.',
-    be: null
+    be: 'Мы ня можам знайсці супрацоўніка з такім ідэнтыфікацыйным нумарам.\n\nПраверце, ці дакладна Вы ўказалі дадзеныя і паўтарыце ўвод.'
   },
   askPersonalNumber: {
-    en: null,
+    en: 'Enter your personal identification number from passport.',
     ru: 'Введите свой персональный идентификационный номер из паспорта.',
     be: 'Увядзіце свой персанальны ідэнтыфікацыйны нумар з пашпарту.'
   },
   mainMenuCaption: {
-    en: null,
+    en: 'Select a command from the menu.',
     ru: 'Выберите команду из меню.',
     be: 'Выбярыце каманду з меню.'
   },
   goodbye: {
-    en: null,
+    en: 'Good-bye! Thank you for being with us.\n\nTo begin new registration enter /start command.',
     ru: 'До свидания! Спасибо, что были с нами.\n\nЧтобы начать новую регистрацию введите\nкоманду /start',
     be: 'Да пабачэння! Дзякуй, што былі з намі.\n\nКаб распачаць новую рэгістрацыю ўвядзіце\nкаманду /start'
   },
   noData: {
-    en: null,
+    en: '😕 There is no data for selected period!',
     ru: '😕 Нет данных за выбранный период!',
     be: '😕 Няма дадзеных за выбраны перыяд!'
   },
   weAreLost: {
-    en: null,
+    en: '😕 Sorry! I\'m lost a little bit. Please, start it over.',
     ru: '😕 Извините, я тут немного запутался. Начните с начала.',
     be: '😕 Выбачайце, я тут крыху заблытаўся. Пачніце з пачатку.'
   },
   showSettings: {
-    en: null,
+    en: (employee: string, lang: Language, curr: string) => `Current settings:\n\tEmployee: ${employee}\n\tLanguage: ${lang}\n\tCurrency: ${curr}`,
     ru: (employee: string, lang: Language, curr: string) => `Текущие настройки:\n\tСотрудник: ${employee}\n\tЯзык: ${lang}\n\tВалюта: ${curr}`,
     be: (employee: string, lang: Language, curr: string) => `Бягучыя настройкі:\n\tСупрацоўнік: ${employee}\n\tМова: ${lang}\n\tВалюта: ${curr}`
   } as ILocString,
   showSelectedDate: {
-    en: null,
+    en: (d: IDate) => `Selected month ${d.month + 1}.${d.year}`,
     ru: (d: IDate) => `Выбран месяц ${d.month + 1}.${d.year}`,
     be: (d: IDate) => `Выбраны месяц ${d.month + 1}.${d.year}`
   },
@@ -121,114 +121,114 @@ export const stringResources = {
     be: 'сне'
   },
   selectDB: {
-    en: null,
+    en: 'Select the date of the beginning of period.',
     ru: 'Выберите дату начала периода.',
-    be: null
+    be: 'Выбярыце дату пачатку перыяду.'
   },
   selectDE: {
-    en: null,
+    en: 'Select the date of the ending of period.',
     ru: 'Выберите дату окончания периода.',
-    be: null
+    be: 'Выбярыце дату заканчэння перыяду.'
   },
   selectDB2: {
-    en: null,
+    en: 'Select the date of the beginning of second period.',
     ru: 'Выберите дату начала второго периода.',
-    be: null
+    be: 'Выбярыце дату пачатку другога перыяду.'
   },
   selectMonth: {
-    en: null,
+    en: 'Select month.',
     ru: 'Выберите месяц.',
-    be: null
+    be: 'Выбярыце месяц.'
   },
   menuPayslip: {
-    en: null,
+    en: '💰 Payslip',
     ru: '💰 Расчетный листок',
     be: '💰 Разліковы лісток',
   },
   menuDetailedPayslip: {
-    en: null,
-    ru: '💰 Подробный листок',
-    be: null
+    en: '🔎 Detailed payslip',
+    ru: '🔎 Подробный листок',
+    be: '🔎 Падрабязны лісток',
   },
   menuPayslipForPeriod: {
-    en: null,
-    ru: '💰 Листок за период',
-    be: null
+    en: '📅 Payslip for period',
+    ru: '📅 Листок за период',
+    be: '📅 Лісток за перыяд',
   },
   menuComparePayslip: {
-    en: null,
-    ru: '💰 Сравнить...',
-    be: null
+    en: '⚖ Compare...',
+    ru: '⚖ Сравнить...',
+    be: '⚖ Параўнаць...'
   },
   menuSettings: {
-    en: null,
-    ru: '🔧 Настройки',
-    be: null
+    en: '🛠 Settings',
+    ru: '🛠 Настройки',
+    be: '🛠 Настройкі',
   },
   menuLogout: {
-    en: null,
+    en: '🚪 Logout',
     ru: '🚪 Выйти',
-    be: null
+    be: '🚪 Выйсці'
   },
   menuHelp: {
-    en: null,
+    en: '❓',
     ru: '❓',
-    be: null
+    be: '❓'
   },
   menuSelectLanguage: {
-    en: null,
+    en: 'Select language',
     ru: 'Выбрать язык',
-    be: null
+    be: 'Выбраць мову'
   },
   menuSelectCurrency: {
-    en: null,
+    en: 'Select currency',
     ru: 'Выбрать валюту',
-    be: null
+    be: 'Выбраць валюту'
   },
   languageRU: {
-    en: null,
+    en: 'Russian',
     ru: 'Русский',
-    be: null
+    be: 'Руская'
   },
   languageBE: {
-    en: null,
+    en: 'Belarusian',
     ru: 'Белорусский',
     be: 'Беларуская'
   },
   languageEN: {
-    en: null,
+    en: 'English',
     ru: 'Английский',
-    be: null
+    be: 'Ангельская'
   },
   currencyBYN: {
-    en: null,
+    en: 'BYN',
     ru: 'Белорусский рубль',
-    be: null
+    be: 'Беларускі рубель'
   },
   currencyUSD: {
-    en: null,
+    en: 'USD',
     ru: 'Доллар США',
-    be: null
+    be: 'Даляр ЗША'
   },
   currencyEUR: {
-    en: null,
+    en: 'EUR',
     ru: 'Евро',
-    be: null
+    be: 'Эўра'
   },
   currencyRUR: {
-    en: null,
+    en: 'RUR',
     ru: 'Российский рубль',
-    be: null
+    be: 'Расейскі рубель'
   },
   currencyPLN: {
-    en: null,
+    en: 'PLN',
     ru: 'Польский злотый',
-    be: null
+    be: 'Польскі злоты'
   },
   currencyUAH: {
-    en: null,
+    en: 'UAH',
     ru: 'Украинская гривна',
-    be: null
+    be: 'Украінская грыўна'
   },
   btnPrevYear: {
     en: null,
@@ -241,19 +241,19 @@ export const stringResources = {
     be: null
   },
   btnBackToMenu: {
-    en: null,
+    en: 'Back to main menu...',
     ru: 'Вернуться в главное меню...',
-    be: null
+    be: 'Вярнуцца ў галоўнае меню...'
   },
   btnBackToSettingsMenu: {
-    en: null,
-    ru: 'Вернуться в меню параметров...',
-    be: null
+    en: 'Back to settings menu...',
+    ru: 'Вернуться в меню настроек...',
+    be: 'Вярнуцца ў меню настроек...'
   },
   cantLoadRate: {
-    en: null,
+    en: (currencyId: string) => `Unable to get currency rate for ${currencyId}`,
     ru: (currencyId: string) => `Невозможно загрузить курс валюты ${currencyId}`,
-    be: null
+    be: (currencyId: string) => `Немагчыма загрузіць курс валюты ${currencyId}`
   } as ILocString,
   payslipTitle: {
     en: 'Payslip',
@@ -291,9 +291,9 @@ export const stringResources = {
     be: 'Аклад:'
   },
   payslipHpr: {
-    en: 'HPR:',
+    en: 'H/R:',
     ru: 'ЧТС:',
-    be: 'ГТС:'
+    be: 'ПТС:'
   },
   payslipAccrued: {
     en: 'Accrued:',
@@ -302,7 +302,7 @@ export const stringResources = {
   },
   payslipNetsalary: {
     en: 'Net salary:',
-    ru: 'Начислено:',
+    ru: 'Зарплата чистыми:',
     be: 'Зарплата чыстымі:'
   },
   payslipDeductions: {
@@ -316,7 +316,7 @@ export const stringResources = {
     be: '  Аванс:'
   },
   payslipPayroll: {
-    en: '  PayRoll:',
+    en: '  Payable:',
     ru: '  К выдаче:',
     be: '  Да выдачы:'
   },
@@ -326,24 +326,24 @@ export const stringResources = {
     be: 'Падаткi:'
   },
   payslipIncometax: {
-    en: '  Income:',
+    en: '  Income tax:',
     ru: '  Подоходный:',
     be: '  Падаходны:'
   },
   payslipPensionTax: {
-    en: '  Pension:',
-    ru: '  Подоходный:',
-    be: '  Падаходны:'
+    en: '  Pension tax:',
+    ru: '  Пенсионный:',
+    be: '  Пенсійны:'
   },
   payslipTradeUnionTax: {
     en: '  Trade-union:',
     ru: '  Профсоюзный:',
     be: '  Прафсаюзны:'
   },
-  payslipPrivilages: {
-    en: 'Privilages:',
+  payslipPrivileges: {
+    en: 'Privileges:',
     ru: 'Льготы:',
-    be: 'Льготы:'
+    be: 'Ільготы:'
   },
   payslipDeductionsWOSpace: {
     en: 'Deductions:',
@@ -379,7 +379,7 @@ export const stringResources = {
         ? `${currency}, курс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}`
         : 'Беларускі рубель')
   },
-  payslipCurrencyCompare: {
+  comparativePayslipCurrency: {
     en: (currency: string, currencyRate?: ICurrencyRate, currencyRate2?: ICurrencyRate) => 'Currency: ' + (
       currencyRate && currencyRate2
         ? `${currency}\exchange rate ${currencyRate.rate.toFixed(2)} on ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} on ${date2str(currencyRate2.date, 'DD.MM.YY')}`
@@ -393,7 +393,7 @@ export const stringResources = {
         ? `${currency}\nкурс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} на ${date2str(currencyRate2.date, 'DD.MM.YY')}`
         : 'Беларускі рубель')
   },
-  payslipCurrencyPeriod: {
+  comparativePayslipPeriod: {
     en: (db: IDate, de: IDate, db2: IDate, de2: IDate) => 'Period:\n' + (de.year !== db.year || de.month !== db.month
         ? `${db.month + 1}.${db.year}-${de.month + 1}.${de.year}`
         : `${new Date(db.year, db.month).toLocaleDateString('en', { month: 'long', year: 'numeric' })}`
