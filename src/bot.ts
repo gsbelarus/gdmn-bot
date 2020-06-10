@@ -278,6 +278,8 @@ export class Bot {
         askCompanyName: reply(stringResources.askCompanyName),
         unknownCompanyName: reply(stringResources.unknownCompanyName),
         unknownEmployee: reply(stringResources.unknownEmployee),
+        askPIN: reply(stringResources.askPIN),
+        invalidPIN: reply(stringResources.invalidPIN),
         assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
         assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
         askPersonalNumber: reply(stringResources.askPersonalNumber),
@@ -339,6 +341,7 @@ export class Bot {
       guards: {
         findCompany: (ctx, event) => !!this._findCompany(ctx, event),
         findEmployee: (ctx, event) => !!this._findEmployee(ctx, event),
+        checkPIN: (_ctx, event) => event.type === 'ENTER_TEXT' && event.text === '17',
       }
     });
 
@@ -1100,10 +1103,10 @@ export class Bot {
         // потом вернуться к состоянию после перезагрузки машины
         const language = this._accountLanguage[uniqId];
         const accountLink = accountLinkDB.read(inChatId);
-        const { customerId, employeeId, platform, chatId, semaphore, ...rest } = state.context;
+        const { customerId, employeeId, verified, platform, chatId, semaphore, ...rest } = state.context;
 
         if (!accountLink) {
-          if (customerId && employeeId) {
+          if (customerId && employeeId && verified) {
             accountLinkDB.write(inChatId, {
               customerId,
               employeeId,

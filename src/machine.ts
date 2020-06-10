@@ -66,6 +66,12 @@ export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, 
 export interface IBotMachineContext extends IMachineContextBase {
   customerId?: string;
   employeeId?: string;
+  /**
+   * Устанавливается в true после окончания регистрации пользователя.
+   * Т.е. поле проверки названия предприятия, персонального номера
+   * и, если активирована защита, после проверки ПИН кода.
+   */
+  verified?: boolean;
   dateBegin: IDate;
   dateEnd: IDate;
   dateBegin2: IDate;
@@ -145,7 +151,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             {
               cond: 'findEmployee',
               actions: 'assignEmployeeId',
-              target: 'mainMenu'
+              target: '.checkPIN'
             },
             {
               actions: 'unknownEmployee'
@@ -155,6 +161,21 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
         states: {
           question: {
             entry: 'askPersonalNumber'
+          },
+          checkPIN: {
+            on: {
+              ENTER_TEXT: [
+                {
+                  cond: 'checkPIN',
+                  actions: assign({ verified: ({ customerId, employeeId }) => !!customerId && !!employeeId  }),
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  actions: 'invalidPIN'
+                }
+              ]
+            },
+            entry: 'askPIN'
           }
         },
       },
