@@ -1,11 +1,18 @@
 type Unlock = () => void;
 
+let id = 1;
+
 export class Semaphore {
+  private _id: number = id++;
   private _permits: number;
   private _queue: Unlock[] = [];
 
   constructor(count = 1) {
     this._permits = count;
+  }
+
+  get id() {
+    return this._id;
   }
 
   get permits() {
