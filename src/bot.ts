@@ -32,12 +32,12 @@ const sumPayslip = (arr?: IPayslipItem[], type?: AccDedType) =>
   arr?.reduce((prev, cur) => prev + (type ? (type === cur.type ? cur.s : 0) : cur.s), 0) ?? 0;
 
 /** */
-const fillInPayslipItem = (item: IPayslipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, typeAccDed?: AccDedType) => {
+const fillInPayslipItem = (item: IPayslipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, n: number, typeAccDed?: AccDedType) => {
   const i = item.find( d => d.id === typeId );
   if (i) {
     i.s += s;
   } else {
-    item.push({ id: typeId, name, s, det, type: typeAccDed });
+    item.push({ id: typeId, n, name, s, det, type: typeAccDed });
   }
 };
 
@@ -66,7 +66,7 @@ const getDetail = (valueDet: IDet, lng: Language) => {
  */
 const getItemTemplate = (dataItem: IPayslipItem[], lng: Language) => {
   const t: Template = [undefined];
-  dataItem?.forEach( i => {
+  dataItem.sort((a, b) => a.n - b.n).forEach( i => {
     t.push([getLName(i.name, [lng]), i.s]);
     if (i.det) {
       t.push(getDetail(i.det, lng));
@@ -770,6 +770,7 @@ export class Bot {
           if (typeId === 'saldo') {
             data.saldo = {
               id: 'saldo',
+              n: -1,
               name: {
                 ru: { name: 'Остаток' },
                 be: { name: 'Рэшта' },
@@ -785,32 +786,33 @@ export class Bot {
         }
 
         const { name, type } = accDedObj[typeId];
+        const n = accDedObj[typeId].n ?? 10000;
 
         switch (type) {
           case 'INCOME_TAX':
           case 'PENSION_TAX':
           case 'TRADE_UNION_TAX':
-            fillInPayslipItem(data.tax, typeId, name, s, det, type);
+            fillInPayslipItem(data.tax, typeId, name, s, det, n, type);
             break;
 
           case 'ADVANCE':
-            fillInPayslipItem(data.advance, typeId, name, s, det);
+            fillInPayslipItem(data.advance, typeId, name, s, det, n);
             break;
 
           case 'DEDUCTION':
-            fillInPayslipItem(data.deduction, typeId, name, s, det);
+            fillInPayslipItem(data.deduction, typeId, name, s, det, n);
             break;
 
           case 'ACCRUAL':
-            fillInPayslipItem(data.accrual, typeId, name, s, det);
+            fillInPayslipItem(data.accrual, typeId, name, s, det, n);
             break;
 
           case 'TAX_DEDUCTION':
-            fillInPayslipItem(data.tax_deduction, typeId, name, s, det);
+            fillInPayslipItem(data.tax_deduction, typeId, name, s, det, n);
             break;
 
           case 'PRIVILAGE':
-            fillInPayslipItem(data.privilage, typeId, name, s, det);
+            fillInPayslipItem(data.privilage, typeId, name, s, det, n);
             break;
         }
       }
@@ -820,7 +822,7 @@ export class Bot {
   };
 
   private _calcPayslipByRate(data: IPayslipData, rate: number) {
-    const { saldo, tax, advance, deduction, accrual, tax_deduction, privilage, salary, ...rest } = data;
+    const { saldo, tax, advance, deduction, accrual, tax_deduction, privilage, salary, hourrate, ...rest } = data;
     return {
       ...rest,
       saldo: saldo && { ...saldo, s: saldo.s / rate },
@@ -830,7 +832,8 @@ export class Bot {
       accrual: accrual && accrual.map( i => ({ ...i, s: i.s / rate }) ),
       tax_deduction: tax_deduction && tax_deduction.map( i => ({ ...i, s: i.s / rate }) ),
       privilage: privilage && privilage.map( i => ({ ...i, s: i.s / rate }) ),
-      salary: salary && salary / rate
+      salary: salary && salary / rate,
+      hourrate: hourrate && hourrate / rate
     }
   }
 

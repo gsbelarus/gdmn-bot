@@ -60,6 +60,7 @@ export type AccDedType = 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' |
 export interface IAccDed {
   name: LName;
   type: AccDedType;
+  n?: number;
 };
 
 export interface IPosition {
@@ -119,6 +120,7 @@ export interface IPayslipItem {
   id: string;
   name: LName;
   s: number;
+  n: number;
   type?: AccDedType;
   det?: IDet;
 };
@@ -133,7 +135,7 @@ export interface IPayslipData {
   accrual: IPayslipItem[],
   tax_deduction: IPayslipItem[],
   privilage: IPayslipItem[],
-  salary: number;
+  salary?: number;
   hourrate?: number;
   rate?: number;
 };
