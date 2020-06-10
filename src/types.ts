@@ -22,6 +22,10 @@ export interface IUpdate {
 export interface ICustomer {
   id: string;
   name: string;
+  /**
+   * Защита регистрации сотрудников дополнительным ПИН кодом.
+   */
+  protected?: boolean;
   aliases: string[];
 };
 
