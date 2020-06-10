@@ -78,8 +78,14 @@ export interface ISalary {
   s: number;
   d: Date;
 };
+
 export interface IHourRate {
   s: number;
+  d: Date;
+};
+
+export interface IPayForm {
+  slr: boolean;
   d: Date;
 };
 
@@ -94,6 +100,7 @@ export interface IPayslip {
   emplId: string;
   dept: IDepartment[];
   pos: IPosition[];
+  payForm: IPayForm[];
   salary: ISalary[];
   hourrate?: IHourRate[];
   data: {
@@ -126,7 +133,7 @@ export interface IPayslipData {
   accrual: IPayslipItem[],
   tax_deduction: IPayslipItem[],
   privilage: IPayslipItem[],
-  salary?: number;
+  salary: number;
   hourrate?: number;
   rate?: number;
 };

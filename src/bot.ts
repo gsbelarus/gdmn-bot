@@ -663,8 +663,8 @@ export class Bot {
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
     // Аналогично с должностью из массива pos
 
-    if (!payslip.dept.length || !payslip.pos.length || !payslip.salary.length) {
-      const msg = `Missing departments, positions or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
+    if (!payslip.dept.length || !payslip.pos.length || !payslip.payForm.length || !payslip.salary.length) {
+      const msg = `Missing departments, positions, payforms or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
       this._log.error(msg);
       throw new Error(msg)
     }
@@ -691,31 +691,45 @@ export class Bot {
       }
     }
 
-    let salary = payslip.salary[0].s;
-    maxDate = str2Date(payslip.salary[0].d);
+    let isSalary = payslip.payForm[0].slr;
+    maxDate = str2Date(payslip.payForm[0].d);
 
-    for (const posS of payslip.salary) {
-      const posSD = str2Date(posS.d);
-      if (isGr(posSD, maxDate) && isLs(posSD, de)) {
-        salary = posS.s;
-        maxDate = posSD;
+    for (const payForm of payslip.payForm) {
+      const payFormD = str2Date(payForm.d);
+      if (isGr(payFormD, maxDate) && isLs(payFormD, de)) {
+        isSalary = payForm.slr;
+        maxDate = payFormD;
       }
     }
 
+    let salary: number | undefined = undefined;
     let hourrate: number | undefined = undefined;
 
-    if (payslip.hourrate?.length) {
-      hourrate = payslip.hourrate[0].s;
-      maxDate = str2Date(payslip.hourrate[0].d);
+    if (isSalary) {
+      salary = payslip.salary[0].s;
+      maxDate = str2Date(payslip.salary[0].d);
 
-      for (const posHR of payslip.hourrate) {
-        const posHRD = str2Date(posHR.d);
-        if (isGr(posHRD, maxDate) && isLs(posHRD, de)) {
-          hourrate = posHR.s;
-          maxDate = posHRD;
+      for (const posS of payslip.salary) {
+        const posSD = str2Date(posS.d);
+        if (isGr(posSD, maxDate) && isLs(posSD, de)) {
+          salary = posS.s;
+          maxDate = posSD;
         }
       }
-    };
+    } else {
+      if (payslip.hourrate?.length) {
+        hourrate = payslip.hourrate[0].s;
+        maxDate = str2Date(payslip.hourrate[0].d);
+
+        for (const posHR of payslip.hourrate) {
+          const posHRD = str2Date(posHR.d);
+          if (isGr(posHRD, maxDate) && isLs(posHRD, de)) {
+            hourrate = posHR.s;
+            maxDate = posHRD;
+          }
+        }
+      }
+    }
 
     const data = {
       department,
@@ -816,8 +830,7 @@ export class Bot {
       getLName(data.department, [lng]),
       stringResources.payslipPosition,
       getLName(data.position, [lng]),
-      [stringResources.payslipSalary, data.salary],
-      [stringResources.payslipHpr, data.hourrate],
+      data.hourrate ? [stringResources.payslipHpr, data.hourrate] : [stringResources.payslipSalary, data.salary],
       '=',
       [stringResources.payslipAccrued, accruals],
       '=',
@@ -847,10 +860,8 @@ export class Bot {
       //employeeName,
       periodName,
       currencyName,
-      stringResources.payslipSalary,
-      [data.salary ?? 0, data2.salary ?? 0, (data2.salary ?? 0) - (data.salary ?? 0)],
-      stringResources.payslipHpr,
-      [data.hourrate ?? 0, data2.hourrate ?? 0, (data2.hourrate ?? 0) - (data.hourrate ?? 0)],
+      data.hourrate ? stringResources.payslipHpr : stringResources.payslipSalary,
+      data.hourrate ? [data.hourrate ?? 0, data2.hourrate ?? 0, (data2.hourrate ?? 0) - (data.hourrate ?? 0)] : [data.salary ?? 0, data2.salary ?? 0, (data2.salary ?? 0) - (data.salary ?? 0)],
       '=',
       stringResources.payslipAccrued,
       [accruals, accruals2, accruals2 - accruals],
@@ -890,8 +901,7 @@ export class Bot {
       getLName(data.department, [lng]),
       stringResources.payslipPosition,
       getLName(data.position, [lng]),
-      [stringResources.payslipSalary, data.salary],
-      [stringResources.payslipHpr, data.hourrate],
+      data.hourrate ? [stringResources.payslipHpr, data.hourrate] : [stringResources.payslipSalary, data.salary],
       '=',
       [stringResources.payslipAccrued, accruals],
       accruals ? '=' : '',
@@ -1289,7 +1299,9 @@ export class Bot {
         data: [...prevPayslipData.data],
         dept: [...prevPayslipData.dept],
         pos: [...prevPayslipData.pos],
-        salary: [...prevPayslipData.salary]
+        salary: [...prevPayslipData.salary],
+        payForm: [...prevPayslipData.payForm],
+        hourrate: prevPayslipData.hourrate ? [...prevPayslipData.hourrate] : []
       };
 
       // объединяем начисления
@@ -1322,6 +1334,16 @@ export class Bot {
         }
       }
 
+      // объединяем формы оплат
+      for (const p of objData.payForm) {
+        const i = newPayslipData.payForm.findIndex( a => a.d === p.d );
+        if (i === -1) {
+          newPayslipData.payForm.push(p);
+        } else {
+          newPayslipData.payForm[i] = p;
+        }
+      }
+
       // объединяем оклады
       for (const p of objData.salary) {
         const i = newPayslipData.salary.findIndex( a => a.d === p.d );
@@ -1329,6 +1351,18 @@ export class Bot {
           newPayslipData.salary.push(p);
         } else {
           newPayslipData.salary[i] = p;
+        }
+      }
+
+      if (objData.hourrate) {
+        // объединяем чтс
+        for (const p of objData.hourrate) {
+          const i = newPayslipData.hourrate.findIndex( a => a.d === p.d );
+          if (i === -1) {
+            newPayslipData.hourrate.push(p);
+          } else {
+            newPayslipData.hourrate[i] = p;
+          }
         }
       }
 
