@@ -3,7 +3,7 @@ import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPaysli
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
-import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
+import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig, EnterTextEvent } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
 import path from 'path';
 import { testNormalizeStr, testIdentStr } from "./util/utils";
@@ -13,6 +13,7 @@ import { getCurrRate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { payslipRoot, accDedRefFileName, employeeFileName } from "./constants";
 import { Logger, ILogger } from "./log";
+import { hashELF64 } from "./hashELF64";
 
 //TODO: добавить типы для TS и заменить на import
 const vb = require('viber-bot');
@@ -40,6 +41,10 @@ const fillInPayslipItem = (item: IPayslipItem[], typeId: string, name: LName, s:
     item.push({ id: typeId, n, name, s, det, type: typeAccDed });
   }
 };
+
+export const getPinByPassportId = (personalNumber: string, paySlipDate: Date) => hashELF64(
+  `${personalNumber.slice(0, 7)}${paySlipDate.getFullYear().toString().slice(-2)}${(paySlipDate.getMonth() + 1).toString().padStart(2, '0')}`
+).toString().slice(-4);
 
 /**
  * Получить дополнительную строку по начислению или удержанию.
@@ -341,7 +346,8 @@ export class Bot {
       guards: {
         findCompany: (ctx, event) => !!this._findCompany(ctx, event),
         findEmployee: (ctx, event) => !!this._findEmployee(ctx, event),
-        checkPIN: (_ctx, event) => event.type === 'ENTER_TEXT' && event.text === '17',
+        checkPIN: this._checkPin,
+        isProtected: () => true
       }
     });
 
@@ -634,6 +640,18 @@ export class Bot {
       }
     }
     return undefined;
+  }
+
+  private _checkPin = ({ customerId, employeeId }: IBotMachineContext, event: BotMachineEvent) => {
+    if (isEnterTextEvent(event) && customerId && employeeId) {
+      const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
+      if (employee) {
+        const paySlipDate = new Date("March 31, 2020 21:08:00");
+        console.log(getPinByPassportId(employee.passportId, paySlipDate));
+        return event.text === getPinByPassportId(employee.passportId, paySlipDate);
+      }
+    }
+    return false;
   }
 
   private _getPayslipData(customerId: string, employeeId: string, mb: IDate, me?: IDate): IPayslipData | undefined {
