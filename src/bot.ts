@@ -32,12 +32,12 @@ const sumPayslip = (arr?: IPayslipItem[], type?: AccDedType) =>
   arr?.reduce((prev, cur) => prev + (type ? (type === cur.type ? cur.s : 0) : cur.s), 0) ?? 0;
 
 /** */
-const fillInPayslipItem = (item: IPayslipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, typeAccDed?: AccDedType) => {
+const fillInPayslipItem = (item: IPayslipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, n: number, typeAccDed?: AccDedType) => {
   const i = item.find( d => d.id === typeId );
   if (i) {
     i.s += s;
   } else {
-    item.push({ id: typeId, name, s, det, type: typeAccDed });
+    item.push({ id: typeId, n, name, s, det, type: typeAccDed });
   }
 };
 
@@ -66,7 +66,7 @@ const getDetail = (valueDet: IDet, lng: Language) => {
  */
 const getItemTemplate = (dataItem: IPayslipItem[], lng: Language) => {
   const t: Template = [undefined];
-  dataItem?.forEach( i => {
+  dataItem.sort((a, b) => a.n - b.n).forEach( i => {
     t.push([getLName(i.name, [lng]), i.s]);
     if (i.det) {
       t.push(getDetail(i.det, lng));
@@ -681,8 +681,8 @@ export class Bot {
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
     // Аналогично с должностью из массива pos
 
-    if (!payslip.dept.length || !payslip.pos.length || !payslip.salary.length) {
-      const msg = `Missing departments, positions or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
+    if (!payslip.dept.length || !payslip.pos.length || !payslip.payForm.length || !payslip.salary.length) {
+      const msg = `Missing departments, positions, payforms or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
       this._log.error(msg);
       throw new Error(msg)
     }
@@ -709,31 +709,45 @@ export class Bot {
       }
     }
 
-    let salary = payslip.salary[0].s;
-    maxDate = str2Date(payslip.salary[0].d);
+    let isSalary = payslip.payForm[0].slr;
+    maxDate = str2Date(payslip.payForm[0].d);
 
-    for (const posS of payslip.salary) {
-      const posSD = str2Date(posS.d);
-      if (isGr(posSD, maxDate) && isLs(posSD, de)) {
-        salary = posS.s;
-        maxDate = posSD;
+    for (const payForm of payslip.payForm) {
+      const payFormD = str2Date(payForm.d);
+      if (isGr(payFormD, maxDate) && isLs(payFormD, de)) {
+        isSalary = payForm.slr;
+        maxDate = payFormD;
       }
     }
 
+    let salary: number | undefined = undefined;
     let hourrate: number | undefined = undefined;
 
-    if (payslip.hourrate?.length) {
-      hourrate = payslip.hourrate[0].s;
-      maxDate = str2Date(payslip.hourrate[0].d);
+    if (isSalary) {
+      salary = payslip.salary[0].s;
+      maxDate = str2Date(payslip.salary[0].d);
 
-      for (const posHR of payslip.hourrate) {
-        const posHRD = str2Date(posHR.d);
-        if (isGr(posHRD, maxDate) && isLs(posHRD, de)) {
-          hourrate = posHR.s;
-          maxDate = posHRD;
+      for (const posS of payslip.salary) {
+        const posSD = str2Date(posS.d);
+        if (isGr(posSD, maxDate) && isLs(posSD, de)) {
+          salary = posS.s;
+          maxDate = posSD;
         }
       }
-    };
+    } else {
+      if (payslip.hourrate?.length) {
+        hourrate = payslip.hourrate[0].s;
+        maxDate = str2Date(payslip.hourrate[0].d);
+
+        for (const posHR of payslip.hourrate) {
+          const posHRD = str2Date(posHR.d);
+          if (isGr(posHRD, maxDate) && isLs(posHRD, de)) {
+            hourrate = posHR.s;
+            maxDate = posHRD;
+          }
+        }
+      }
+    }
 
     const data = {
       department,
@@ -759,6 +773,7 @@ export class Bot {
           if (typeId === 'saldo') {
             data.saldo = {
               id: 'saldo',
+              n: -1,
               name: {
                 ru: { name: 'Остаток' },
                 be: { name: 'Рэшта' },
@@ -774,32 +789,33 @@ export class Bot {
         }
 
         const { name, type } = accDedObj[typeId];
+        const n = accDedObj[typeId].n ?? 10000;
 
         switch (type) {
           case 'INCOME_TAX':
           case 'PENSION_TAX':
           case 'TRADE_UNION_TAX':
-            fillInPayslipItem(data.tax, typeId, name, s, det, type);
+            fillInPayslipItem(data.tax, typeId, name, s, det, n, type);
             break;
 
           case 'ADVANCE':
-            fillInPayslipItem(data.advance, typeId, name, s, det);
+            fillInPayslipItem(data.advance, typeId, name, s, det, n);
             break;
 
           case 'DEDUCTION':
-            fillInPayslipItem(data.deduction, typeId, name, s, det);
+            fillInPayslipItem(data.deduction, typeId, name, s, det, n);
             break;
 
           case 'ACCRUAL':
-            fillInPayslipItem(data.accrual, typeId, name, s, det);
+            fillInPayslipItem(data.accrual, typeId, name, s, det, n);
             break;
 
           case 'TAX_DEDUCTION':
-            fillInPayslipItem(data.tax_deduction, typeId, name, s, det);
+            fillInPayslipItem(data.tax_deduction, typeId, name, s, det, n);
             break;
 
           case 'PRIVILAGE':
-            fillInPayslipItem(data.privilage, typeId, name, s, det);
+            fillInPayslipItem(data.privilage, typeId, name, s, det, n);
             break;
         }
       }
@@ -809,7 +825,7 @@ export class Bot {
   };
 
   private _calcPayslipByRate(data: IPayslipData, rate: number) {
-    const { saldo, tax, advance, deduction, accrual, tax_deduction, privilage, salary, ...rest } = data;
+    const { saldo, tax, advance, deduction, accrual, tax_deduction, privilage, salary, hourrate, ...rest } = data;
     return {
       ...rest,
       saldo: saldo && { ...saldo, s: saldo.s / rate },
@@ -819,7 +835,8 @@ export class Bot {
       accrual: accrual && accrual.map( i => ({ ...i, s: i.s / rate }) ),
       tax_deduction: tax_deduction && tax_deduction.map( i => ({ ...i, s: i.s / rate }) ),
       privilage: privilage && privilage.map( i => ({ ...i, s: i.s / rate }) ),
-      salary: salary && salary / rate
+      salary: salary && salary / rate,
+      hourrate: hourrate && hourrate / rate
     }
   }
 
@@ -841,8 +858,7 @@ export class Bot {
       getLName(data.department, [lng]),
       stringResources.payslipPosition,
       getLName(data.position, [lng]),
-      [stringResources.payslipSalary, data.salary],
-      [stringResources.payslipHpr, data.hourrate],
+      data.hourrate ? [stringResources.payslipHpr, data.hourrate] : [stringResources.payslipSalary, data.salary],
       '=',
       [stringResources.payslipAccrued, accruals],
       '=',
@@ -872,10 +888,8 @@ export class Bot {
       //employeeName,
       periodName,
       currencyName,
-      stringResources.payslipSalary,
-      [data.salary ?? 0, data2.salary ?? 0, (data2.salary ?? 0) - (data.salary ?? 0)],
-      stringResources.payslipHpr,
-      [data.hourrate ?? 0, data2.hourrate ?? 0, (data2.hourrate ?? 0) - (data.hourrate ?? 0)],
+      data.hourrate ? stringResources.payslipHpr : stringResources.payslipSalary,
+      data.hourrate ? [data.hourrate ?? 0, data2.hourrate ?? 0, (data2.hourrate ?? 0) - (data.hourrate ?? 0)] : [data.salary ?? 0, data2.salary ?? 0, (data2.salary ?? 0) - (data.salary ?? 0)],
       '=',
       stringResources.payslipAccrued,
       [accruals, accruals2, accruals2 - accruals],
@@ -915,8 +929,7 @@ export class Bot {
       getLName(data.department, [lng]),
       stringResources.payslipPosition,
       getLName(data.position, [lng]),
-      [stringResources.payslipSalary, data.salary],
-      [stringResources.payslipHpr, data.hourrate],
+      data.hourrate ? [stringResources.payslipHpr, data.hourrate] : [stringResources.payslipSalary, data.salary],
       '=',
       [stringResources.payslipAccrued, accruals],
       accruals ? '=' : '',
@@ -960,19 +973,81 @@ export class Bot {
       const lLabel = 23;
       /**
        * Ширина колонки с числовым значением в расчетном листке.
+       * Должна быть достаточной, чтобы уместить разделительный пробел.
        */
-      const lValue = 8;
+      const lValue = 9;
       /**
        * Ширина колонки в сравнительном листке.
        */
       const lCol = 10;
+      /**
+       * Полная ширина с учетом разделительного пробела
+       */
+      const fullWidth = lLabel + lValue;
+
+      const splitLong = (s: string, withSum = true) => {
+        // у нас может получиться длинная строка, которая не влазит на экран
+        // будем переносить ее, "откусывая сначала"
+
+        if (s.length <= fullWidth) {
+          return s;
+        }
+
+        const res: string[] = [];
+
+        // разобьем на слова, учтем возможность наличия двойных пробелов
+        // слова длиннее lLabel разобьем на части
+        let tokens = s
+          .split(' ')
+          .map( c => c.trim() )
+          .filter( c => c )
+          .flatMap( c => {
+            if (c.length <= lLabel) {
+              return c;
+            } else {
+              const arr: string[] = [];
+              let l = c;
+              while (l.length > lLabel) {
+                arr.push(l.slice(0, lLabel));
+                l = l.slice(lLabel);
+              }
+              return arr;
+            }
+          });
+
+        while (tokens.length > 2) {
+          let i = 0;
+          let l = 0;
+
+          // только одну сумму не будем оставлять на одной строке
+          while (i < tokens.length - 1) {
+            if (l + tokens[i].length < lLabel) {
+              l += tokens[i].length;
+              i++;
+            } else {
+              break;
+            }
+          }
+
+          if (i) {
+            res.push(tokens.slice(0, i).join(' '));
+            tokens = tokens.slice(i);
+          } else {
+            break;
+          }
+        }
+
+        res.push(tokens.join(' '));
+        return res.join('\n');
+      }
+
       return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
           ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2
-          ? `${translate(t[0]).slice(0, lLabel - 1).padEnd(lLabel)} ${format(t[1]!).padStart(lValue)}` // -1 for keeping one space btw label and value
+          ? splitLong(`${translate(t[0]).padEnd(lLabel)}${format(t[1]!).padStart(lValue)}`, true)
           : t === '='
-          ? '='.padEnd(lLabel + lValue, '=')
+          ? '='.padEnd(fullWidth, '=')
           : translate(t!))
         .join('\n');
     };
@@ -1312,7 +1387,9 @@ export class Bot {
         data: [...prevPayslipData.data],
         dept: [...prevPayslipData.dept],
         pos: [...prevPayslipData.pos],
-        salary: [...prevPayslipData.salary]
+        salary: [...prevPayslipData.salary],
+        payForm: [...prevPayslipData.payForm],
+        hourrate: prevPayslipData.hourrate ? [...prevPayslipData.hourrate] : []
       };
 
       // объединяем начисления
@@ -1345,6 +1422,16 @@ export class Bot {
         }
       }
 
+      // объединяем формы оплат
+      for (const p of objData.payForm) {
+        const i = newPayslipData.payForm.findIndex( a => a.d === p.d );
+        if (i === -1) {
+          newPayslipData.payForm.push(p);
+        } else {
+          newPayslipData.payForm[i] = p;
+        }
+      }
+
       // объединяем оклады
       for (const p of objData.salary) {
         const i = newPayslipData.salary.findIndex( a => a.d === p.d );
@@ -1352,6 +1439,18 @@ export class Bot {
           newPayslipData.salary.push(p);
         } else {
           newPayslipData.salary[i] = p;
+        }
+      }
+
+      if (objData.hourrate) {
+        // объединяем чтс
+        for (const p of objData.hourrate) {
+          const i = newPayslipData.hourrate.findIndex( a => a.d === p.d );
+          if (i === -1) {
+            newPayslipData.hourrate.push(p);
+          } else {
+            newPayslipData.hourrate[i] = p;
+          }
         }
       }
 

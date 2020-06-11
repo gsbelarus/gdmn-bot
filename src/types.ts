@@ -65,6 +65,7 @@ export type AccDedType = 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' |
 export interface IAccDed {
   name: LName;
   type: AccDedType;
+  n?: number;
 };
 
 export interface IPosition {
@@ -83,8 +84,14 @@ export interface ISalary {
   s: number;
   d: Date;
 };
+
 export interface IHourRate {
   s: number;
+  d: Date;
+};
+
+export interface IPayForm {
+  slr: boolean;
   d: Date;
 };
 
@@ -99,6 +106,7 @@ export interface IPayslip {
   emplId: string;
   dept: IDepartment[];
   pos: IPosition[];
+  payForm: IPayForm[];
   salary: ISalary[];
   hourrate?: IHourRate[];
   data: {
@@ -117,6 +125,7 @@ export interface IPayslipItem {
   id: string;
   name: LName;
   s: number;
+  n: number;
   type?: AccDedType;
   det?: IDet;
 };
