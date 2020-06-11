@@ -156,7 +156,7 @@ export class Bot {
         const extra: ExtraEditMessage = keyboard ? Extra.markup(keyboard) : {};
 
         if (text && text.slice(0, 7) === '^FIXED\n') {
-          text = text.slice(7);
+          text = '```ini' + text.slice(7) + '```';
           extra.parse_mode = 'MarkdownV2';
         }
 
