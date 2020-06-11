@@ -15,6 +15,8 @@ import { payslipRoot, accDedRefFileName, employeeFileName } from "./constants";
 import { Logger, ILogger } from "./log";
 import { hashELF64 } from "./hashELF64";
 
+//TODO: поискать все файлы/пути и вынести в отдельные константы
+
 //TODO: добавить типы для TS и заменить на import
 const vb = require('viber-bot');
 const ViberBot = vb.Bot
@@ -147,32 +149,16 @@ export class Bot {
         ))
       );
 
-      // function isPromise(obj: any) {
-      //   return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
-      // }
-
-      // let logText = typeof s === 'string'
-      //   ? s.replace(/\n/g, ' ').slice(0, 40)
-      //   : isPromise(s)
-      //   ? '<promise>'
-      //   : typeof s === 'object'
-      //   ? getLocString(s as ILocString, language, ...args).replace(/\n/g, ' ').slice(0, 40)
-      //   : undefined;
-      // console.log(`>> wait ${semaphore.id}:${semaphore.permits} ` + logText);
-
       await semaphore.acquire();
       try {
         const t = await s;
-        const text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
+        let text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
         const extra: ExtraEditMessage = keyboard ? Extra.markup(keyboard) : {};
 
-        if (text && text.slice(0, 3) === '```') {
+        if (text && text.slice(0, 7) === '^FIXED\n') {
+          text = text.slice(7);
           extra.parse_mode = 'MarkdownV2';
         }
-
-        // logText = text?.replace(/\n/g, ' ').slice(0, 40);
-
-        // console.log(`>> send ${semaphore.id}:${semaphore.permits} ` + logText);
 
         const accountLink = this._telegramAccountLink.read(chatId);
 
@@ -442,7 +428,12 @@ export class Bot {
 
         try {
           const t = await s;
-          const text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
+          let text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
+
+          //TODO: сделать отдельные функции
+          if (text && text.slice(0, 7) === '^FIXED\n') {
+            text = text.slice(7);
+          }
 
           if (keyboard) {
             const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
@@ -1011,7 +1002,7 @@ export class Bot {
           return s;
         }
 
-        const res: string[] = [];
+        const res: string[][] = [];
 
         // разобьем на слова, учтем возможность наличия двойных пробелов
         // слова длиннее lLabel разобьем на части
@@ -1033,13 +1024,13 @@ export class Bot {
             }
           });
 
-        while (tokens.length > 2) {
+        while (tokens.length) {
           let i = 0;
           let l = 0;
 
           // только одну сумму не будем оставлять на одной строке
-          while (i < tokens.length - 1) {
-            if (l + tokens[i].length < lLabel) {
+          while (i < tokens.length) {
+            if (l + tokens[i].length <= lLabel) {
               l += tokens[i].length;
               i++;
             } else {
@@ -1047,23 +1038,39 @@ export class Bot {
             }
           }
 
-          if (i) {
-            res.push(tokens.slice(0, i).join(' '));
-            tokens = tokens.slice(i);
-          } else {
-            break;
-          }
+          res.push(tokens.slice(0, i));
+          tokens = tokens.slice(i);
         }
 
-        res.push(tokens.join(' '));
-        return res.join('\n');
+        if (withSum) {
+          const last = res.length - 1;
+
+          // оставлять просто одну сумму в последней строке нельзя
+          if (res[last].length === 1 && res.length > 1) {
+            res[last] = [res[last - 1][res[last - 1].length - 1], ...res[last]];
+            res[last - 1].length = res[last - 1].length - 1;
+          }
+
+          return res.map( (l, idx) => {
+            if (idx === last) {
+              const line = [...l];
+              const sum = line[l.length - 1];
+              line.length = line.length - 1;
+              return `${line.join(' ').padEnd(lLabel)}${sum.padStart(lValue)}`
+            } else {
+              return l.join(' ');
+            }
+          }).join('\n');
+        } else {
+          return res.map( l => l.join(' ') ).join('\n');
+        }
       }
 
       return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
           ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2
-          ? splitLong(`${translate(t[0]).padEnd(lLabel)}${format(t[1]!).padStart(lValue)}`, true)
+          ? splitLong(`${translate(t[0]).padEnd(lLabel)}${format(t[1]!).padStart(lValue)}`)
           : t === '='
           ? '='.padEnd(fullWidth, '=')
           : translate(t!))
@@ -1085,11 +1092,6 @@ export class Bot {
     if (currencyRate) {
       dataI = this._calcPayslipByRate(dataI, currencyRate.rate);
     }
-
-    //const employee = this._getEmployee(customerId, employeeId);
-    //const employeeName = employee
-    //  ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
-    //  : 'Bond, James Bond';
 
     let s: Template;
 
@@ -1140,7 +1142,7 @@ export class Bot {
       s = this._formatComparativePayslip(dataI, dataII, periodName, currencyAndRate);
     }
 
-    return '```ini\n' + payslipView(s) + '```';
+    return '^FIXED\n' + payslipView(s);
   }
 
   launch() {

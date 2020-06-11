@@ -61,7 +61,7 @@ export const keyboardCurrency: Menu = [
       ['BYN', stringResources.currencyBYN],
       ['USD', stringResources.currencyUSD],
       ['EUR', stringResources.currencyEUR],
-      ['RUR', stringResources.currencyRUR],
+      ['RUB', stringResources.currencyRUR],
       ['PLN', stringResources.currencyPLN],
       ['UAH', stringResources.currencyUAH],
      ].map( l => ([{ type: 'BUTTON', caption: l[1], command: `.selectCurrency/${l[0]}` } as IMenuButton]) ),
