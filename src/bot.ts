@@ -993,7 +993,7 @@ export class Bot {
           return s;
         }
 
-        const res: string[] = [];
+        const res: string[][] = [];
 
         // разобьем на слова, учтем возможность наличия двойных пробелов
         // слова длиннее lLabel разобьем на части
@@ -1015,13 +1015,13 @@ export class Bot {
             }
           });
 
-        while (tokens.length > 2) {
+        while (tokens.length) {
           let i = 0;
           let l = 0;
 
           // только одну сумму не будем оставлять на одной строке
-          while (i < tokens.length - 1) {
-            if (l + tokens[i].length < lLabel) {
+          while (i < tokens.length) {
+            if (l + tokens[i].length <= lLabel) {
               l += tokens[i].length;
               i++;
             } else {
@@ -1029,23 +1029,39 @@ export class Bot {
             }
           }
 
-          if (i) {
-            res.push(tokens.slice(0, i).join(' '));
-            tokens = tokens.slice(i);
-          } else {
-            break;
-          }
+          res.push(tokens.slice(0, i));
+          tokens = tokens.slice(i);
         }
 
-        res.push(tokens.join(' '));
-        return res.join('\n');
+        if (withSum) {
+          const last = res.length - 1;
+
+          // оставлять просто одну сумму в последней строке нельзя
+          if (res[last].length === 1 && res.length > 1) {
+            res[last] = [res[last - 1][res[last - 1].length - 1], ...res[last]];
+            res[last - 1].length = res[last - 1].length - 1;
+          }
+
+          return res.map( (l, idx) => {
+            if (idx === last) {
+              const line = [...l];
+              const sum = line[l.length - 1];
+              line.length = line.length - 1;
+              return `${line.join(' ').padEnd(lLabel)}${sum.padStart(lValue)}`
+            } else {
+              return l.join(' ');
+            }
+          }).join('\n');
+        } else {
+          return res.map( l => l.join(' ') ).join('\n');
+        }
       }
 
       return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
           ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2
-          ? splitLong(`${translate(t[0]).padEnd(lLabel)}${format(t[1]!).padStart(lValue)}`, true)
+          ? splitLong(`${translate(t[0]).padEnd(lLabel)}${format(t[1]!).padStart(lValue)}`)
           : t === '='
           ? '='.padEnd(fullWidth, '=')
           : translate(t!))
