@@ -14,6 +14,8 @@ import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { payslipRoot, accDedRefFileName, employeeFileName } from "./constants";
 import { Logger, ILogger } from "./log";
 
+//TODO: поискать все файлы/пути и вынести в отдельные константы
+
 //TODO: добавить типы для TS и заменить на import
 const vb = require('viber-bot');
 const ViberBot = vb.Bot
@@ -422,6 +424,7 @@ export class Bot {
           const t = await s;
           let text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
 
+          //TODO: сделать отдельные функции
           if (text && text.slice(0, 7) === '^FIXED\n') {
             text = text.slice(7);
           }
