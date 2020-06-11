@@ -44,8 +44,8 @@ const fillInPayslipItem = (item: IPayslipItem[], typeId: string, name: LName, s:
   }
 };
 
-export const getPinByPassportId = (personalNumber: string, paySlipDate: Date) => hashELF64(
-  `${personalNumber.slice(0, 7)}${paySlipDate.getFullYear().toString().slice(-2)}${(paySlipDate.getMonth() + 1).toString().padStart(2, '0')}`
+export const getPinByPassportId = (personalNumber: string, payslipDate: Date) => hashELF64(
+  `${personalNumber.slice(0, 7)}${payslipDate.getFullYear().toString().slice(-2)}${(payslipDate.getMonth() + 1).toString().padStart(2, '0')}`
 ).toString().slice(-4);
 
 /**
@@ -637,9 +637,9 @@ export class Bot {
     if (isEnterTextEvent(event) && customerId && employeeId) {
       const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
       if (employee) {
-        const paySlipDate = new Date("March 31, 2020 21:08:00");
-        console.log(getPinByPassportId(employee.passportId, paySlipDate));
-        return event.text === getPinByPassportId(employee.passportId, paySlipDate);
+        const payslipDate = new Date("March 31, 2020 21:08:00");
+        console.log(getPinByPassportId(employee.passportId, payslipDate));
+        return event.text === getPinByPassportId(employee.passportId, payslipDate);
       }
     }
     return false;
