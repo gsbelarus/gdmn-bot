@@ -970,19 +970,81 @@ export class Bot {
       const lLabel = 23;
       /**
        * Ширина колонки с числовым значением в расчетном листке.
+       * Должна быть достаточной, чтобы уместить разделительный пробел.
        */
-      const lValue = 8;
+      const lValue = 9;
       /**
        * Ширина колонки в сравнительном листке.
        */
       const lCol = 10;
+      /**
+       * Полная ширина с учетом разделительного пробела
+       */
+      const fullWidth = lLabel + lValue;
+
+      const splitLong = (s: string, withSum = true) => {
+        // у нас может получиться длинная строка, которая не влазит на экран
+        // будем переносить ее, "откусывая сначала"
+
+        if (s.length <= fullWidth) {
+          return s;
+        }
+
+        const res: string[] = [];
+
+        // разобьем на слова, учтем возможность наличия двойных пробелов
+        // слова длиннее lLabel разобьем на части
+        let tokens = s
+          .split(' ')
+          .map( c => c.trim() )
+          .filter( c => c )
+          .flatMap( c => {
+            if (c.length <= lLabel) {
+              return c;
+            } else {
+              const arr: string[] = [];
+              let l = c;
+              while (l.length > lLabel) {
+                arr.push(l.slice(0, lLabel));
+                l = l.slice(lLabel);
+              }
+              return arr;
+            }
+          });
+
+        while (tokens.length > 2) {
+          let i = 0;
+          let l = 0;
+
+          // только одну сумму не будем оставлять на одной строке
+          while (i < tokens.length - 1) {
+            if (l + tokens[i].length < lLabel) {
+              l += tokens[i].length;
+              i++;
+            } else {
+              break;
+            }
+          }
+
+          if (i) {
+            res.push(tokens.slice(0, i).join(' '));
+            tokens = tokens.slice(i);
+          } else {
+            break;
+          }
+        }
+
+        res.push(tokens.join(' '));
+        return res.join('\n');
+      }
+
       return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
           ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2
-          ? `${translate(t[0]).slice(0, lLabel - 1).padEnd(lLabel)} ${format(t[1]!).padStart(lValue)}` // -1 for keeping one space btw label and value
+          ? splitLong(`${translate(t[0]).padEnd(lLabel)}${format(t[1]!).padStart(lValue)}`, true)
           : t === '='
-          ? '='.padEnd(lLabel + lValue, '=')
+          ? '='.padEnd(fullWidth, '=')
           : translate(t!))
         .join('\n');
     };
