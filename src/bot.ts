@@ -142,32 +142,16 @@ export class Bot {
         ))
       );
 
-      // function isPromise(obj: any) {
-      //   return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
-      // }
-
-      // let logText = typeof s === 'string'
-      //   ? s.replace(/\n/g, ' ').slice(0, 40)
-      //   : isPromise(s)
-      //   ? '<promise>'
-      //   : typeof s === 'object'
-      //   ? getLocString(s as ILocString, language, ...args).replace(/\n/g, ' ').slice(0, 40)
-      //   : undefined;
-      // console.log(`>> wait ${semaphore.id}:${semaphore.permits} ` + logText);
-
       await semaphore.acquire();
       try {
         const t = await s;
-        const text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
+        let text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
         const extra: ExtraEditMessage = keyboard ? Extra.markup(keyboard) : {};
 
-        if (text && text.slice(0, 3) === '```') {
+        if (text && text.slice(0, 7) === '^FIXED\n') {
+          text = text.slice(7);
           extra.parse_mode = 'MarkdownV2';
         }
-
-        // logText = text?.replace(/\n/g, ' ').slice(0, 40);
-
-        // console.log(`>> send ${semaphore.id}:${semaphore.permits} ` + logText);
 
         const accountLink = this._telegramAccountLink.read(chatId);
 
@@ -436,7 +420,11 @@ export class Bot {
 
         try {
           const t = await s;
-          const text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
+          let text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
+
+          if (text && text.slice(0, 7) === '^FIXED\n') {
+            text = text.slice(7);
+          }
 
           if (keyboard) {
             const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
@@ -1084,11 +1072,6 @@ export class Bot {
       dataI = this._calcPayslipByRate(dataI, currencyRate.rate);
     }
 
-    //const employee = this._getEmployee(customerId, employeeId);
-    //const employeeName = employee
-    //  ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
-    //  : 'Bond, James Bond';
-
     let s: Template;
 
     if (type !== 'COMPARE') {
@@ -1138,7 +1121,7 @@ export class Bot {
       s = this._formatComparativePayslip(dataI, dataII, periodName, currencyAndRate);
     }
 
-    return '```ini\n' + payslipView(s) + '```';
+    return '^FIXED\n' + payslipView(s);
   }
 
   launch() {
