@@ -93,6 +93,10 @@ export class Bot {
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
   private _botStarted = new Date();
   private _callbacksReceived = 0;
+  /**
+   * справочники начислений/удержаний для каждого клиента.
+   * ключем объекта выступает РУИД записи из базы Гедымина.
+  */
   private _customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
   private _viber: any = undefined;
   private _viberCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent> | undefined = undefined;
