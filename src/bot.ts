@@ -3,7 +3,7 @@ import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPaysli
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
-import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig, EnterTextEvent } from "./machine";
+import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
 import path from 'path';
 import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq } from "./util/utils";
@@ -11,11 +11,9 @@ import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguag
 import { Semaphore } from "./semaphore";
 import { getCurrRate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
-import { payslipRoot, accDedRefFileName, employeeFileName } from "./constants";
 import { Logger, ILogger } from "./log";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, payslipRoot } from "./files";
 import { hashELF64 } from "./hashELF64";
-
-//TODO: поискать все файлы/пути и вынести в отдельные константы
 
 //TODO: добавить типы для TS и заменить на import
 const vb = require('viber-bot');
@@ -104,7 +102,7 @@ export class Bot {
   private _logger: Logger;
   private _log: ILogger;
 
-  constructor(telegramToken: string, telegramRoot: string, viberToken: string, viberRoot: string, logger: Logger) {
+  constructor(telegramToken: string, viberToken: string, logger: Logger) {
     this._logger = logger;
     this._log = this._logger.getLogger();
 
@@ -117,8 +115,8 @@ export class Bot {
       )
     );
 
-    this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'), this._log, {}, restorer);
-    this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'), this._log, {}, restorer);
+    this._telegramAccountLink = new FileDB<IAccountLink>(getAccountLinkFN('TELEGRAM'), this._log, {}, restorer);
+    this._viberAccountLink = new FileDB<IAccountLink>(getAccountLinkFN('VIBER'), this._log, {}, restorer);
 
     /**************************************************************/
     /**************************************************************/
@@ -604,7 +602,7 @@ export class Bot {
     let employees = this._employees[customerId];
 
     if (!employees) {
-      const db = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`), this._log);
+      const db = new FileDB<Omit<IEmployee, 'id'>>(getEmployeeFN(customerId), this._log);
       if (!db.isEmpty()) {
         this._employees[customerId] = db;
         return db;
@@ -621,7 +619,7 @@ export class Bot {
 
   private _findCompany = (_: any, event: BotMachineEvent) => {
     if (isEnterTextEvent(event)) {
-      const customersDB = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), this._log);
+      const customersDB = new FileDB<Omit<ICustomer, 'id'>>(getCustomersFN(), this._log);
       const customers = customersDB.getMutable(false);
       for (const [companyId, { aliases }] of Object.entries(customers)) {
         if (aliases.find( alias => testNormalizeStr(alias, event.text) )) {
@@ -684,7 +682,7 @@ export class Bot {
   }
 
   private _getPayslipData(customerId: string, employeeId: string, mb: IDate, me?: IDate): IPayslipData | undefined {
-    const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`), this._log)
+    const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
       .read(employeeId);
 
     if (!payslip) {
@@ -694,7 +692,7 @@ export class Bot {
     let accDed = this._customerAccDeds[customerId];
 
     if (!accDed) {
-      accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`), this._log);
+      accDed = new FileDB<IAccDed>(getAccDedFN(customerId), this._log);
       this._customerAccDeds[customerId] = accDed;
     };
 
@@ -1372,7 +1370,7 @@ export class Bot {
     let customerAccDed = this._customerAccDeds[customerId];
 
     if (!customerAccDed) {
-      customerAccDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`), this._log);
+      customerAccDed = new FileDB<IAccDed>(getAccDedFN(customerId), this._log);
       this._customerAccDeds[customerId] = customerAccDed;
     }
 
@@ -1389,7 +1387,7 @@ export class Bot {
     let employee = this._employees[customerId];
 
     if (!employee) {
-      employee = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeFileName}`), this._log);
+      employee = new FileDB<Omit<IEmployee, 'id'>>(getEmployeeFN(customerId), this._log);
       this._employees[customerId] = employee;
     }
 
@@ -1404,7 +1402,7 @@ export class Bot {
 
   upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
     const employeeId = objData.emplId;
-    const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`), this._log);
+    const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log);
 
     if (rewrite) {
       payslip.clear();
