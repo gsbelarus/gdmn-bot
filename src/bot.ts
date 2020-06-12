@@ -6,7 +6,7 @@ import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions }
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig, EnterTextEvent } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
 import path from 'path';
-import { testNormalizeStr, testIdentStr } from "./util/utils";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate } from "./currency";
@@ -637,9 +637,23 @@ export class Bot {
     if (isEnterTextEvent(event) && customerId && employeeId) {
       const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
       if (employee) {
-        const payslipDate = new Date("March 31, 2020 21:08:00");
-        console.log(getPinByPassportId(employee.passportId, payslipDate));
-        return event.text === getPinByPassportId(employee.passportId, payslipDate);
+        const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`), this._log)
+          .read(employeeId);
+
+        if (!payslip) {
+          return false;
+        }
+
+        let maxPayslipDate = str2Date(payslip.data[0].de);
+
+        for (const value of Object.values(payslip.data)) {
+          const paySlipD = str2Date(value.de);
+          if (isGr(paySlipD, maxPayslipDate)) {
+            maxPayslipDate = paySlipD;
+          }
+        }
+
+        return event.text === getPinByPassportId(employee.passportId, maxPayslipDate);
       }
     }
     return false;
@@ -661,27 +675,6 @@ export class Bot {
     };
 
     const accDedObj = accDed.getMutable(false);
-
-    const str2Date = (date: Date | string) => {
-      if (typeof date === 'string') {
-        const [y, m, d] = date.split('.').map( s => Number(s) );
-        return new Date(y, m - 1, d);
-      } else {
-        return date;
-      }
-    };
-
-    const isGr = (d1: Date, d2: Date) => {
-      return d1.getTime() > d2.getTime();
-    }
-
-    const isLs = (d1: Date, d2: Date) => {
-      return d1.getTime() < d2.getTime();
-    }
-
-    const isGrOrEq = (d1: Date, d2: Date) => {
-      return d1.getTime() >= d2.getTime();
-    }
 
     const db = new Date(mb.year, mb.month);
     const de = me ? new Date(me.year, me.month + 1) : new Date(mb.year, mb.month + 1);

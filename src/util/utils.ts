@@ -69,3 +69,24 @@ const lmap: { [letter: string]: string } = {
 const replaceIdentLetters = (s: string | undefined) => s && [...s.toUpperCase()].map( c => lmap[c] ?? c ).join('');
 
 export const testIdentStr = (a: string, b: string) => replaceIdentLetters(a) === replaceIdentLetters(b);
+
+export const str2Date = (date: Date | string) => {
+  if (typeof date === 'string') {
+    const [y, m, d] = date.split('.').map( s => Number(s) );
+    return new Date(y, m - 1, d);
+  } else {
+    return date;
+  }
+};
+
+export const isGr = (d1: Date, d2: Date) => {
+  return d1.getTime() > d2.getTime();
+}
+
+export const isLs = (d1: Date, d2: Date) => {
+  return d1.getTime() < d2.getTime();
+}
+
+export const isGrOrEq = (d1: Date, d2: Date) => {
+  return d1.getTime() >= d2.getTime();
+}

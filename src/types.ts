@@ -35,6 +35,7 @@ export interface IEmployee {
   firstName: string;
   lastName: string;
   patrName: string;
+  birthday: Date;
   passportId: string;
 };
 
