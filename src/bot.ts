@@ -5,14 +5,13 @@ import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
-import path from 'path';
 import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { Logger, ILogger } from "./log";
-import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, payslipRoot } from "./files";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN } from "./files";
 import { hashELF64 } from "./hashELF64";
 
 //TODO: добавить типы для TS и заменить на import
@@ -213,9 +212,7 @@ export class Bot {
       } catch (e) {
         this._logger.error(chatId, undefined, e);
       } finally {
-        // console.log(`>> done ${semaphore.id}:${semaphore.permits} ` + logText);
         semaphore.release();
-        // console.log(`>> release ${semaphore.id}:${semaphore.permits} ` + logText);
       }
     };
 
@@ -274,13 +271,17 @@ export class Bot {
         askPIN: ctx => {
           const { customerId, employeeId } = ctx;
           if (customerId && employeeId) {
-            reply(stringResources.askPIN, undefined, this._getLastPayslipDate(customerId, employeeId))(ctx)
+            reply(stringResources.askPIN, undefined, this._getLastPayslipDate(customerId, employeeId))(ctx);
+          } else {
+            throw new Error('customerId or employeeId are not assigned');
           }
         },
         invalidPIN: ctx => {
           const { customerId, employeeId } = ctx;
           if (customerId && employeeId) {
-            reply(stringResources.invalidPIN, undefined, this._getLastPayslipDate(customerId, employeeId))(ctx)
+            reply(stringResources.invalidPIN, undefined, this._getLastPayslipDate(customerId, employeeId))(ctx);
+          } else {
+            throw new Error('customerId or employeeId are not assigned');
           }
         },
         assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
@@ -344,7 +345,17 @@ export class Bot {
       guards: {
         findCompany: (ctx, event) => !!this._findCompany(ctx, event),
         findEmployee: (ctx, event) => !!this._findEmployee(ctx, event),
-        checkPIN: this._checkPin,
+        checkPIN: ({ customerId, employeeId }, event) => {
+          if (isEnterTextEvent(event) && customerId && employeeId) {
+            const employee = this._getEmployee(customerId, employeeId);
+            const lastPayslipDate = this._getLastPayslipDate(customerId, employeeId);
+            if (employee && lastPayslipDate) {
+              return event.text === getPinByPassportId(employee.passportId, lastPayslipDate);
+            }
+          }
+          return false;
+        },
+        //TODO: надо брать флаг из данных компании, чтобы не проверять у всех подряд.
         isProtected: () => true
       }
     });
@@ -649,36 +660,26 @@ export class Bot {
     const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
 
     if (employee) {
-      const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`), this._log)
+      const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
         .read(employeeId);
 
-      if (!payslip) {
-        return undefined;
-      }
+      //TODO: обратите внимание! если массив будет пустой, делаем проверку, чтобы
+      //не вылетела ошибка позже
+      if (payslip?.data[0]?.de) {
+        let maxPayslipDate = str2Date(payslip.data[0].de);
 
-      let maxPayslipDate = str2Date(payslip.data[0].de);
-
-      for (const value of Object.values(payslip.data)) {
-        const paySlipD = str2Date(value.de);
-        if (isGr(paySlipD, maxPayslipDate)) {
-          maxPayslipDate = paySlipD;
+        //TODO: перебирать массив можно просто. не надо вызывать Object.values
+        for (const { de } of payslip.data) {
+          const paySlipD = str2Date(de);
+          if (isGr(paySlipD, maxPayslipDate)) {
+            maxPayslipDate = paySlipD;
+          }
         }
-      }
 
-      return maxPayslipDate;
+        return maxPayslipDate;
+      }
     }
     return undefined;
-  }
-
-  private _checkPin = ({ customerId, employeeId }: IBotMachineContext, event: BotMachineEvent) => {
-    if (isEnterTextEvent(event) && customerId && employeeId) {
-      const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
-      if (employee) {
-        const lastPayslipDate = this._getLastPayslipDate(customerId, employeeId);
-        return !!lastPayslipDate && (event.text === getPinByPassportId(employee.passportId, lastPayslipDate));
-      }
-    }
-    return false;
   }
 
   private _getPayslipData(customerId: string, employeeId: string, mb: IDate, me?: IDate): IPayslipData | undefined {

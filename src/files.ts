@@ -12,8 +12,10 @@ export const getAccDedFN = (customerId: string) => path.resolve(process.cwd(), `
 export const getEmployeeFN = (customerId: string) => path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`);
 
 
+/*
 export const DATA_ROOT = `data/`;
 export const customersFile = `${DATA_ROOT}customers.json`;
 export const payslipRoot = `${DATA_ROOT}/payslip`;
 export const employeeFileName = 'employee.json';
 export const accDedRefFileName = 'accdedref.json';
+*/
