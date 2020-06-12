@@ -11,7 +11,6 @@
  *
  */
 
-import path from 'path';
 import { FileDB, IData } from './util/fileDB';
 import { date2str } from './util/utils';
 import { MINDATE } from './constants';
@@ -19,6 +18,7 @@ import fetch from 'node-fetch';
 import { LName, Language, getLName } from './stringResources';
 import { IDate } from './types';
 import { ILogger } from './log';
+import { getCurrenciesFN, getRatesFN } from './files';
 
 /**
  * Информация о валюте в справочнике валют. Краткая аббревиатура
@@ -40,7 +40,7 @@ let currenciesDB: FileDB<ICurrency> | undefined = undefined;
  */
 export async function initCurrencies(log: ILogger) {
   const fdb = new FileDB<ICurrency>(
-    path.resolve(process.cwd(), `data/nbrbcurrencies.json`),
+    getCurrenciesFN(),
     log,
     {},
     undefined,
@@ -180,7 +180,7 @@ export const getCurrRate = async (forDate: IDate, currency: string, log: ILogger
   if (!ratesDB) {
     // загружаем курсы с диска
     ratesDB = new FileDB<ICurrencyRates>(
-      path.resolve(process.cwd(), `data/nbrbrates.json`),
+      getRatesFN(),
       log,
       {},
       undefined,
