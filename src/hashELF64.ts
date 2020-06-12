@@ -18,7 +18,7 @@ begin
 end;
 */
 
-const hashELF64 = (s: string) => {
+export const hashELF64 = (s: string) => {
   let res = 0n;
   for (const c of [...s]) {
     res = (res << 4n) + BigInt(c.charCodeAt(0));

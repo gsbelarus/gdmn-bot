@@ -151,7 +151,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             {
               cond: 'findEmployee',
               actions: 'assignEmployeeId',
-              target: '.checkPIN'
+              target: '.isProtected'
             },
             {
               actions: 'unknownEmployee'
@@ -161,6 +161,19 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
         states: {
           question: {
             entry: 'askPersonalNumber'
+          },
+          isProtected: {
+            on: {
+              '': [
+                {
+                  cond: 'isProtected',
+                  target: 'checkPIN'
+                },
+                {
+                  target: '#botMachine.mainMenu'
+                }
+              ]
+            }
           },
           checkPIN: {
             on: {

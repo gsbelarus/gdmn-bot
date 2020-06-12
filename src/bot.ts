@@ -5,13 +5,15 @@ import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
-import { testNormalizeStr, testIdentStr } from "./util/utils";
+import path from 'path';
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { Logger, ILogger } from "./log";
-import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN } from "./files";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, payslipRoot } from "./files";
+import { hashELF64 } from "./hashELF64";
 
 //TODO: добавить типы для TS и заменить на import
 const vb = require('viber-bot');
@@ -39,6 +41,10 @@ const fillInPayslipItem = (item: IPayslipItem[], typeId: string, name: LName, s:
     item.push({ id: typeId, n, name, s, det, type: typeAccDed });
   }
 };
+
+export const getPinByPassportId = (personalNumber: string, payslipDate: Date) => hashELF64(
+  `${(payslipDate.getMonth() + 1).toString().padStart(2, '0')}${payslipDate.getFullYear().toString().slice(-2)}${personalNumber.slice(0, 7)}`
+).toString().slice(-4);
 
 /**
  * Получить дополнительную строку по начислению или удержанию.
@@ -265,8 +271,18 @@ export class Bot {
         askCompanyName: reply(stringResources.askCompanyName),
         unknownCompanyName: reply(stringResources.unknownCompanyName),
         unknownEmployee: reply(stringResources.unknownEmployee),
-        askPIN: reply(stringResources.askPIN),
-        invalidPIN: reply(stringResources.invalidPIN),
+        askPIN: ctx => {
+          const { customerId, employeeId } = ctx;
+          if (customerId && employeeId) {
+            reply(stringResources.askPIN, undefined, this._getLastPayslipDate(customerId, employeeId))(ctx)
+          }
+        },
+        invalidPIN: ctx => {
+          const { customerId, employeeId } = ctx;
+          if (customerId && employeeId) {
+            reply(stringResources.invalidPIN, undefined, this._getLastPayslipDate(customerId, employeeId))(ctx)
+          }
+        },
         assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
         assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
         askPersonalNumber: reply(stringResources.askPersonalNumber),
@@ -328,7 +344,8 @@ export class Bot {
       guards: {
         findCompany: (ctx, event) => !!this._findCompany(ctx, event),
         findEmployee: (ctx, event) => !!this._findEmployee(ctx, event),
-        checkPIN: (_ctx, event) => event.type === 'ENTER_TEXT' && event.text === '17',
+        checkPIN: this._checkPin,
+        isProtected: () => true
       }
     });
 
@@ -628,6 +645,42 @@ export class Bot {
     return undefined;
   }
 
+  private _getLastPayslipDate = (customerId: string, employeeId: string) => {
+    const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
+
+    if (employee) {
+      const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`), this._log)
+        .read(employeeId);
+
+      if (!payslip) {
+        return undefined;
+      }
+
+      let maxPayslipDate = str2Date(payslip.data[0].de);
+
+      for (const value of Object.values(payslip.data)) {
+        const paySlipD = str2Date(value.de);
+        if (isGr(paySlipD, maxPayslipDate)) {
+          maxPayslipDate = paySlipD;
+        }
+      }
+
+      return maxPayslipDate;
+    }
+    return undefined;
+  }
+
+  private _checkPin = ({ customerId, employeeId }: IBotMachineContext, event: BotMachineEvent) => {
+    if (isEnterTextEvent(event) && customerId && employeeId) {
+      const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
+      if (employee) {
+        const lastPayslipDate = this._getLastPayslipDate(customerId, employeeId);
+        return !!lastPayslipDate && (event.text === getPinByPassportId(employee.passportId, lastPayslipDate));
+      }
+    }
+    return false;
+  }
+
   private _getPayslipData(customerId: string, employeeId: string, mb: IDate, me?: IDate): IPayslipData | undefined {
     const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
       .read(employeeId);
@@ -644,27 +697,6 @@ export class Bot {
     };
 
     const accDedObj = accDed.getMutable(false);
-
-    const str2Date = (date: Date | string) => {
-      if (typeof date === 'string') {
-        const [y, m, d] = date.split('.').map( s => Number(s) );
-        return new Date(y, m - 1, d);
-      } else {
-        return date;
-      }
-    };
-
-    const isGr = (d1: Date, d2: Date) => {
-      return d1.getTime() > d2.getTime();
-    }
-
-    const isLs = (d1: Date, d2: Date) => {
-      return d1.getTime() < d2.getTime();
-    }
-
-    const isGrOrEq = (d1: Date, d2: Date) => {
-      return d1.getTime() >= d2.getTime();
-    }
 
     const db = new Date(mb.year, mb.month);
     const de = me ? new Date(me.year, me.month + 1) : new Date(mb.year, mb.month + 1);

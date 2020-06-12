@@ -16,14 +16,14 @@ export const stringResources = {
     be: 'Прывітанне!\n\nДля атрымання разліковых лісткоў неабходна зарэгістравацца.\n\nУвядзіце назву вашага прадпрыемства альбо арганізацыі.'
   },
   askPIN: {
-    en: 'Enter PIN code.',
-    ru: 'Введите ПИН код.',
-    be: 'Увядзіце ПІН код.'
+    en: (d: Date) => `Enter PIN code from your paper payslip for ${d.toLocaleString('en-US', { month: 'long' })} ${d.getFullYear()}.`,
+    ru: (d: Date) => `Введите ПИН код из своего бумажного расчетного листка\nза ${d.toLocaleString('ru', { month: 'long' })} ${d.getFullYear()}.`,
+    be: (d: Date) => `Увядзіце ПІН код з свайго папернага разлiковага лicтка\nза ${d.toLocaleString('be', { month: 'long' })} ${d.getFullYear()}.`
   },
   invalidPIN: {
-    en: 'Invalid PIN code.',
-    ru: 'Неправильный ПИН код.',
-    be: 'Няверны ПІН код.'
+    en: (d: Date) => `Invalid PIN code.\n\nCheck PIN code from your paper payslip for ${d.toLocaleString('en-US', { month: 'long' })} ${d.getFullYear()}\nand repeat the enter.`,
+    ru: (d: Date) => `Неправильный ПИН код.\n\nПроверьте, правильно ли Вы указали ПИН код из своего бумажного расчетного листка\nза ${d.toLocaleString('ru', { month: 'long' })} ${d.getFullYear()} и повторите ввод.`,
+    be: (d: Date) => `Няверны ПІН код.\n\nПраверце, ці дакладна Вы ўказалі ПІН код з свайго папернага разлiковага лicтка\nза ${d.toLocaleString('be', { month: 'long' })} ${d.getFullYear()} і паўтарыце ўвод.`
   },
   unknownCompanyName: {
     en: 'We can\'t find a company or organization with such name.\n\nApparently you have made a typo while entering the name or your company doesn\'t use system "Gedemin: Payroll calculation".\n\nTry again.',
@@ -254,6 +254,11 @@ export const stringResources = {
     en: 'Back to main menu...',
     ru: 'Вернуться в главное меню...',
     be: 'Вярнуцца ў галоўнае меню...'
+  },
+  btnCancelRegistrationMenu: {
+    en: 'Cancel the registration...',
+    ru: 'Прервать регистрацию...',
+    be: 'Спынiць рэгістрацыю...'
   },
   btnBackToSettingsMenu: {
     en: 'Back to settings menu...',
