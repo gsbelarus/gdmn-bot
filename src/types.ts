@@ -50,6 +50,7 @@ export interface IAccountLink {
    */
   lastMenuId?: number;
   lastUpdated?: Date;
+  payslipSentOn?: Date;
 };
 
 export interface IAccDeds {
