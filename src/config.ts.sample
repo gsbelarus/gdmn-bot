@@ -1,18 +1,4 @@
-import { ILoggerParams } from "./log";
-
-interface IConfig {
-  telegram: {
-    token: string;
-  },
-  viber: {
-    token: string;
-    callbackHost: string;
-    disabled?: boolean;
-  },
-  httpPort: number,
-  httpsPort: number,
-  logger: ILoggerParams;
-};
+import { IConfig } from "./types";
 
 export const config: IConfig = {
   telegram: {

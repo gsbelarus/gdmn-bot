@@ -1,6 +1,21 @@
 import { Language, LName } from "./stringResources";
 import { IBotMachineContext } from "./machine";
 import { StateValue } from "xstate";
+import { ILoggerParams } from "./log";
+ 
+export interface IConfig {
+  telegram: {
+    token: string;
+  },
+  viber: {
+    token: string;
+    callbackHost: string;
+    disabled?: boolean;
+  },
+  httpPort: number,
+  httpsPort: number,
+  logger: ILoggerParams;
+};
 
 export interface IDate {
   year: number;

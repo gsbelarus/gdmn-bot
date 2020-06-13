@@ -9,7 +9,7 @@
     "dev": "nodemon src/server.ts",
     "rebuild": "yarn clean && yarn build",
     "download-data": "node src/util/downloadData.js",
-    "start": "yarn rebuild && node --no-warnings ./dist/server.js",
+    "start": "yarn rebuild && ts-node ./src/server.ts",
     "start:old": "tsc && node ./dist/echo-bot.js",
     "start:dev": "cross-env NODE_ENV=dev && yarn start",
     "watch": "yarn rebuild && nodemon -e ts -w ./src -x yarn watch:serve",
