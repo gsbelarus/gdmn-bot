@@ -355,8 +355,9 @@ export class Bot {
           }
           return false;
         },
-        //TODO: надо брать флаг из данных компании, чтобы не проверять у всех подряд.
-        isProtected: () => true
+        isProtected: ({ customerId }) => customerId
+          ? !!(new FileDB<Omit<ICustomer, 'id'>>(getCustomersFN(), this._log).read(customerId)?.protected)
+          : false
       }
     });
 
