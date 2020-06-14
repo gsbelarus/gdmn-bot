@@ -1,4 +1,5 @@
 import { promises as fsPromises, Stats } from 'fs';
+import { Semaphore } from './semaphore';
 
 type Level = 'INFO' | 'DEBUG' | 'WARNING' | 'ERROR';
 
@@ -19,6 +20,7 @@ export class Logger {
   private _fileHandle?: fsPromises.FileHandle;
   private _useConsole?: boolean;
   private _level?: Level;
+  private _semaphore: Semaphore = new Semaphore();
 
   constructor(params: ILoggerParams) {
     this._fileName = params.fileName;
@@ -37,39 +39,46 @@ export class Logger {
 
   private async _openFile() {
     if (!this._fileHandle && this._fileName) {
-      if (this._maxSize) {
-        let stat: Stats | undefined = undefined;
+      await this._semaphore.acquire();
+      try {
+        if (!this._fileHandle) {
+          if (this._maxSize) {
+            let stat: Stats | undefined = undefined;
 
-        try {
-          const h = await fsPromises.open(this._fileName, 'r');
-          await h.close();
-          stat = await fsPromises.stat(this._fileName);
-        } catch(e) {
-          // file doesn't exist
-        }
+            try {
+              const h = await fsPromises.open(this._fileName, 'r');
+              await h.close();
+              stat = await fsPromises.stat(this._fileName);
+            } catch(e) {
+              // file doesn't exist
+            }
 
-        if (stat && stat.size > this._maxSize) {
+            if (stat && stat.size > this._maxSize) {
+              try {
+                await fsPromises.unlink(this._fileName);
+              } catch(e) {
+                console.error(e);
+              }
+            }
+          }
+
           try {
-            await fsPromises.unlink(this._fileName);
+            this._fileHandle = await fsPromises.open(this._fileName, 'a');
+            console.log(this._fileHandle);
           } catch(e) {
             console.error(e);
           }
         }
       }
-
-      try {
-        this._fileHandle = await fsPromises.open(this._fileName, 'a');
-      } catch(e) {
-        console.error(e);
+      finally {
+        this._semaphore.release();
       }
     }
   }
 
-  private async _closeFile() {
-    if (this._fileHandle) {
-      await this._fileHandle.close();
-      this._fileHandle = undefined;
-    }
+  private _closeFile() {
+    this._fileHandle?.close();
+    this._fileHandle = undefined;
   }
 
   private _formatMsg(level: Level, chatId: string | undefined, userId: string | undefined, ...data: any[]) {

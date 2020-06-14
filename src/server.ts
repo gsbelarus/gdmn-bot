@@ -179,10 +179,11 @@ bot.launch();
  */
 
 process
-  .on('exit', async (code) => {
+  .on('exit', code => {
     bot.finalize();
-    await logger.info(undefined, undefined, `Process exit event with code: ${code}`);
-    await logger.shutdown();
+    //TODO: нельзя тут асинхронный код использовать
+    logger.info(undefined, undefined, `Process exit event with code: ${code}`)
+      .then( () => logger.shutdown() );
   })
   .on('SIGINT', () => process.exit() )
   .on('unhandledRejection', (reason, p) => {
