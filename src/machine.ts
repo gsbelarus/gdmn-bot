@@ -151,7 +151,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             {
               cond: 'findEmployee',
               actions: 'assignEmployeeId',
-              target: '.isProtected'
+              target: '.verification'
             },
             {
               actions: 'unknownEmployee'
@@ -162,7 +162,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           question: {
             entry: 'askPersonalNumber'
           },
-          isProtected: {
+          verification: {
             on: {
               '': [
                 {
@@ -170,7 +170,8 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
                   target: 'checkPIN'
                 },
                 {
-                  target: '#botMachine.mainMenu'
+                  target: '#botMachine.mainMenu',
+                  actions: assign({ verified: ({ customerId, employeeId }) => !!customerId && !!employeeId  })
                 }
               ]
             }
