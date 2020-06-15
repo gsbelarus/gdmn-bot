@@ -202,6 +202,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
               target: 'payslip'
             },
             {
+              cond: (_, { command }: MenuCommandEvent) => command === '.latestPayslip',
+              target: 'latestPayslip'
+            },
+            {
               cond: (_, { command }: MenuCommandEvent) => command === '.detailedPayslip',
               target: 'detailedPayslip'
             },
@@ -286,6 +290,12 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       logout: {
         type: 'final',
         entry: ['sayGoodbye', 'logout']
+      },
+      latestPayslip: {
+        on: {
+          '': '#botMachine.mainMenu'
+        },
+        entry: 'showLatestPayslip'
       },
       payslip: {
         initial: 'enterDate',
