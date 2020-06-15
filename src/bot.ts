@@ -305,9 +305,10 @@ export class Bot {
            : 'Bond, James Bond';
           reply(stringResources.showSettings, keyboardSettings, employeeName, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
         },
-        sayGoodbye: reply(stringResources.goodbye),
-        logout: ({ platform, chatId }) => {
+        logout: async (ctx) => {
+          const { platform, chatId } = ctx;
           if (platform && chatId) {
+            await reply(stringResources.goodbye)(ctx);
             const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
             accountLinkDB.delete(chatId);
             delete this._service[this.getUniqId(platform, chatId)];

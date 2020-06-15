@@ -285,7 +285,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       },
       logout: {
         type: 'final',
-        entry: ['sayGoodbye', 'logout']
+        entry: 'logout'
       },
       payslip: {
         initial: 'enterDate',
