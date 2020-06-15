@@ -2,7 +2,7 @@ import { Language, LName } from "./stringResources";
 import { IBotMachineContext } from "./machine";
 import { StateValue } from "xstate";
 import { ILoggerParams } from "./log";
- 
+
 export interface IConfig {
   telegram: {
     token: string;
@@ -19,6 +19,9 @@ export interface IConfig {
 
 export interface IDate {
   year: number;
+  /**
+   * Индекс месяца, начиная с 0 (январь).
+   */
   month: number;
 };
 

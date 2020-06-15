@@ -5,10 +5,10 @@ Properties:
   RUID: 158513268_1444931844
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.24"
+  Version: "1.0.0.25"
   Optional: False
   Internal: True
-  MD5: 7A11FD658BEABE26382921081C57046D
+  MD5: 77F66B9D7DEF26E27C1C2C49F178A001
 Objects: 
   - 
     Properties: 
@@ -77,7 +77,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-06-12T18:12:42+03:00
+      EDITIONDATE: 2020-06-13T21:49:55+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREPAYSLIP
         BOT_PREPAREPAYSLIP_ROLLBACK
@@ -179,6 +179,8 @@ Objects:
             "  DECLARE OnDateEnd           DATE; " & _
             "  DECLARE EndSaldo            DECIMAL(15,4); " & _
             "  DECLARE code                VARCHAR(8); " & _
+            "  DECLARE DBJson              VARCHAR(20); " & _
+            "  DECLARE DEJson              VARCHAR(20); " & _
             "BEGIN " & _
             "  FOR " & _
             "    SELECT " & _
@@ -212,6 +214,8 @@ Objects:
             "      CurMonth = EXTRACT(MONTH FROM OnDateBegin); " & _
             "      CurYear = EXTRACT(YEAR FROM OnDateBegin); " & _
             "      accdedStr = ''; " & _
+            "      DBJson = EXTRACT(YEAR FROM OnDateBegin) || '.' || RIGHT('0' || EXTRACT(MONTH FROM OnDateBegin), 2) || '.' || RIGHT('0' || EXTRACT(DAY FROM OnDateBegin), 2); " & _
+            "      DEJson = EXTRACT(YEAR FROM OnDateEnd) || '.' || RIGHT('0' || EXTRACT(MONTH FROM OnDateEnd), 2) || '.' || RIGHT('0' || EXTRACT(DAY FROM OnDateEnd), 2); " & _
             "      FOR " & _
             "        SELECT ft.USR$NUMERICCODE, " & _
             "          ft.USR$NAME                          AS Name, " & _
@@ -290,9 +294,8 @@ Objects:
             "              IncYear = 0; " & _
             "            END " & _
             "          IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
-            "          accdedStr = accdedStr || '{""typeId"":""' || typeId || '"",""db"":""'" & _
-            "            || EXTRACT(YEAR FROM onDateBEgin) || '.' || EXTRACT(MONTH FROM onDateBEgin) || '.' || EXTRACT(DAY FROM onDateBEgin) || " & _
-            "            '"",""de"":""' || EXTRACT(YEAR FROM OnDateEnd) || '.' || EXTRACT(MONTH FROM OnDateEnd) || '.' || EXTRACT(DAY FROM OnDateEnd) || " & _
+            "          accdedStr = accdedStr || '{""typeId"":""' || typeId || '"",""db"":""' || DBJson || " & _
+            "            '"",""de"":""' || DEJson || " & _
             "            '"",""s"":' || S; " & _
             "          IF (detStr <> '') THEN accdedStr = accdedStr || ',' || detStr; " & _
             "          accdedStr = accdedStr || '}'; " & _
@@ -324,8 +327,8 @@ Objects:
             "        BEGIN " & _
             "          IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
             "          accdedStr = accdedStr || '{""typeId"":""' || typeId || " & _
-            "            '"",""db"":""' || EXTRACT(YEAR FROM onDateBEgin) || '.' || EXTRACT(MONTH FROM onDateBEgin) || '.' || EXTRACT(DAY FROM onDateBEgin) || " & _
-            "            '"",""de"":""' || EXTRACT(YEAR FROM OnDateEnd) || '.' || EXTRACT(MONTH FROM OnDateEnd) || '.' || EXTRACT(DAY FROM OnDateEnd) || " & _
+            "            '"",""db"":""' || DBJson || " & _
+            "            '"",""de"":""' || DEJson || " & _
             "            '"",""s"":' || S || '}'; " & _
             "        END " & _
             " " & _
@@ -350,8 +353,8 @@ Objects:
             "        BEGIN " & _
             "          IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
             "          accdedStr = accdedStr || '{""typeId"":""' || typeId || " & _
-            "            '"",""db"":""' || EXTRACT(YEAR FROM onDateBEgin) || '.' || EXTRACT(MONTH FROM onDateBEgin) || '.' || EXTRACT(DAY FROM onDateBEgin) || " & _
-            "            '"",""de"":""' || EXTRACT(YEAR FROM OnDateEnd) || '.' || EXTRACT(MONTH FROM OnDateEnd) || '.' || EXTRACT(DAY FROM OnDateEnd) || " & _
+            "            '"",""db"":""' || DBJson || " & _
+            "            '"",""de"":""' || DEJson || " & _
             "            '"",""s"":' || S || '}'; " & _
             "        END " & _
             " " & _
@@ -362,8 +365,8 @@ Objects:
             "      S = EndSaldo; " & _
             "      IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
             "          accdedStr = accdedStr || '{""typeId"":""' || typeId || " & _
-            "            '"",""db"":""' || EXTRACT(YEAR FROM onDateBEgin) || '.' || EXTRACT(MONTH FROM onDateBEgin) || '.' || EXTRACT(DAY FROM onDateBEgin) || " & _
-            "            '"",""de"":""' || EXTRACT(YEAR FROM OnDateEnd) || '.' || EXTRACT(MONTH FROM OnDateEnd) || '.' || EXTRACT(DAY FROM OnDateEnd) || " & _
+            "            '"",""db"":""' || DBJson || " & _
+            "            '"",""de"":""' || DEJson || " & _
             "            '"",""s"":' || S || '}'; " & _
             " " & _
             "      IF (accdedStr <> '') THEN SUSPEND; " & _
@@ -442,7 +445,7 @@ Objects:
             "    /* может быть ситуация, когда будет документ изменения, но должность      */ " & _
             "    /* останется прежней. такие записи нас не интересуют с т.зр. формирования */ " & _
             "    /* расчетного листка                                                      */ " & _
-            "    DJson = EXTRACT(YEAR FROM :D) || '.' || EXTRACT(MONTH FROM :D) || '.' || EXTRACT(DAY FROM :D); " & _
+            "    DJson = EXTRACT(YEAR FROM :D) || '.' || RIGHT('0' || EXTRACT(MONTH FROM :D), 2) || '.' || RIGHT('0' || EXTRACT(DAY FROM :D), 2); " & _
             "    IF (:PosID <> :PrevPosID) THEN " & _
             "    BEGIN " & _
             " " & _
@@ -818,7 +821,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-06-12T18:13:05+03:00
+      EDITIONDATE: 2020-06-13T21:15:41+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREEMPLOYEES
         BOT_PREPAREEMPLOYEES_ROLLBACK
@@ -891,7 +894,7 @@ Objects:
             "SELECT DISTINCT p.SURNAME, p.FIRSTNAME, p.MIDDLENAME, " & _
             "  TRIM(card.USR$PERSONALNUMBER)  AS PERSONALNUMBER, " & _
             "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12))  AS ID, " & _
-            "  EXTRACT(YEAR FROM p.BIRTHDAY) || '.' || EXTRACT(MONTH FROM p.BIRTHDAY) || '.' || EXTRACT(DAY FROM p.BIRTHDAY) AS BIRTHDAY, " & _
+            "  EXTRACT(YEAR FROM p.BIRTHDAY) || '.' || RIGHT('0' || EXTRACT(MONTH FROM p.BIRTHDAY), 2) || '.' || RIGHT('0' || EXTRACT(DAY FROM p.BIRTHDAY), 2) AS BIRTHDAY, " & _
             "  c.EDITIONDATE " & _
             "FROM GD_CONTACT own " & _
             "  LEFT JOIN GD_CONTACT c ON own.LB <= c.LB AND own.RB >= c.RB " & _
