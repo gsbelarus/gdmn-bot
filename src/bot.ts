@@ -79,6 +79,8 @@ const getItemTemplate = (dataItem: IPayslipItem[], lng: Language) => {
   return t;
 }
 
+type ReplyFunc = (s: ILocString | string | undefined | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
+
 export class Bot {
   private _telegramAccountLink: FileDB<IAccountLink>;
   private _viberAccountLink: FileDB<IAccountLink>;
@@ -100,6 +102,7 @@ export class Bot {
   private _viberMachine: StateMachine<IBotMachineContext, any, BotMachineEvent> | undefined = undefined;
   private _logger: Logger;
   private _log: ILogger;
+  private _replyTelegram: ReplyFunc;
 
   constructor(telegramToken: string, viberToken: string, logger: Logger) {
     this._logger = logger;
@@ -109,7 +112,8 @@ export class Bot {
       Object.entries(data).map(
         ([key, accountLink]) => [key, {
           ...accountLink,
-          lastUpdated: accountLink.lastUpdated && new Date(accountLink.lastUpdated)
+          lastUpdated: accountLink.lastUpdated && new Date(accountLink.lastUpdated),
+          payslipSentOn: accountLink.payslipSentOn && new Date(accountLink.payslipSentOn)
         }]
       )
     );
@@ -125,9 +129,7 @@ export class Bot {
     /**************************************************************/
     /**************************************************************/
 
-    type ReplyFunc = (s: ILocString | string | undefined | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
-
-    const replyTelegram: ReplyFunc = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+    this._replyTelegram = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
         this._logger.error(chatId, undefined, 'No semaphore');
         return;
@@ -237,7 +239,7 @@ export class Bot {
     });
 
     this._telegramCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
-      calendarMachineOptions(replyTelegram));
+      calendarMachineOptions(this._replyTelegram));
 
     const checkAccountLink = (ctx: IBotMachineContext) => {
       const { platform, chatId, semaphore } = ctx;
@@ -265,6 +267,16 @@ export class Bot {
       const { dateBegin, dateEnd, dateBegin2 } = ctx;
       const { customerId, employeeId, language, currency } = accountLink;
       reply(this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', dateBegin, dateEnd, dateBegin2))(rest);
+    };
+
+    const getShowLatestPayslipFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+      const { accountLink, ...rest } = checkAccountLink(ctx);
+      const { customerId, employeeId, language, currency } = accountLink;
+      const lastPaySlipDate = this._getLastPayslipDate(customerId, employeeId);
+      if (lastPaySlipDate) {
+        const lastPaySlipDateStr: IDate = {year: lastPaySlipDate.getFullYear(), month: lastPaySlipDate.getMonth()};
+        reply(this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', lastPaySlipDateStr, lastPaySlipDateStr))(rest);
+      }
     };
 
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
@@ -297,6 +309,7 @@ export class Bot {
           }
         },
         showPayslip: getShowPayslipFunc('CONCISE', reply),
+        showLatestPayslip: getShowLatestPayslipFunc(reply),
         showDetailedPayslip: getShowPayslipFunc('DETAIL', reply),
         showPayslipForPeriod: getShowPayslipFunc('DETAIL', reply),
         showComparePayslip: getShowPayslipFunc('COMPARE', reply),
@@ -367,7 +380,7 @@ export class Bot {
     });
 
     this._telegramMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._telegramCalendarMachine),
-      machineOptions(replyTelegram));
+      machineOptions(this._replyTelegram));
 
     this._telegram = new Telegraf(telegramToken);
 
@@ -662,6 +675,11 @@ export class Bot {
     return undefined;
   }
 
+  /**
+   * Возвращает дату окончания периода последнего расчетного листка.
+   * @param customerId
+   * @param employeeId
+   */
   private _getLastPayslipDate = (customerId: string, employeeId: string) => {
     const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
 
@@ -1421,6 +1439,7 @@ export class Bot {
     // просто запишем данные, которые пришли из интернета
     if (!prevPayslipData) {
       payslip.write(employeeId, objData);
+
     } else {
       // данные есть. надо объединить прибывшие данные с тем
       // что уже есть на диске
@@ -1498,12 +1517,60 @@ export class Bot {
 
       payslip.write(employeeId, newPayslipData);
     }
-
     payslip.flush();
 
     //TODO: оповестить всех клиентов о новых расчетных листках
     // надо организовать цикл по всем аккаунт линк и если текущий диалог
     // находится в состоянии главного меню, вывести там через машину
     // состояний кратский расчетный листок
+  }
+
+public async sendLatestPaySlip(customerId: string, employeeId: string) {
+    // сначала поищем в списке чатов телеграма
+    const accountLink = Object.entries(this._telegramAccountLink.getMutable(false))
+      .find( ([_, acc]) => acc.customerId === customerId && acc.employeeId === employeeId );
+
+    if (!accountLink) {
+      return;
+    }
+
+    const chatId = accountLink[0];
+    const { payslipSentOn, state, currency, language } = accountLink[1];
+    const lastPayslipDE = this._getLastPayslipDate(customerId, employeeId);
+
+    if (!lastPayslipDE || (payslipSentOn && isGrOrEq(payslipSentOn, lastPayslipDE))) {
+      return;
+    };
+
+    const service = this._service[this.getUniqId('TELEGRAM', chatId)];
+    if (service) {
+      // у нас сервер уже связан с чатом в мессенджере
+      // сотрудника.
+      if (service.state.value instanceof Object && service.state.value['mainMenu'] === 'showMenu') {
+        service.send({ type: 'MENU_COMMAND', command: '.latestPayslip' });
+      }
+    } else {
+      // сервер не связан. например, мы его перегрузили
+      // будем посылать в чат сообщение с помощью sendMessage
+      if (state instanceof Object && state['mainMenu'] === 'showMenu') {
+        // мы как-будто вызываем функцию изнутри машины
+        // надо ей подсунуть нужные ей параметры, имитируя
+        // контекст машины
+        // 1) получить текст расчетного листка
+        // 2) если в акаунт линк есть прежнее меню -- удалить его
+        // 3) вывести текст расчетного листка и главное меню под ним
+
+
+        const d: IDate = {year: lastPayslipDE.getFullYear(), month: lastPayslipDE.getMonth()};
+        const text = await this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', d, d);
+        await this._replyTelegram(text, keyboardMenu)({ chatId, semaphore: new Semaphore() });
+      }
+    }
+    //TODO: обновить дату последнего изменения
+    this._telegramAccountLink.write(chatId, {
+      ...accountLink[1],
+      payslipSentOn: lastPayslipDE,
+      lastUpdated: new Date()
+    })
   }
 };

@@ -378,29 +378,29 @@ export const stringResources = {
   payslipCurrency: {
     en: (currency: string, currencyRate?: ICurrencyRate) => 'Currency: ' + (
       currencyRate
-        ? `${currency}, exchange rate ${currencyRate.rate.toFixed(2)} on ${date2str(currencyRate.date, 'DD.MM.YY')}`
+        ? `${currency}\nExchange rate ${currencyRate.rate.toFixed(2)} on ${date2str(currencyRate.date, 'DD.MM.YY')}`
         : 'Belarusian ruble'),
     ru: (currency: string, currencyRate?: ICurrencyRate) => 'Валюта: ' + (
       currencyRate
-        ? `${currency}, курс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}`
+        ? `${currency}\nКурс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}`
         : 'Белорусский рубль'),
     be: (currency: string, currencyRate?: ICurrencyRate) => 'Валюта: ' + (
       currencyRate
-        ? `${currency}, курс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}`
+        ? `${currency}\nКурс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}`
         : 'Беларускі рубель')
   },
   comparativePayslipCurrency: {
     en: (currency: string, currencyRate?: ICurrencyRate, currencyRate2?: ICurrencyRate) => 'Currency: ' + (
       currencyRate && currencyRate2
-        ? `${currency}\exchange rate ${currencyRate.rate.toFixed(2)} on ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} on ${date2str(currencyRate2.date, 'DD.MM.YY')}`
+        ? `${currency}\nExchange rate ${currencyRate.rate.toFixed(2)} on ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} on ${date2str(currencyRate2.date, 'DD.MM.YY')}`
         : 'Belarusian ruble'),
     ru: (currency: string, currencyRate?: ICurrencyRate, currencyRate2?: ICurrencyRate) => 'Валюта: ' + (
       currencyRate && currencyRate2
-        ? `${currency}\nкурс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} на ${date2str(currencyRate2.date, 'DD.MM.YY')}`
+        ? `${currency}\nКурс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} на ${date2str(currencyRate2.date, 'DD.MM.YY')}`
         : 'Белорусский рубль'),
     be: (currency: string, currencyRate?: ICurrencyRate, currencyRate2?: ICurrencyRate) => 'Валюта: ' + (
       currencyRate && currencyRate2
-        ? `${currency}\nкурс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} на ${date2str(currencyRate2.date, 'DD.MM.YY')}`
+        ? `${currency}\nКурс ${currencyRate.rate.toFixed(2)} на ${date2str(currencyRate.date, 'DD.MM.YY')}\n${currencyRate2.rate.toFixed(2)} на ${date2str(currencyRate2.date, 'DD.MM.YY')}`
         : 'Беларускі рубель')
   },
   comparativePayslipPeriod: {
