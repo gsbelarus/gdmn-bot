@@ -212,6 +212,10 @@ export class Bot {
           }
         }
       } catch (e) {
+        // TODO: где-то здесь отловится ошибка, если чат был пользователем удален
+        // а мы пытаемся слать в него сообщения. надо определить ее код и удалять
+        // запись из акаунт линк.
+        // аналогично обрабатываться в функции reply для вайбера
         this._logger.error(chatId, undefined, e);
       } finally {
         semaphore.release();
@@ -318,9 +322,10 @@ export class Bot {
            : 'Bond, James Bond';
           reply(stringResources.showSettings, keyboardSettings, employeeName, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
         },
-        sayGoodbye: reply(stringResources.goodbye),
-        logout: ({ platform, chatId }) => {
+        logout: async (ctx) => {
+          const { platform, chatId } = ctx;
           if (platform && chatId) {
+            await reply(stringResources.goodbye)(ctx);
             const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
             accountLinkDB.delete(chatId);
             delete this._service[this.getUniqId(platform, chatId)];
@@ -1327,7 +1332,7 @@ export class Bot {
       return res;
     }
 
-    if (body === '/start' || service?.state.done) {
+    if (body === '/start' || service?.state.done || (!service && type === 'MESSAGE')) {
       createNewService(true);
       return;
     }

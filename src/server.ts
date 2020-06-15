@@ -62,13 +62,12 @@ router.get('/', (ctx, next) => {
 });
 
 //TODO: dangerous!
-router.get('/zarobak/v1/shutdown_gdmn_bot_server', (ctx, next) => {
+router.get('/zarobak/v1/shutdown_gdmn_bot_server', async (ctx, next) => {
   ctx.status = 200;
   ctx.body = JSON.stringify({ status: 200, result: `ok` });
-  log.info('Server shutting down...');
-  bot.finalize();
+  await shutdown('Server shutting down...');
   setTimeout( () => process.exit(), 100 );
-  return next();
+  //return next();
 });
 
 router.post('/zarobak/v1/upload_employees', (ctx, next) => {
@@ -179,17 +178,21 @@ bot.launch();
  * При завершении работы сервера скидываем на диск все данные.
  */
 
+const shutdown = async (msg: string) => {
+  bot.finalize();
+  await logger.info(undefined, undefined, msg);
+  await logger.shutdown();
+};
+
 process
-  .on('exit', async (code) => {
-    bot.finalize();
-    await logger.info(undefined, undefined, `Process exit event with code: ${code}`);
-    await logger.shutdown();
+  .on('exit', code => console.log(`Process exit event with code: ${code}`) )
+  .on('SIGINT', async () => {
+    await shutdown('SIGINT received...');
+    process.exit();
   })
-  .on('SIGINT', () => process.exit() )
-  .on('unhandledRejection', (reason, p) => {
-    console.error({ err: reason }, `bot launch ${p}`);
+  .on('SIGTERM', async () => {
+    await shutdown('SIGINT received...');
+    process.exit();
   })
-  .on('uncaughtException', err => {
-    console.error({ err }, 'bot launch');
-    process.exit(2);
-  });
+  .on('unhandledRejection', (reason, p) => console.error({ err: reason }, p) )
+  .on('uncaughtException', err => console.error(err) );
