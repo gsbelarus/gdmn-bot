@@ -1314,7 +1314,7 @@ export class Bot {
       return res;
     }
 
-    if (body === '/start' || service?.state.done || (!service && type === 'MESSAGE')) {
+    if (body === '/start' || service?.state.done || (!service && !accountLink)) {
       createNewService(true);
       return;
     }
