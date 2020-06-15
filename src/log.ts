@@ -64,7 +64,6 @@ export class Logger {
 
           try {
             this._fileHandle = await fsPromises.open(this._fileName, 'a');
-            console.log(this._fileHandle);
           } catch(e) {
             console.error(e);
           }
