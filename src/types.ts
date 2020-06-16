@@ -71,6 +71,10 @@ export interface IAccountLink {
    */
   lastMenuId?: number;
   lastUpdated?: Date;
+  /**
+   * Дата конца периода последнего в хронологическом порядке расчетного листка,
+   * который был автоматически выслан в чат пользователя.
+   */
   payslipSentOn?: Date;
 };
 
