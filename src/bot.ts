@@ -68,7 +68,7 @@ const getDetail = (valueDet: IDet, lng: Language) => {
  * @param dataItem
  * @param lng
  */
-const getItemTemplate = (dataItem: IPayslipItem[], lng: Language) => dataItem
+const getItemTemplate = (dataItem: IPayslipItem[], lng: Language): Template => dataItem
   .sort( (a, b) => a.n - b.n )
   .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) : ''}: `, i.s]);
 
