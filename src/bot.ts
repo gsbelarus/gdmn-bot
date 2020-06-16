@@ -103,6 +103,7 @@ export class Bot {
   private _logger: Logger;
   private _log: ILogger;
   private _replyTelegram: ReplyFunc;
+  private _replyViber?: ReplyFunc;
 
   constructor(telegramToken: string, viberToken: string, logger: Logger) {
     this._logger = logger;
@@ -452,7 +453,7 @@ export class Bot {
     /**************************************************************/
 
     if (viberToken) {
-      const replyViber = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+      this._replyViber = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
         if (!semaphore) {
           this._logger.error(chatId, undefined, 'No semaphore');
           return;
@@ -493,10 +494,10 @@ export class Bot {
       };
 
       this._viberCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
-        calendarMachineOptions(replyViber));
+        calendarMachineOptions(this._replyViber));
 
       this._viberMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._viberCalendarMachine),
-        machineOptions(replyViber));
+        machineOptions(this._replyViber));
 
       this._viber = new ViberBot({
         authToken: viberToken,
@@ -1525,9 +1526,18 @@ export class Bot {
     // состояний кратский расчетный листок
   }
 
-public async sendLatestPaySlip(customerId: string, employeeId: string) {
-    // сначала поищем в списке чатов телеграма
-    const accountLink = Object.entries(this._telegramAccountLink.getMutable(false))
+  public async sendLatestPaySlip(customerId: string, employeeId: string) {
+    this.sendLatestPaySlipToMessanger(customerId, employeeId, this._telegramAccountLink, this._replyTelegram);
+    this.sendLatestPaySlipToMessanger(customerId, employeeId, this._viberAccountLink, this._replyViber)
+  }
+
+  public async sendLatestPaySlipToMessanger(customerId: string, employeeId: string, accountLinkDB: FileDB<IAccountLink>, reply?: ReplyFunc)  {
+    if (!reply) {
+      return;
+    }
+
+    // сначала поищем в списке чатов
+    const accountLink = Object.entries(accountLinkDB.getMutable(false))
       .find( ([_, acc]) => acc.customerId === customerId && acc.employeeId === employeeId );
 
     if (!accountLink) {
@@ -1560,14 +1570,13 @@ public async sendLatestPaySlip(customerId: string, employeeId: string) {
         // 2) если в акаунт линк есть прежнее меню -- удалить его
         // 3) вывести текст расчетного листка и главное меню под ним
 
-
         const d: IDate = {year: lastPayslipDE.getFullYear(), month: lastPayslipDE.getMonth()};
         const text = await this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', d, d);
-        await this._replyTelegram(text, keyboardMenu)({ chatId, semaphore: new Semaphore() });
+        await reply(text, keyboardMenu)({ chatId, semaphore: new Semaphore() });
       }
     }
     //TODO: обновить дату последнего изменения
-    this._telegramAccountLink.write(chatId, {
+    accountLinkDB.write(chatId, {
       ...accountLink[1],
       payslipSentOn: lastPayslipDE,
       lastUpdated: new Date()
