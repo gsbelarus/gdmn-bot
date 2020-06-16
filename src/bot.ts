@@ -1527,15 +1527,13 @@ export class Bot {
   }
 
   public async sendLatestPaySlip(customerId: string, employeeId: string) {
-    this.sendLatestPaySlipToMessanger(customerId, employeeId, this._telegramAccountLink, this._replyTelegram);
-    this.sendLatestPaySlipToMessanger(customerId, employeeId, this._viberAccountLink, this._replyViber)
+    this.sendLatestPaySlipToMessenger(customerId, employeeId, this._telegramAccountLink, this._replyTelegram);
+    if (this._replyViber) {
+      this.sendLatestPaySlipToMessenger(customerId, employeeId, this._viberAccountLink, this._replyViber)
+    }
   }
 
-  public async sendLatestPaySlipToMessanger(customerId: string, employeeId: string, accountLinkDB: FileDB<IAccountLink>, reply?: ReplyFunc)  {
-    if (!reply) {
-      return;
-    }
-
+  public async sendLatestPaySlipToMessenger(customerId: string, employeeId: string, accountLinkDB: FileDB<IAccountLink>, reply: ReplyFunc)  {
     // сначала поищем в списке чатов
     const accountLink = Object.entries(accountLinkDB.getMutable(false))
       .find( ([_, acc]) => acc.customerId === customerId && acc.employeeId === employeeId );
