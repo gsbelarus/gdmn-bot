@@ -1605,27 +1605,14 @@ export class Bot {
     // состояний кратский расчетный листок
   }
 
-  public async sendLatestPaySlip(customerId: string, employeeId: string) {
-    this.sendLatestPaySlipToMessanger(customerId, employeeId, 'TELEGRAM');
-    this.sendLatestPaySlipToMessanger(customerId, employeeId, 'VIBER');
+  public async sendLatestPayslip(customerId: string, employeeId: string) {
+    this.sendLatestPayslipToMessenger(customerId, employeeId, this._telegramAccountLink, this._replyTelegram, 'TELEGRAM');
+    if (this._replyViber) {
+      this.sendLatestPayslipToMessenger(customerId, employeeId, this._viberAccountLink, this._replyViber, 'VIBER')
+    }
   }
 
-  public async sendLatestPaySlipToMessanger(customerId: string, employeeId: string, platform: Platform)  {
-    let accountLinkDB: FileDB<IAccountLink>;
-    let reply: ReplyFunc | undefined;
-
-    if (platform === 'TELEGRAM') {
-      accountLinkDB = this._telegramAccountLink;
-      reply = this._replyTelegram;
-    } else {
-      accountLinkDB = this._viberAccountLink;
-      reply = this._replyViber;
-    }
-
-    if (!reply) {
-      return;
-    }
-
+  public async sendLatestPayslipToMessenger(customerId: string, employeeId: string, accountLinkDB: FileDB<IAccountLink>, reply: ReplyFunc, platform: Platform)  {
     // сначала поищем в списке чатов
     const accountLink = Object.entries(accountLinkDB.getMutable(false))
       .find( ([_, acc]) => acc.customerId === customerId && acc.employeeId === employeeId );
