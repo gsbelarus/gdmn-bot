@@ -60,6 +60,16 @@ export const stringResources = {
     ru: '😕 Извините, я тут немного запутался. Начните с начала.',
     be: '😕 Выбачайце, я тут крыху заблытаўся. Пачніце з пачатку.'
   },
+  selectCurrency: {
+    en: 'Select currency.',
+    ru: 'Выберите валюту.',
+    be: 'Выбярыце валюту.'
+  },
+  selectLanguage: {
+    en: 'Select language.',
+    ru: 'Выберите язык.',
+    be: 'Выбярыце мову.'
+  },
   showSettings: {
     en: (employee: string, lang: Language, curr: string) => `Current settings:\n\tEmployee: ${employee}\n\tLanguage: ${lang}\n\tCurrency: ${curr}`,
     ru: (employee: string, lang: Language, curr: string) => `Текущие настройки:\n\tСотрудник: ${employee}\n\tЯзык: ${lang}\n\tВалюта: ${curr}`,

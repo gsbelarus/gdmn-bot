@@ -72,7 +72,7 @@ const getItemTemplate = (dataItem: IPayslipItem[], lng: Language): Template => d
   .sort( (a, b) => a.n - b.n )
   .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) : ''} : `, i.s]);
 
-type ReplyFunc = (s: ILocString | string | undefined | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
+type ReplyFunc = (s: ILocString | string | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
 
 export class Bot {
   private _telegramAccountLink: FileDB<IAccountLink>;
@@ -220,7 +220,7 @@ export class Bot {
       actions: {
         showSelectedDate: ctx => reply(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
         showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
-          ? reply(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
+          ? reply('', keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
           : reply(dateKind === 'PERIOD_1_DB'
               ? stringResources.selectDB
               : dateKind === 'PERIOD_1_DE'
@@ -325,7 +325,7 @@ export class Bot {
             delete this._service[this.getUniqId(platform, chatId)];
           }
         },
-        showSelectLanguageMenu: reply(undefined, keyboardLanguage),
+        showSelectLanguageMenu: reply(stringResources.selectLanguage, keyboardLanguage),
         selectLanguage: (ctx, event) => {
           if (event.type === 'MENU_COMMAND') {
             const { accountLink, chatId, platform } = checkAccountLink(ctx);
@@ -340,7 +340,7 @@ export class Bot {
             }
           }
         },
-        showSelectCurrencyMenu: reply(undefined, keyboardCurrency),
+        showSelectCurrencyMenu: reply(stringResources.selectCurrency, keyboardCurrency),
         selectCurrency: (ctx, event) => {
           if (event.type === 'MENU_COMMAND') {
             const { accountLink, chatId, platform } = checkAccountLink(ctx);
