@@ -1421,10 +1421,12 @@ export class Bot {
 
     switch (type) {
       case 'MESSAGE':
+        console.log(`MESSAGE: ${body}`);
         e = { type: 'ENTER_TEXT', text: body };
         break;
 
       case 'ACTION': {
+        console.log(`ACTION: ${body}`);
         if (body.slice(0, 1) === '{') {
           e = { ...JSON.parse(body), update };
         } else {
