@@ -220,7 +220,7 @@ export class Bot {
       actions: {
         showSelectedDate: ctx => reply(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
         showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
-          ? reply('', keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
+          ? reply(stringResources.selectYear, keyboardCalendar(selectedDate.year), selectedDate.year)({ platform, chatId, semaphore })
           : reply(dateKind === 'PERIOD_1_DB'
               ? stringResources.selectDB
               : dateKind === 'PERIOD_1_DE'
@@ -1421,12 +1421,12 @@ export class Bot {
 
     switch (type) {
       case 'MESSAGE':
-        console.log(`MESSAGE: ${body}`);
+        //console.log(`MESSAGE: ${body}`);
         e = { type: 'ENTER_TEXT', text: body };
         break;
 
       case 'ACTION': {
-        console.log(`ACTION: ${body}`);
+        //console.log(`ACTION: ${body}`);
         if (body.slice(0, 1) === '{') {
           e = { ...JSON.parse(body), update };
         } else {
