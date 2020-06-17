@@ -72,7 +72,7 @@ export const stringResources = {
   },
   selectYear: {
     en: (year: number) => `${year} year has been selected...`,
-    ru: (year: number) => `Был выбран ${year} год...`,,
+    ru: (year: number) => `Был выбран ${year} год...`,
     be: (year: number) => `Быў выбраны ${year} год...`,
   } as ILocString,
   showSettings: {
