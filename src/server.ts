@@ -105,7 +105,7 @@ router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
   try {
     const { customerId, objData, rewrite } = ctx.request.body;
     bot.upload_payslips(customerId, objData, rewrite);
-    bot.sendLatestPaySlip(customerId, objData.emplId);
+    bot.sendLatestPayslip(customerId, objData.emplId);
     ctx.status = 200;
     ctx.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {

@@ -68,16 +68,9 @@ const getDetail = (valueDet: IDet, lng: Language) => {
  * @param dataItem
  * @param lng
  */
-const getItemTemplate = (dataItem: IPayslipItem[], lng: Language) => {
-  const t: Template = [undefined];
-  dataItem.sort((a, b) => a.n - b.n).forEach( i => {
-    t.push([getLName(i.name, [lng]), i.s]);
-    if (i.det) {
-      t.push(getDetail(i.det, lng));
-    }
-  });
-  return t;
-}
+const getItemTemplate = (dataItem: IPayslipItem[], lng: Language): Template => dataItem
+  .sort( (a, b) => a.n - b.n )
+  .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) : ''}: `, i.s]);
 
 type ReplyFunc = (s: ILocString | string | undefined | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
 
@@ -264,19 +257,19 @@ export class Bot {
     };
 
     const getShowPayslipFunc = (payslipType: PayslipType, reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
-      const { accountLink, ...rest } = checkAccountLink(ctx);
+      const { accountLink, platform, ...rest } = checkAccountLink(ctx);
       const { dateBegin, dateEnd, dateBegin2 } = ctx;
       const { customerId, employeeId, language, currency } = accountLink;
-      reply(this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', dateBegin, dateEnd, dateBegin2))(rest);
+      reply(this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', platform, dateBegin, dateEnd, dateBegin2))(rest);
     };
 
     const getShowLatestPayslipFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
-      const { accountLink, ...rest } = checkAccountLink(ctx);
+      const { accountLink, platform, ...rest } = checkAccountLink(ctx);
       const { customerId, employeeId, language, currency } = accountLink;
       const lastPaySlipDate = this._getLastPayslipDate(customerId, employeeId);
       if (lastPaySlipDate) {
         const lastPaySlipDateStr: IDate = {year: lastPaySlipDate.getFullYear(), month: lastPaySlipDate.getMonth()};
-        reply(this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', lastPaySlipDateStr, lastPaySlipDateStr))(rest);
+        reply(this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', platform, lastPaySlipDateStr, lastPaySlipDateStr))(rest);
       }
     };
 
@@ -1008,7 +1001,7 @@ export class Bot {
     ];
   }
 
-  async getPayslip(customerId: string, employeeId: string, type: PayslipType, lng: Language, currency: string, db: IDate, de: IDate, db2?: IDate): Promise<string> {
+  async getPayslip(customerId: string, employeeId: string, type: PayslipType, lng: Language, currency: string, platform: Platform, db: IDate, de: IDate, db2?: IDate): Promise<string> {
 
     const translate = (s: string | ILocString) => typeof s === 'object'
       ? getLocString(s, lng)
@@ -1020,7 +1013,7 @@ export class Bot {
       /**
        * Ширина колонки с названием показателя в расчетном листке.
        */
-      const lLabel = 23;
+      const lLabel = 22;
       /**
        * Ширина колонки с числовым значением в расчетном листке.
        * Должна быть достаточной, чтобы уместить разделительный пробел.
@@ -1118,6 +1111,88 @@ export class Bot {
         .join('\n');
     };
 
+
+    const payslipViewViber = (template: Template) => {
+      /**
+       * Ширина колонки с названием показателя в расчетном листке.
+       */
+      const lLabel = 27;
+      // /**
+      //  * Ширина колонки с числовым значением в расчетном листке.
+      //  * Должна быть достаточной, чтобы уместить разделительный пробел.
+      //  */
+      // const lValue = 9;
+      /**
+       * Ширина колонки в сравнительном листке.
+       */
+      const lCol = 10;
+      /**
+       * Полная ширина с учетом разделительного пробела
+       */
+      const fullWidth = lLabel;
+
+      const splitLong = (s: string) => {
+        // у нас может получиться длинная строка, которая не влазит на экран
+        // будем переносить ее, "откусывая сначала"
+
+        if (s.length <= fullWidth) {
+          return s;
+        }
+
+        const res: string[][] = [];
+
+        // разобьем на слова, учтем возможность наличия двойных пробелов
+        // слова длиннее lLabel разобьем на части
+        let tokens = s
+          .split(' ')
+          .map( c => c.trim() )
+          .filter( c => c )
+          .flatMap( c => {
+            if (c.length <= lLabel) {
+              return c;
+            } else {
+              const arr: string[] = [];
+              let l = c;
+              while (l.length > lLabel) {
+                arr.push(l.slice(0, lLabel));
+                l = l.slice(lLabel);
+              }
+              return arr;
+            }
+          });
+
+        while (tokens.length) {
+          let i = 0;
+          let l = 0;
+
+          // только одну сумму не будем оставлять на одной строке
+          while (i < tokens.length) {
+            if (l + tokens[i].length <= lLabel) {
+              l += tokens[i].length;
+              i++;
+            } else {
+              break;
+            }
+          }
+
+          res.push(tokens.slice(0, i));
+          tokens = tokens.slice(i);
+        }
+
+        return res.map( l => l.join(' ') ).join('\n');
+      }
+
+      return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
+        .map(t => Array.isArray(t) && t.length === 3
+          ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}`
+          : Array.isArray(t) && t.length === 2
+          ? splitLong(`${translate(t[0])} ${format(t[1]!)}`)
+          : t === '='
+          ? '='.padEnd(fullWidth, '=')
+          : translate(t!))
+        .join('\n');
+    };
+
     let dataI = this._getPayslipData(customerId, employeeId, db, de);
 
     if (!dataI) {
@@ -1183,7 +1258,7 @@ export class Bot {
       s = this._formatComparativePayslip(dataI, dataII, periodName, currencyAndRate);
     }
 
-    return '^FIXED\n' + payslipView(s);
+    return '^FIXED\n' + (platform === 'TELEGRAM' ? payslipView(s) : payslipViewViber(s));
   }
 
   launch() {
@@ -1526,14 +1601,14 @@ export class Bot {
     // состояний кратский расчетный листок
   }
 
-  public async sendLatestPaySlip(customerId: string, employeeId: string) {
-    this.sendLatestPaySlipToMessenger(customerId, employeeId, this._telegramAccountLink, this._replyTelegram);
+  public async sendLatestPayslip(customerId: string, employeeId: string) {
+    this.sendLatestPayslipToMessenger(customerId, employeeId, this._telegramAccountLink, this._replyTelegram, 'TELEGRAM');
     if (this._replyViber) {
-      this.sendLatestPaySlipToMessenger(customerId, employeeId, this._viberAccountLink, this._replyViber)
+      this.sendLatestPayslipToMessenger(customerId, employeeId, this._viberAccountLink, this._replyViber, 'VIBER')
     }
   }
 
-  public async sendLatestPaySlipToMessenger(customerId: string, employeeId: string, accountLinkDB: FileDB<IAccountLink>, reply: ReplyFunc)  {
+  public async sendLatestPayslipToMessenger(customerId: string, employeeId: string, accountLinkDB: FileDB<IAccountLink>, reply: ReplyFunc, platform: Platform)  {
     // сначала поищем в списке чатов
     const accountLink = Object.entries(accountLinkDB.getMutable(false))
       .find( ([_, acc]) => acc.customerId === customerId && acc.employeeId === employeeId );
@@ -1550,7 +1625,7 @@ export class Bot {
       return;
     };
 
-    const service = this._service[this.getUniqId('TELEGRAM', chatId)];
+    const service = this._service[this.getUniqId(platform, chatId)];
     if (service) {
       // у нас сервер уже связан с чатом в мессенджере
       // сотрудника.
@@ -1569,7 +1644,7 @@ export class Bot {
         // 3) вывести текст расчетного листка и главное меню под ним
 
         const d: IDate = {year: lastPayslipDE.getFullYear(), month: lastPayslipDE.getMonth()};
-        const text = await this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', d, d);
+        const text = await this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', platform, d, d);
         await reply(text, keyboardMenu)({ chatId, semaphore: new Semaphore() });
       }
     }
