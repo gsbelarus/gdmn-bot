@@ -119,4 +119,4 @@ src/config.ts
 state_after.json
 state_before.json
 
-/log/**/*.*
+log/*.*

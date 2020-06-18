@@ -5,14 +5,14 @@ import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
-import path from 'path';
-import { testNormalizeStr, testIdentStr, date2str } from "./util/utils";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
-import { payslipRoot, accDedRefFileName, employeeFileName } from "./constants";
 import { Logger, ILogger } from "./log";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN } from "./files";
+import { hashELF64 } from "./hashELF64";
 
 //TODO: добавить типы для TS и заменить на import
 const vb = require('viber-bot');
@@ -32,14 +32,18 @@ const sumPayslip = (arr?: IPayslipItem[], type?: AccDedType) =>
   arr?.reduce((prev, cur) => prev + (type ? (type === cur.type ? cur.s : 0) : cur.s), 0) ?? 0;
 
 /** */
-const fillInPayslipItem = (item: IPayslipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, typeAccDed?: AccDedType) => {
+const fillInPayslipItem = (item: IPayslipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, n: number, typeAccDed?: AccDedType) => {
   const i = item.find( d => d.id === typeId );
   if (i) {
     i.s += s;
   } else {
-    item.push({ id: typeId, name, s, det, type: typeAccDed });
+    item.push({ id: typeId, n, name, s, det, type: typeAccDed });
   }
 };
+
+export const getPinByPassportId = (personalNumber: string, payslipDate: Date) => hashELF64(
+  `${(payslipDate.getMonth() + 1).toString().padStart(2, '0')}${payslipDate.getFullYear().toString().slice(-2)}${personalNumber.slice(0, 7)}`
+).toString().slice(-4);
 
 /**
  * Получить дополнительную строку по начислению или удержанию.
@@ -64,16 +68,11 @@ const getDetail = (valueDet: IDet, lng: Language) => {
  * @param dataItem
  * @param lng
  */
-const getItemTemplate = (dataItem: IPayslipItem[], lng: Language) => {
-  const t: Template = [undefined];
-  dataItem?.forEach( i => {
-    t.push([getLName(i.name, [lng]), i.s]);
-    if (i.det) {
-      t.push(getDetail(i.det, lng));
-    }
-  });
-  return t;
-}
+const getItemTemplate = (dataItem: IPayslipItem[], lng: Language): Template => dataItem
+  .sort( (a, b) => a.n - b.n )
+  .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) : ''} : `, i.s]);
+
+type ReplyFunc = (s: ILocString | string | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
 
 export class Bot {
   private _telegramAccountLink: FileDB<IAccountLink>;
@@ -86,14 +85,20 @@ export class Bot {
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
   private _botStarted = new Date();
   private _callbacksReceived = 0;
+  /**
+   * справочники начислений/удержаний для каждого клиента.
+   * ключем объекта выступает РУИД записи из базы Гедымина.
+  */
   private _customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
-  private _viber: any;
-  private _viberCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
-  private _viberMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
+  private _viber: any = undefined;
+  private _viberCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent> | undefined = undefined;
+  private _viberMachine: StateMachine<IBotMachineContext, any, BotMachineEvent> | undefined = undefined;
   private _logger: Logger;
   private _log: ILogger;
+  private _replyTelegram: ReplyFunc;
+  private _replyViber?: ReplyFunc;
 
-  constructor(telegramToken: string, telegramRoot: string, viberToken: string, viberRoot: string, logger: Logger) {
+  constructor(telegramToken: string, viberToken: string, logger: Logger) {
     this._logger = logger;
     this._log = this._logger.getLogger();
 
@@ -101,13 +106,14 @@ export class Bot {
       Object.entries(data).map(
         ([key, accountLink]) => [key, {
           ...accountLink,
-          lastUpdated: accountLink.lastUpdated && new Date(accountLink.lastUpdated)
+          lastUpdated: accountLink.lastUpdated && new Date(accountLink.lastUpdated),
+          payslipSentOn: accountLink.payslipSentOn && new Date(accountLink.payslipSentOn)
         }]
       )
     );
 
-    this._telegramAccountLink = new FileDB<IAccountLink>(path.resolve(telegramRoot, 'accountlink.json'), this._log, {}, restorer);
-    this._viberAccountLink = new FileDB<IAccountLink>(path.resolve(viberRoot, 'accountlink.json'), this._log, {}, restorer);
+    this._telegramAccountLink = new FileDB<IAccountLink>(getAccountLinkFN('TELEGRAM'), this._log, {}, restorer);
+    this._viberAccountLink = new FileDB<IAccountLink>(getAccountLinkFN('VIBER'), this._log, {}, restorer);
 
     /**************************************************************/
     /**************************************************************/
@@ -117,9 +123,7 @@ export class Bot {
     /**************************************************************/
     /**************************************************************/
 
-    type ReplyFunc = (s: ILocString | undefined, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
-
-    const replyTelegram: ReplyFunc = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+    this._replyTelegram = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
         this._logger.error(chatId, undefined, 'No semaphore');
         return;
@@ -142,15 +146,17 @@ export class Bot {
         ))
       );
 
-      const text = s && getLocString(s, language, ...args);
-      const extra: ExtraEditMessage = keyboard ? Extra.markup(keyboard) : {};
-
-      if (text && text.slice(0, 3) === '```') {
-        extra.parse_mode = 'MarkdownV2';
-      }
-
       await semaphore.acquire();
       try {
+        const t = await s;
+        let text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
+        const extra: ExtraEditMessage = keyboard ? Extra.markup(keyboard) : {};
+
+        if (text && text.slice(0, 7) === '^FIXED\n') {
+          text = '```ini\n' + text.slice(7) + '\n```';
+          extra.parse_mode = 'MarkdownV2';
+        }
+
         const accountLink = this._telegramAccountLink.read(chatId);
 
         if (!accountLink) {
@@ -200,6 +206,10 @@ export class Bot {
           }
         }
       } catch (e) {
+        // TODO: где-то здесь отловится ошибка, если чат был пользователем удален
+        // а мы пытаемся слать в него сообщения. надо определить ее код и удалять
+        // запись из акаунт линк.
+        // аналогично обрабатываться в функции reply для вайбера
         this._logger.error(chatId, undefined, e);
       } finally {
         semaphore.release();
@@ -210,7 +220,7 @@ export class Bot {
       actions: {
         showSelectedDate: ctx => reply(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
         showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
-          ? reply(undefined, keyboardCalendar(selectedDate.year))({ platform, chatId, semaphore })
+          ? reply(stringResources.selectYear, keyboardCalendar(selectedDate.year), selectedDate.year)({ platform, chatId, semaphore })
           : reply(dateKind === 'PERIOD_1_DB'
               ? stringResources.selectDB
               : dateKind === 'PERIOD_1_DE'
@@ -223,7 +233,7 @@ export class Bot {
     });
 
     this._telegramCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
-      calendarMachineOptions(replyTelegram));
+      calendarMachineOptions(this._replyTelegram));
 
     const checkAccountLink = (ctx: IBotMachineContext) => {
       const { platform, chatId, semaphore } = ctx;
@@ -247,15 +257,19 @@ export class Bot {
     };
 
     const getShowPayslipFunc = (payslipType: PayslipType, reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
-      const { accountLink, semaphore, ...rest } = checkAccountLink(ctx);
+      const { accountLink, platform, ...rest } = checkAccountLink(ctx);
       const { dateBegin, dateEnd, dateBegin2 } = ctx;
       const { customerId, employeeId, language, currency } = accountLink;
-      await semaphore?.acquire();
-      try {
-        const s = await this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', dateBegin, dateEnd, dateBegin2);
-        reply({ en: null, ru: s, be: null })({ ...rest, semaphore: new Semaphore() });
-      } finally {
-        semaphore?.release();
+      reply(this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', platform, dateBegin, dateEnd, dateBegin2))(rest);
+    };
+
+    const getShowLatestPayslipFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+      const { accountLink, platform, ...rest } = checkAccountLink(ctx);
+      const { customerId, employeeId, language, currency } = accountLink;
+      const lastPaySlipDate = this._getLastPayslipDate(customerId, employeeId);
+      if (lastPaySlipDate) {
+        const lastPaySlipDateStr: IDate = {year: lastPaySlipDate.getFullYear(), month: lastPaySlipDate.getMonth()};
+        reply(this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', platform, lastPaySlipDateStr, lastPaySlipDateStr))(rest);
       }
     };
 
@@ -264,6 +278,22 @@ export class Bot {
         askCompanyName: reply(stringResources.askCompanyName),
         unknownCompanyName: reply(stringResources.unknownCompanyName),
         unknownEmployee: reply(stringResources.unknownEmployee),
+        askPIN: ctx => {
+          const { customerId, employeeId } = ctx;
+          if (customerId && employeeId) {
+            reply(stringResources.askPIN, undefined, this._getLastPayslipDate(customerId, employeeId))(ctx);
+          } else {
+            throw new Error('customerId or employeeId are not assigned');
+          }
+        },
+        invalidPIN: ctx => {
+          const { customerId, employeeId } = ctx;
+          if (customerId && employeeId) {
+            reply(stringResources.invalidPIN, undefined, this._getLastPayslipDate(customerId, employeeId))(ctx);
+          } else {
+            throw new Error('customerId or employeeId are not assigned');
+          }
+        },
         assignCompanyId: assign<IBotMachineContext, BotMachineEvent>({ customerId: this._findCompany }),
         assignEmployeeId: assign<IBotMachineContext, BotMachineEvent>({ employeeId: this._findEmployee }),
         askPersonalNumber: reply(stringResources.askPersonalNumber),
@@ -273,6 +303,7 @@ export class Bot {
           }
         },
         showPayslip: getShowPayslipFunc('CONCISE', reply),
+        showLatestPayslip: getShowLatestPayslipFunc(reply),
         showDetailedPayslip: getShowPayslipFunc('DETAIL', reply),
         showPayslipForPeriod: getShowPayslipFunc('DETAIL', reply),
         showComparePayslip: getShowPayslipFunc('COMPARE', reply),
@@ -285,15 +316,16 @@ export class Bot {
            : 'Bond, James Bond';
           reply(stringResources.showSettings, keyboardSettings, employeeName, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
         },
-        sayGoodbye: reply(stringResources.goodbye),
-        logout: ({ platform, chatId }) => {
+        logout: async (ctx) => {
+          const { platform, chatId } = ctx;
           if (platform && chatId) {
+            await reply(stringResources.goodbye)(ctx);
             const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
             accountLinkDB.delete(chatId);
             delete this._service[this.getUniqId(platform, chatId)];
           }
         },
-        showSelectLanguageMenu: reply(undefined, keyboardLanguage),
+        showSelectLanguageMenu: reply(stringResources.selectLanguage, keyboardLanguage),
         selectLanguage: (ctx, event) => {
           if (event.type === 'MENU_COMMAND') {
             const { accountLink, chatId, platform } = checkAccountLink(ctx);
@@ -308,7 +340,7 @@ export class Bot {
             }
           }
         },
-        showSelectCurrencyMenu: reply(undefined, keyboardCurrency),
+        showSelectCurrencyMenu: reply(stringResources.selectCurrency, keyboardCurrency),
         selectCurrency: (ctx, event) => {
           if (event.type === 'MENU_COMMAND') {
             const { accountLink, chatId, platform } = checkAccountLink(ctx);
@@ -325,11 +357,24 @@ export class Bot {
       guards: {
         findCompany: (ctx, event) => !!this._findCompany(ctx, event),
         findEmployee: (ctx, event) => !!this._findEmployee(ctx, event),
+        checkPIN: ({ customerId, employeeId }, event) => {
+          if (isEnterTextEvent(event) && customerId && employeeId) {
+            const employee = this._getEmployee(customerId, employeeId);
+            const lastPayslipDate = this._getLastPayslipDate(customerId, employeeId);
+            if (employee && lastPayslipDate) {
+              return event.text === getPinByPassportId(employee.passportId, lastPayslipDate);
+            }
+          }
+          return false;
+        },
+        isProtected: ({ customerId }) => customerId
+          ? !!(new FileDB<Omit<ICustomer, 'id'>>(getCustomersFN(), this._log).read(customerId)?.protected)
+          : false
       }
     });
 
     this._telegramMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._telegramCalendarMachine),
-      machineOptions(replyTelegram));
+      machineOptions(this._replyTelegram));
 
     this._telegram = new Telegraf(telegramToken);
 
@@ -400,129 +445,138 @@ export class Bot {
     /**************************************************************/
     /**************************************************************/
 
-    const replyViber = (s: ILocString | undefined, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
-      if (!semaphore) {
-        this._logger.error(chatId, undefined, 'No semaphore');
-        return;
-      }
-
-      if (!chatId) {
-        this._log.error('Invalid chatId');
-        return;
-      }
-
-      const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
-      const keyboard = menu && this._menu2ViberMenu(menu, language);
-      const text = s && getLocString(s, language, ...args);
-
-      await semaphore.acquire();
-      try {
-        if (keyboard) {
-          const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
-          if (!Array.isArray(res)) {
-            this._logger.warn(chatId, undefined, JSON.stringify(res));
-          }
-        } else {
-          await this._viber.sendMessage({ id: chatId }, [new TextMessage(text)]);
+    if (viberToken) {
+      this._replyViber = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+        if (!semaphore) {
+          this._logger.error(chatId, undefined, 'No semaphore');
+          return;
         }
-      } catch (e) {
-        this._logger.error(chatId, undefined, e);
-      } finally {
-        semaphore.release();
-      }
-    };
 
-    this._viberCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
-      calendarMachineOptions(replyViber));
+        if (!chatId) {
+          this._log.error('Invalid chatId');
+          return;
+        }
 
-    this._viberMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._viberCalendarMachine),
-      machineOptions(replyViber));
+        const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
+        const keyboard = menu && this._menu2ViberMenu(menu, language);
 
-    this._viber = new ViberBot({
-      authToken: viberToken,
-      name: 'Моя зарплата',
-      avatar: ''
-    });
+        await semaphore.acquire();
 
-    // this._viber.on(BotEvents.SUBSCRIBED, async (response: any) => {
-    //   if (!response?.userProfile) {
-    //     console.error('Invalid chat context');
-    //   } else {
-    //     this.start(response.userProfile.id.toString());
-    //   }
-    // });
+        try {
+          const t = await s;
+          let text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
 
-    this._viber.onError( (...args: any[]) => this._log.error(...args) );
+          if (text && text.slice(0, 7) === '^FIXED\n') {
+            text = text.slice(7);
+          }
 
-    this._viber.on(BotEvents.SUBSCRIBED, (response: any) => {
-      const chatId = response.userProfile.id;
+          if (keyboard) {
+            const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
+            if (!Array.isArray(res)) {
+              this._logger.warn(chatId, undefined, JSON.stringify(res));
+            }
+          } else {
+            await this._viber.sendMessage({ id: chatId }, [new TextMessage(text)]);
+          }
+        } catch (e) {
+          this._logger.error(chatId, undefined, e);
+        } finally {
+          semaphore.release();
+        }
+      };
 
-      this._logger.info(chatId, undefined, `SUBSCRIBED ${chatId}`);
+      this._viberCalendarMachine = Machine<ICalendarMachineContext, CalendarMachineEvent>(calendarMachineConfig,
+        calendarMachineOptions(this._replyViber));
 
-      if (!chatId) {
-        this._log.error('Invalid viber response');
-      } else {
-        this.onUpdate({
-          platform: 'VIBER',
-          chatId,
-          type: 'COMMAND',
-          body: '/start',
-          language: str2Language(response.userProfile.language)
-        });
-      }
-    });
+      this._viberMachine = Machine<IBotMachineContext, BotMachineEvent>(botMachineConfig(this._viberCalendarMachine),
+        machineOptions(this._replyViber));
 
-    // команда меню
-    this._viber.onTextMessage(/(\.[A-Za-z0-9_]+)|(\{.+\})/, (message: any, response: any) => {
-      const chatId = response.userProfile.id;
+      this._viber = new ViberBot({
+        authToken: viberToken,
+        name: 'Моя зарплата',
+        avatar: ''
+      });
 
-      if (!chatId) {
-        this._log.error('Invalid viber response');
-      } else {
-        this.onUpdate({
-          platform: 'VIBER',
-          chatId,
-          type: 'ACTION',
-          body: message.text,
-          language: str2Language(response.userProfile.language)
-        });
-      }
-    });
+      // this._viber.on(BotEvents.SUBSCRIBED, async (response: any) => {
+      //   if (!response?.userProfile) {
+      //     console.error('Invalid chat context');
+      //   } else {
+      //     this.start(response.userProfile.id.toString());
+      //   }
+      // });
 
-    this._viber.onTextMessage(/.+/, (message: any, response: any) => {
-      const chatId = response.userProfile.id;
+      this._viber.onError( (...args: any[]) => this._log.error(...args) );
 
-      if (!chatId) {
-        this._log.error('Invalid viber response');
-      } else {
-        this.onUpdate({
-          platform: 'VIBER',
-          chatId,
-          type: 'MESSAGE',
-          body: message.text,
-          language: str2Language(response.userProfile.language)
-        });
-      }
-    });
+      this._viber.on(BotEvents.SUBSCRIBED, (response: any) => {
+        const chatId = response.userProfile.id;
 
-    this._viber.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
-      //TODO: проверить когда вызывается это событие
-      const chatId = response.userProfile.id;
-      this._viberAccountLink.delete(chatId);
-      delete this._service[this.getUniqId('VIBER', chatId)];
-      this._log.info(`User unsubscribed, ${response}`);
-    });
+        this._logger.info(chatId, undefined, `SUBSCRIBED ${chatId}`);
 
-    /*
-    this._viber.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
-      if (!response?.userProfile) {
-        console.error('Invalid chat context');
-      } else {
-        this.start(response.userProfile.id.toString(),
-        `Здравствуйте${response?.userProfile.name ? ', ' + response.userProfile.name : ''}!\nДля подписки введите любое сообщение.`);
-      }
-    });
-    */
+        if (!chatId) {
+          this._log.error('Invalid viber response');
+        } else {
+          this.onUpdate({
+            platform: 'VIBER',
+            chatId,
+            type: 'COMMAND',
+            body: '/start',
+            language: str2Language(response.userProfile.language)
+          });
+        }
+      });
+
+      // команда меню
+      this._viber.onTextMessage(/(\.[A-Za-z0-9_]+)|(\{.+\})/, (message: any, response: any) => {
+        const chatId = response.userProfile.id;
+
+        if (!chatId) {
+          this._log.error('Invalid viber response');
+        } else {
+          this.onUpdate({
+            platform: 'VIBER',
+            chatId,
+            type: 'ACTION',
+            body: message.text,
+            language: str2Language(response.userProfile.language)
+          });
+        }
+      });
+
+      this._viber.onTextMessage(/.+/, (message: any, response: any) => {
+        const chatId = response.userProfile.id;
+
+        if (!chatId) {
+          this._log.error('Invalid viber response');
+        } else {
+          this.onUpdate({
+            platform: 'VIBER',
+            chatId,
+            type: 'MESSAGE',
+            body: message.text,
+            language: str2Language(response.userProfile.language)
+          });
+        }
+      });
+
+      this._viber.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
+        //TODO: проверить когда вызывается это событие
+        const chatId = response.userProfile.id;
+        this._viberAccountLink.delete(chatId);
+        delete this._service[this.getUniqId('VIBER', chatId)];
+        this._log.info(`User unsubscribed, ${response}`);
+      });
+
+      /*
+      this._viber.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
+        if (!response?.userProfile) {
+          console.error('Invalid chat context');
+        } else {
+          this.start(response.userProfile.id.toString(),
+          `Здравствуйте${response?.userProfile.name ? ', ' + response.userProfile.name : ''}!\nДля подписки введите любое сообщение.`);
+        }
+      });
+      */
+    }
   }
 
   get viber() {
@@ -571,7 +625,7 @@ export class Bot {
     let employees = this._employees[customerId];
 
     if (!employees) {
-      const db = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`), this._log);
+      const db = new FileDB<Omit<IEmployee, 'id'>>(getEmployeeFN(customerId), this._log);
       if (!db.isEmpty()) {
         this._employees[customerId] = db;
         return db;
@@ -588,7 +642,7 @@ export class Bot {
 
   private _findCompany = (_: any, event: BotMachineEvent) => {
     if (isEnterTextEvent(event)) {
-      const customersDB = new FileDB<Omit<ICustomer, 'id'>>(path.resolve(process.cwd(), 'data/customers.json'), this._log);
+      const customersDB = new FileDB<Omit<ICustomer, 'id'>>(getCustomersFN(), this._log);
       const customers = customersDB.getMutable(false);
       for (const [companyId, { aliases }] of Object.entries(customers)) {
         if (aliases.find( alias => testNormalizeStr(alias, event.text) )) {
@@ -614,8 +668,36 @@ export class Bot {
     return undefined;
   }
 
+  /**
+   * Возвращает дату окончания периода последнего расчетного листка.
+   * @param customerId
+   * @param employeeId
+   */
+  private _getLastPayslipDate = (customerId: string, employeeId: string) => {
+    const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
+
+    if (employee) {
+      const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
+        .read(employeeId);
+
+      if (payslip?.data[0]?.de) {
+        let maxPayslipDate = str2Date(payslip.data[0].de);
+
+        for (const { de } of payslip.data) {
+          const paySlipD = str2Date(de);
+          if (isGr(paySlipD, maxPayslipDate)) {
+            maxPayslipDate = paySlipD;
+          }
+        }
+
+        return maxPayslipDate;
+      }
+    }
+    return undefined;
+  }
+
   private _getPayslipData(customerId: string, employeeId: string, mb: IDate, me?: IDate): IPayslipData | undefined {
-    const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`), this._log)
+    const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
       .read(employeeId);
 
     if (!payslip) {
@@ -625,32 +707,11 @@ export class Bot {
     let accDed = this._customerAccDeds[customerId];
 
     if (!accDed) {
-      accDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`), this._log);
+      accDed = new FileDB<IAccDed>(getAccDedFN(customerId), this._log);
       this._customerAccDeds[customerId] = accDed;
     };
 
     const accDedObj = accDed.getMutable(false);
-
-    const str2Date = (date: Date | string) => {
-      if (typeof date === 'string') {
-        const [y, m, d] = date.split('.').map( s => Number(s) );
-        return new Date(y, m - 1, d);
-      } else {
-        return date;
-      }
-    };
-
-    const isGr = (d1: Date, d2: Date) => {
-      return d1.getTime() > d2.getTime();
-    }
-
-    const isLs = (d1: Date, d2: Date) => {
-      return d1.getTime() < d2.getTime();
-    }
-
-    const isGrOrEq = (d1: Date, d2: Date) => {
-      return d1.getTime() >= d2.getTime();
-    }
 
     const db = new Date(mb.year, mb.month);
     const de = me ? new Date(me.year, me.month + 1) : new Date(mb.year, mb.month + 1);
@@ -659,8 +720,8 @@ export class Bot {
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
     // Аналогично с должностью из массива pos
 
-    if (!payslip.dept.length || !payslip.pos.length || !payslip.salary.length) {
-      const msg = `Missing departments, positions or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
+    if (!payslip.dept.length || !payslip.pos.length || !payslip.payForm.length || !payslip.salary.length) {
+      const msg = `Missing departments, positions, payforms or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
       this._log.error(msg);
       throw new Error(msg)
     }
@@ -687,31 +748,45 @@ export class Bot {
       }
     }
 
-    let salary = payslip.salary[0].s;
-    maxDate = str2Date(payslip.salary[0].d);
+    let isSalary = payslip.payForm[0].slr;
+    maxDate = str2Date(payslip.payForm[0].d);
 
-    for (const posS of payslip.salary) {
-      const posSD = str2Date(posS.d);
-      if (isGr(posSD, maxDate) && isLs(posSD, de)) {
-        salary = posS.s;
-        maxDate = posSD;
+    for (const payForm of payslip.payForm) {
+      const payFormD = str2Date(payForm.d);
+      if (isGr(payFormD, maxDate) && isLs(payFormD, de)) {
+        isSalary = payForm.slr;
+        maxDate = payFormD;
       }
     }
 
+    let salary: number | undefined = undefined;
     let hourrate: number | undefined = undefined;
 
-    if (payslip.hourrate?.length) {
-      hourrate = payslip.hourrate[0].s;
-      maxDate = str2Date(payslip.hourrate[0].d);
+    if (isSalary) {
+      salary = payslip.salary[0].s;
+      maxDate = str2Date(payslip.salary[0].d);
 
-      for (const posHR of payslip.hourrate) {
-        const posHRD = str2Date(posHR.d);
-        if (isGr(posHRD, maxDate) && isLs(posHRD, de)) {
-          hourrate = posHR.s;
-          maxDate = posHRD;
+      for (const posS of payslip.salary) {
+        const posSD = str2Date(posS.d);
+        if (isGr(posSD, maxDate) && isLs(posSD, de)) {
+          salary = posS.s;
+          maxDate = posSD;
         }
       }
-    };
+    } else {
+      if (payslip.hourrate?.length) {
+        hourrate = payslip.hourrate[0].s;
+        maxDate = str2Date(payslip.hourrate[0].d);
+
+        for (const posHR of payslip.hourrate) {
+          const posHRD = str2Date(posHR.d);
+          if (isGr(posHRD, maxDate) && isLs(posHRD, de)) {
+            hourrate = posHR.s;
+            maxDate = posHRD;
+          }
+        }
+      }
+    }
 
     const data = {
       department,
@@ -735,8 +810,16 @@ export class Bot {
 
         if (!accDedObj[typeId]) {
           if (typeId === 'saldo') {
-            //TODO: языки!
-            data.saldo = { id: 'saldo', name: { ru: { name: 'Остаток' }}, s };
+            data.saldo = {
+              id: 'saldo',
+              n: -1,
+              name: {
+                ru: { name: 'Остаток' },
+                be: { name: 'Рэшта' },
+                en: { name: 'Balance' }
+              },
+              s
+            };
             continue;
           }
 
@@ -745,32 +828,33 @@ export class Bot {
         }
 
         const { name, type } = accDedObj[typeId];
+        const n = accDedObj[typeId].n ?? 10000;
 
         switch (type) {
           case 'INCOME_TAX':
           case 'PENSION_TAX':
           case 'TRADE_UNION_TAX':
-            fillInPayslipItem(data.tax, typeId, name, s, det, type);
+            fillInPayslipItem(data.tax, typeId, name, s, det, n, type);
             break;
 
           case 'ADVANCE':
-            fillInPayslipItem(data.advance, typeId, name, s, det);
+            fillInPayslipItem(data.advance, typeId, name, s, det, n);
             break;
 
           case 'DEDUCTION':
-            fillInPayslipItem(data.deduction, typeId, name, s, det);
+            fillInPayslipItem(data.deduction, typeId, name, s, det, n);
             break;
 
           case 'ACCRUAL':
-            fillInPayslipItem(data.accrual, typeId, name, s, det);
+            fillInPayslipItem(data.accrual, typeId, name, s, det, n);
             break;
 
           case 'TAX_DEDUCTION':
-            fillInPayslipItem(data.tax_deduction, typeId, name, s, det);
+            fillInPayslipItem(data.tax_deduction, typeId, name, s, det, n);
             break;
 
           case 'PRIVILAGE':
-            fillInPayslipItem(data.privilage, typeId, name, s, det);
+            fillInPayslipItem(data.privilage, typeId, name, s, det, n);
             break;
         }
       }
@@ -780,7 +864,7 @@ export class Bot {
   };
 
   private _calcPayslipByRate(data: IPayslipData, rate: number) {
-    const { saldo, tax, advance, deduction, accrual, tax_deduction, privilage, salary, ...rest } = data;
+    const { saldo, tax, advance, deduction, accrual, tax_deduction, privilage, salary, hourrate, ...rest } = data;
     return {
       ...rest,
       saldo: saldo && { ...saldo, s: saldo.s / rate },
@@ -790,7 +874,8 @@ export class Bot {
       accrual: accrual && accrual.map( i => ({ ...i, s: i.s / rate }) ),
       tax_deduction: tax_deduction && tax_deduction.map( i => ({ ...i, s: i.s / rate }) ),
       privilage: privilage && privilage.map( i => ({ ...i, s: i.s / rate }) ),
-      salary: salary && salary / rate
+      salary: salary && salary / rate,
+      hourrate: hourrate && hourrate / rate
     }
   }
 
@@ -812,8 +897,7 @@ export class Bot {
       getLName(data.department, [lng]),
       stringResources.payslipPosition,
       getLName(data.position, [lng]),
-      [stringResources.payslipSalary, data.salary],
-      [stringResources.payslipHpr, data.hourrate],
+      data.hourrate ? [stringResources.payslipHpr, data.hourrate] : [stringResources.payslipSalary, data.salary],
       '=',
       [stringResources.payslipAccrued, accruals],
       '=',
@@ -829,7 +913,7 @@ export class Bot {
     ];
   }
 
-  private _formatComparativePayslip(data: IPayslipData, data2: IPayslipData, lng: Language, periodName: string, currencyName: string): Template {
+  private _formatComparativePayslip(data: IPayslipData, data2: IPayslipData, periodName: string, currencyName: string): Template {
     const accruals = sumPayslip(data.accrual);
     const taxes = sumPayslip(data.tax);
     const deds = sumPayslip(data.deduction);
@@ -843,10 +927,8 @@ export class Bot {
       //employeeName,
       periodName,
       currencyName,
-      stringResources.payslipSalary,
-      [data.salary ?? 0, data2.salary ?? 0, (data2.salary ?? 0) - (data.salary ?? 0)],
-      stringResources.payslipHpr,
-      [data.hourrate ?? 0, data2.hourrate ?? 0, (data2.hourrate ?? 0) - (data.hourrate ?? 0)],
+      data.hourrate ? stringResources.payslipHpr : stringResources.payslipSalary,
+      data.hourrate ? [data.hourrate ?? 0, data2.hourrate ?? 0, (data2.hourrate ?? 0) - (data.hourrate ?? 0)] : [data.salary ?? 0, data2.salary ?? 0, (data2.salary ?? 0) - (data.salary ?? 0)],
       '=',
       stringResources.payslipAccrued,
       [accruals, accruals2, accruals2 - accruals],
@@ -886,8 +968,7 @@ export class Bot {
       getLName(data.department, [lng]),
       stringResources.payslipPosition,
       getLName(data.position, [lng]),
-      [stringResources.payslipSalary, data.salary],
-      [stringResources.payslipHpr, data.hourrate],
+      data.hourrate ? [stringResources.payslipHpr, data.hourrate] : [stringResources.payslipSalary, data.salary],
       '=',
       [stringResources.payslipAccrued, accruals],
       accruals ? '=' : '',
@@ -909,14 +990,14 @@ export class Bot {
       taxDeds ? '=' : '',
       ...strTaxDeds,
       taxDeds ? '=' : '',
-      [stringResources.payslipPrivilages, privilages],
+      [stringResources.payslipPrivileges, privilages],
       privilages ? '=' : '',
       ...strPrivilages,
       privilages ? '=' : ''
     ];
   }
 
-  async getPayslip(customerId: string, employeeId: string, type: PayslipType, lng: Language, currency: string, db: IDate, de: IDate, db2?: IDate): Promise<string> {
+  async getPayslip(customerId: string, employeeId: string, type: PayslipType, lng: Language, currency: string, platform: Platform, db: IDate, de: IDate, db2?: IDate): Promise<string> {
 
     const translate = (s: string | ILocString) => typeof s === 'object'
       ? getLocString(s, lng)
@@ -928,22 +1009,182 @@ export class Bot {
       /**
        * Ширина колонки с названием показателя в расчетном листке.
        */
-      const lLabel = 23;
+      const lLabel = 22;
       /**
        * Ширина колонки с числовым значением в расчетном листке.
+       * Должна быть достаточной, чтобы уместить разделительный пробел.
        */
-      const lValue = 8;
+      const lValue = 9;
       /**
        * Ширина колонки в сравнительном листке.
        */
       const lCol = 10;
+      /**
+       * Полная ширина с учетом разделительного пробела
+       */
+      const fullWidth = lLabel + lValue;
+
+      const splitLong = (s: string, withSum = true) => {
+        // у нас может получиться длинная строка, которая не влазит на экран
+        // будем переносить ее, "откусывая сначала"
+
+        if (s.length <= fullWidth) {
+          return s;
+        }
+
+        const res: string[][] = [];
+
+        // разобьем на слова, учтем возможность наличия двойных пробелов
+        // слова длиннее lLabel разобьем на части
+        let tokens = s
+          .split(' ')
+          .map( c => c.trim() )
+          .filter( c => c )
+          .flatMap( c => {
+            if (c.length <= lLabel) {
+              return c;
+            } else {
+              const arr: string[] = [];
+              let l = c;
+              while (l.length > lLabel) {
+                arr.push(l.slice(0, lLabel));
+                l = l.slice(lLabel);
+              }
+              return arr;
+            }
+          });
+
+        while (tokens.length) {
+          let i = 0;
+          let l = 0;
+
+          // только одну сумму не будем оставлять на одной строке
+          while (i < tokens.length) {
+            if (l + tokens[i].length <= lLabel) {
+              l += tokens[i].length;
+              i++;
+            } else {
+              break;
+            }
+          }
+
+          res.push(tokens.slice(0, i));
+          tokens = tokens.slice(i);
+        }
+
+        if (withSum) {
+          const last = res.length - 1;
+
+          // оставлять просто одну сумму в последней строке нельзя
+          if (res[last].length === 1 && res.length > 1) {
+            res[last] = [res[last - 1][res[last - 1].length - 1], ...res[last]];
+            res[last - 1].length = res[last - 1].length - 1;
+          }
+
+          return res.map( (l, idx) => {
+            if (idx === last) {
+              const line = [...l];
+              const sum = line[l.length - 1];
+              line.length = line.length - 1;
+              return `${line.join(' ').padEnd(lLabel)}${sum.padStart(lValue)}`
+            } else {
+              return l.join(' ');
+            }
+          }).join('\n');
+        } else {
+          return res.map( l => l.join(' ') ).join('\n');
+        }
+      }
+
       return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
           ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2
-          ? `${translate(t[0]).slice(0, lLabel - 1).padEnd(lLabel)} ${format(t[1]!).padStart(lValue)}` // -1 for keeping one space btw label and value
+          ? splitLong(`${translate(t[0]).padEnd(lLabel)}${format(t[1]!).padStart(lValue)}`)
           : t === '='
-          ? '='.padEnd(lLabel + lValue, '=')
+          ? '='.padEnd(fullWidth, '=')
+          : translate(t!))
+        .join('\n');
+    };
+
+
+    const payslipViewViber = (template: Template) => {
+      /**
+       * Ширина колонки с названием показателя в расчетном листке.
+       */
+      const lLabel = 27;
+      // /**
+      //  * Ширина колонки с числовым значением в расчетном листке.
+      //  * Должна быть достаточной, чтобы уместить разделительный пробел.
+      //  */
+      // const lValue = 9;
+      /**
+       * Ширина колонки в сравнительном листке.
+       */
+      const lCol = 10;
+      /**
+       * Полная ширина с учетом разделительного пробела
+       */
+      const fullWidth = lLabel;
+
+      const splitLong = (s: string) => {
+        // у нас может получиться длинная строка, которая не влазит на экран
+        // будем переносить ее, "откусывая сначала"
+
+        if (s.length <= fullWidth) {
+          return s;
+        }
+
+        const res: string[][] = [];
+
+        // разобьем на слова, учтем возможность наличия двойных пробелов
+        // слова длиннее lLabel разобьем на части
+        let tokens = s
+          .split(' ')
+          .map( c => c.trim() )
+          .filter( c => c )
+          .flatMap( c => {
+            if (c.length <= lLabel) {
+              return c;
+            } else {
+              const arr: string[] = [];
+              let l = c;
+              while (l.length > lLabel) {
+                arr.push(l.slice(0, lLabel));
+                l = l.slice(lLabel);
+              }
+              return arr;
+            }
+          });
+
+        while (tokens.length) {
+          let i = 0;
+          let l = 0;
+
+          // только одну сумму не будем оставлять на одной строке
+          while (i < tokens.length) {
+            if (l + tokens[i].length <= lLabel) {
+              l += tokens[i].length;
+              i++;
+            } else {
+              break;
+            }
+          }
+
+          res.push(tokens.slice(0, i));
+          tokens = tokens.slice(i);
+        }
+
+        return res.map( l => l.join(' ') ).join('\n');
+      }
+
+      return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
+        .map(t => Array.isArray(t) && t.length === 3
+          ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}`
+          : Array.isArray(t) && t.length === 2
+          ? splitLong(`${translate(t[0])} ${format(t[1]!)}`)
+          : t === '='
+          ? '='.padEnd(fullWidth, '=')
           : translate(t!))
         .join('\n');
     };
@@ -964,11 +1205,6 @@ export class Bot {
       dataI = this._calcPayslipByRate(dataI, currencyRate.rate);
     }
 
-    //const employee = this._getEmployee(customerId, employeeId);
-    //const employeeName = employee
-    //  ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
-    //  : 'Bond, James Bond';
-
     let s: Template;
 
     if (type !== 'COMPARE') {
@@ -977,12 +1213,11 @@ export class Bot {
         : `${new Date(db.year, db.month).toLocaleDateString(lng, { month: 'long', year: 'numeric' })}`
       );
 
-      //TODO: локализация!
-      const currencyName = getLocString(stringResources.payslipCurrency, lng, currencyRate, currencyRate);
+      const currencyAndRate = getLocString(stringResources.payslipCurrency, lng, currency, currencyRate);
 
       s = type === 'CONCISE'
-        ? this._formatShortPayslip(dataI, lng, periodName, currencyName)
-        : this._formatDetailedPayslip(dataI, lng, periodName, currencyName);
+        ? this._formatShortPayslip(dataI, lng, periodName, currencyAndRate)
+        : this._formatDetailedPayslip(dataI, lng, periodName, currencyAndRate);
     } else {
       if (!db2) {
         throw new Error('db2 is not specified');
@@ -994,7 +1229,7 @@ export class Bot {
       const de2 = {
         year: Math.floor(periodEnd / 12),
         month: periodEnd % 12
-      }
+      };
 
       const currencyRate2 = currency === 'BYN' ? undefined : await getCurrRate(db2, currency, this._log);
 
@@ -1012,15 +1247,14 @@ export class Bot {
         dataII = this._calcPayslipByRate(dataII, currencyRate2.rate);
       }
 
-      const periodName = getLocString(stringResources.payslipCurrencyPeriod, lng, db, de, db2, de2);
+      const periodName = getLocString(stringResources.comparativePayslipPeriod, lng, db, de, db2, de2);
 
-      //TODO: локализация!
-      const currencyName = getLocString(stringResources.payslipCurrencyCompare, lng, currency, currencyRate, currencyRate2);
+      const currencyAndRate = getLocString(stringResources.comparativePayslipCurrency, lng, currency, currencyRate, currencyRate2);
 
-      s = this._formatComparativePayslip(dataI, dataII, lng, periodName, currencyName);
+      s = this._formatComparativePayslip(dataI, dataII, periodName, currencyAndRate);
     }
 
-    return '```ini\n' + payslipView(s) + '```';
+    return '^FIXED\n' + (platform === 'TELEGRAM' ? payslipView(s) : payslipViewViber(s));
   }
 
   launch() {
@@ -1044,16 +1278,29 @@ export class Bot {
 
   createService(inPlatform: Platform, inChatId: string) {
     const uniqId = this.getUniqId(inPlatform, inChatId);
-    const service = (inPlatform === 'TELEGRAM' ? interpret(this._telegramMachine) : interpret(this._viberMachine))
-      .onTransition( (state, { type }) => {
+
+    let service;
+
+    if (inPlatform === 'TELEGRAM') {
+      service = interpret(this._telegramMachine);
+    } else {
+      if (!this._viberMachine) {
+        throw new Error('Viber machine is not defined!');
+      }
+      service = interpret(this._viberMachine);
+    }
+
+    service = service.onTransition( (state) => {
         const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
 
+        /*
         this._logger.debug(inChatId, undefined, `State: ${state.toStrings().join('->')}, Event: ${type}`);
         this._logger.debug(inChatId, undefined, `State value: ${JSON.stringify(state.value)}`);
         this._logger.debug(inChatId, undefined, `State context: ${JSON.stringify(state.context)}`);
         if (Object.keys(state.children).length) {
           this._logger.debug(inChatId, undefined, `State children: ${JSON.stringify(Object.values(state.children)[0].state.value)}`);
         }
+        */
 
         if (state.done) {
           return;
@@ -1063,10 +1310,10 @@ export class Bot {
         // потом вернуться к состоянию после перезагрузки машины
         const language = this._accountLanguage[uniqId];
         const accountLink = accountLinkDB.read(inChatId);
-        const { customerId, employeeId, platform, chatId, semaphore, ...rest } = state.context;
+        const { customerId, employeeId, verified, platform, chatId, semaphore, ...rest } = state.context;
 
         if (!accountLink) {
-          if (customerId && employeeId) {
+          if (customerId && employeeId && verified) {
             accountLinkDB.write(inChatId, {
               customerId,
               employeeId,
@@ -1164,6 +1411,10 @@ export class Bot {
 
     if (!service) {
       service = createNewService(false);
+
+      if (!accountLink) {
+        return;
+      }
     }
 
     let e: BotMachineEvent | undefined;
@@ -1189,7 +1440,16 @@ export class Bot {
     if (e) {
       service.send(e);
 
-      if (!service.state.changed) {
+      let childrenStateChanged = false;
+
+      for (const [_key, ch] of service.children) {
+        if (ch.state.changed) {
+          childrenStateChanged = true;
+          break;
+        }
+      }
+
+      if (!service.state.changed && !childrenStateChanged) {
         // мы каким-то образом попали в ситуацию, когда текущее состояние не
         // может принять вводимую информацию. например, пользователь
         // очистил чат или произошел сбой на стороне мессенджера и
@@ -1211,7 +1471,7 @@ export class Bot {
     let customerAccDed = this._customerAccDeds[customerId];
 
     if (!customerAccDed) {
-      customerAccDed = new FileDB<IAccDed>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${accDedRefFileName}`), this._log);
+      customerAccDed = new FileDB<IAccDed>(getAccDedFN(customerId), this._log);
       this._customerAccDeds[customerId] = customerAccDed;
     }
 
@@ -1228,7 +1488,7 @@ export class Bot {
     let employee = this._employees[customerId];
 
     if (!employee) {
-      employee = new FileDB<Omit<IEmployee, 'id'>>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeFileName}`), this._log);
+      employee = new FileDB<Omit<IEmployee, 'id'>>(getEmployeeFN(customerId), this._log);
       this._employees[customerId] = employee;
     }
 
@@ -1243,7 +1503,7 @@ export class Bot {
 
   upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
     const employeeId = objData.emplId;
-    const payslip = new FileDB<IPayslip>(path.resolve(process.cwd(), `${payslipRoot}/${customerId}/${employeeId}.json`), this._log);
+    const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log);
 
     if (rewrite) {
       payslip.clear();
@@ -1255,6 +1515,7 @@ export class Bot {
     // просто запишем данные, которые пришли из интернета
     if (!prevPayslipData) {
       payslip.write(employeeId, objData);
+
     } else {
       // данные есть. надо объединить прибывшие данные с тем
       // что уже есть на диске
@@ -1263,7 +1524,9 @@ export class Bot {
         data: [...prevPayslipData.data],
         dept: [...prevPayslipData.dept],
         pos: [...prevPayslipData.pos],
-        salary: [...prevPayslipData.salary]
+        salary: [...prevPayslipData.salary],
+        payForm: [...prevPayslipData.payForm],
+        hourrate: prevPayslipData.hourrate ? [...prevPayslipData.hourrate] : []
       };
 
       // объединяем начисления
@@ -1296,6 +1559,16 @@ export class Bot {
         }
       }
 
+      // объединяем формы оплат
+      for (const p of objData.payForm) {
+        const i = newPayslipData.payForm.findIndex( a => a.d === p.d );
+        if (i === -1) {
+          newPayslipData.payForm.push(p);
+        } else {
+          newPayslipData.payForm[i] = p;
+        }
+      }
+
       // объединяем оклады
       for (const p of objData.salary) {
         const i = newPayslipData.salary.findIndex( a => a.d === p.d );
@@ -1306,14 +1579,80 @@ export class Bot {
         }
       }
 
+      if (objData.hourrate) {
+        // объединяем чтс
+        for (const p of objData.hourrate) {
+          const i = newPayslipData.hourrate.findIndex( a => a.d === p.d );
+          if (i === -1) {
+            newPayslipData.hourrate.push(p);
+          } else {
+            newPayslipData.hourrate[i] = p;
+          }
+        }
+      }
+
       payslip.write(employeeId, newPayslipData);
     }
-
     payslip.flush();
 
     //TODO: оповестить всех клиентов о новых расчетных листках
     // надо организовать цикл по всем аккаунт линк и если текущий диалог
     // находится в состоянии главного меню, вывести там через машину
     // состояний кратский расчетный листок
+  }
+
+  public async sendLatestPayslip(customerId: string, employeeId: string) {
+    this.sendLatestPayslipToMessenger(customerId, employeeId, this._telegramAccountLink, this._replyTelegram, 'TELEGRAM');
+    if (this._replyViber) {
+      this.sendLatestPayslipToMessenger(customerId, employeeId, this._viberAccountLink, this._replyViber, 'VIBER')
+    }
+  }
+
+  public async sendLatestPayslipToMessenger(customerId: string, employeeId: string, accountLinkDB: FileDB<IAccountLink>, reply: ReplyFunc, platform: Platform)  {
+    // сначала поищем в списке чатов
+    const accountLink = Object.entries(accountLinkDB.getMutable(false))
+      .find( ([_, acc]) => acc.customerId === customerId && acc.employeeId === employeeId );
+
+    if (!accountLink) {
+      return;
+    }
+
+    const chatId = accountLink[0];
+    const { payslipSentOn, state, currency, language } = accountLink[1];
+    const lastPayslipDE = this._getLastPayslipDate(customerId, employeeId);
+
+    if (!lastPayslipDE || (payslipSentOn && isGrOrEq(payslipSentOn, lastPayslipDE))) {
+      return;
+    };
+
+    const service = this._service[this.getUniqId(platform, chatId)];
+    if (service) {
+      // у нас сервер уже связан с чатом в мессенджере
+      // сотрудника.
+      if (service.state.value instanceof Object && service.state.value['mainMenu'] === 'showMenu') {
+        service.send({ type: 'MENU_COMMAND', command: '.latestPayslip' });
+      }
+    } else {
+      // сервер не связан. например, мы его перегрузили
+      // будем посылать в чат сообщение с помощью sendMessage
+      if (state instanceof Object && state['mainMenu'] === 'showMenu') {
+        // мы как-будто вызываем функцию изнутри машины
+        // надо ей подсунуть нужные ей параметры, имитируя
+        // контекст машины
+        // 1) получить текст расчетного листка
+        // 2) если в акаунт линк есть прежнее меню -- удалить его
+        // 3) вывести текст расчетного листка и главное меню под ним
+
+        const d: IDate = {year: lastPayslipDE.getFullYear(), month: lastPayslipDE.getMonth()};
+        const text = await this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', platform, d, d);
+        await reply(text, keyboardMenu)({ chatId, semaphore: new Semaphore() });
+      }
+    }
+
+    accountLinkDB.write(chatId, {
+      ...accountLink[1],
+      payslipSentOn: lastPayslipDE,
+      lastUpdated: new Date()
+    })
   }
 };

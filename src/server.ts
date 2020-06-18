@@ -6,7 +6,7 @@ import https from 'https';
 import path from 'path';
 import { initCurrencies } from "./currency";
 import * as fs from "fs";
-import { Logger, ILogger } from "./log";
+import { Logger } from "./log";
 
 // if not exists create configuration file using
 // config.ts.sample as an example
@@ -34,30 +34,12 @@ if (!config.telegram.token) {
 }
 
 if (!config.viber.token) {
-  throw new Error('Viber bot token isn\'t specified.');
+  log.warn('Viber bot token isn\'t specified.');
 }
-
-/*
-const telegram = new TelegramBot(
-  config.telegram.token,
-  getCustomers,
-  getEmployeesByCustomer,
-  getAccDeds,
-  getPaySlipByUser);
-
-const viber = new Viber(
-  ZAROBAK_VIBER_BOT_TOKEN,
-  getCustomers,
-  getEmployeesByCustomer,
-  getAccDeds,
-  getPaySlipByUser);
-*/
 
 const bot = new Bot(
   config.telegram.token,
-  path.resolve(process.cwd(), 'data/telegram'),
-  config.viber.token,
-  path.resolve(process.cwd(), 'data/viber'),
+  config.viber.disabled ? '' : config.viber.token,
   logger
 );
 
@@ -80,13 +62,12 @@ router.get('/', (ctx, next) => {
 });
 
 //TODO: dangerous!
-router.get('/zarobak/v1/shutdown_gdmn_bot_server', (ctx, next) => {
+router.get('/zarobak/v1/shutdown_gdmn_bot_server', async (ctx, next) => {
   ctx.status = 200;
   ctx.body = JSON.stringify({ status: 200, result: `ok` });
-  log.info('Server shutting down...');
-  bot.finalize();
+  await shutdown('Server shutting down...');
   setTimeout( () => process.exit(), 100 );
-  return next();
+  //return next();
 });
 
 router.post('/zarobak/v1/upload_employees', (ctx, next) => {
@@ -124,6 +105,7 @@ router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
   try {
     const { customerId, objData, rewrite } = ctx.request.body;
     bot.upload_payslips(customerId, objData, rewrite);
+    bot.sendLatestPayslip(customerId, objData.emplId);
     ctx.status = 200;
     ctx.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {
@@ -160,25 +142,29 @@ const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bun
   .map(cert => cert +'-----END CERTIFICATE-----\r\n')
   .pop();
 
-const viberCallback = bot.viber.middleware();
+const viberCallback = bot.viber?.middleware();
 
 https.createServer({ cert, ca, key },
   (req, res) => {
     if (req.headers['x-viber-content-signature']) {
-      viberCallback(req, res);
+      viberCallback?.(req, res);
     } else {
       koaCallback(req, res);
     }
   }
 ).listen(config.httpsPort,
   async () => {
-    const viberWebhook = `https://${config.viber.callbackHost}`;
+    if (config.viber.token && !config.viber.disabled) {
+      const viberWebhook = `https://${config.viber.callbackHost}`;
 
-    try {
-      await bot.viber.setWebhook(viberWebhook);
-      log.info(`Viber webhook set at ${viberWebhook}`);
-    } catch(e) {
-      log.error(`Error setting Viber webhook at ${viberWebhook}: ${e}`);
+      try {
+        await bot.viber.setWebhook(viberWebhook);
+        log.info(`Viber webhook set at ${viberWebhook}`);
+      } catch(e) {
+        log.error(`Error setting Viber webhook at ${viberWebhook}: ${e}`);
+      }
+    } else {
+      log.warn('Viber bot isn\'t activated.')
     }
 
     // раз в час пишем на диск все несохраненные данные
@@ -192,17 +178,21 @@ bot.launch();
  * При завершении работы сервера скидываем на диск все данные.
  */
 
+const shutdown = async (msg: string) => {
+  bot.finalize();
+  await logger.info(undefined, undefined, msg);
+  await logger.shutdown();
+};
+
 process
-  .on('exit', async (code) => {
-    bot.finalize();
-    await logger.info(undefined, undefined, `Process exit event with code: ${code}`);
-    await logger.shutdown();
+  .on('exit', code => console.log(`Process exit event with code: ${code}`) )
+  .on('SIGINT', async () => {
+    await shutdown('SIGINT received...');
+    process.exit();
   })
-  .on('SIGINT', () => process.exit(0))
-  .on('unhandledRejection', (reason, p) => {
-    console.error({ err: reason }, `bot launch ${p}`);
+  .on('SIGTERM', async () => {
+    await shutdown('SIGINT received...');
+    process.exit();
   })
-  .on('uncaughtException', err => {
-    console.error({ err }, 'bot launch');
-    process.exit(2);
-  });
+  .on('unhandledRejection', (reason, p) => console.error({ err: reason }, p) )
+  .on('uncaughtException', err => console.error(err) );

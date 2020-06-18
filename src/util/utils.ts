@@ -17,30 +17,6 @@ const normalizeStr = (s?: string) => s && s.trim()
 
 export const testNormalizeStr = (a: string, b: string) => normalizeStr(a) === normalizeStr(b);
 
-/** Возвращает массив лет за период*/
-/*
-export function getYears(fromDate: Date, toDate: Date): number[] {
-  let years = [];
-  let fromYear = fromDate.getFullYear();
-  let toYear = toDate.getFullYear();
-  while (fromYear <= toYear) {
-    years.push(fromYear);
-    fromYear = fromYear + 1;
-  }
-  return years;
-};
-*/
-
-/*
-function round(value: number, decimals: number) {
-  let r = 0.5 * Number.EPSILON * value;
-  let o = 1;
-  while(decimals-- > 0) o *= 10;
-  if(value < 0) o *= -1;
-  return Math.round((value + r) * o) / o;
-}
-*/
-
 /**
  * Преобразует дату в строку вида YYYY.MM.DD. или DD.MM.YYYY
  * @param date Дата.
@@ -49,7 +25,7 @@ export const date2str = (date: Date, format: 'YYYY.MM.DD' | 'DD.MM.YYYY' | 'DD.M
   format === 'YYYY.MM.DD'
     ? `${date.getFullYear()}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getDate().toString().padStart(2, '0')}`
     : format === 'DD.MM.YY'
-    ? `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${(date.getFullYear() / 100).toFixed(0)}`
+    ? `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear().toString().slice(-2)}`
     : `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;
 
 const lmap: { [letter: string]: string } = {
@@ -69,3 +45,28 @@ const lmap: { [letter: string]: string } = {
 const replaceIdentLetters = (s: string | undefined) => s && [...s.toUpperCase()].map( c => lmap[c] ?? c ).join('');
 
 export const testIdentStr = (a: string, b: string) => replaceIdentLetters(a) === replaceIdentLetters(b);
+
+export const str2Date = (date: Date | string) => {
+  if (typeof date === 'string') {
+    const [y, m, d] = date.split('.').map( s => Number(s) );
+    if (y && m && d) {
+      return new Date(y, m - 1, d);
+    } else {
+      throw new Error(`Invalid date format ${date}`)
+    }
+  } else {
+    return date;
+  }
+};
+
+export const isGr = (d1: Date, d2: Date) => {
+  return d1.getTime() > d2.getTime();
+};
+
+export const isLs = (d1: Date, d2: Date) => {
+  return d1.getTime() < d2.getTime();
+};
+
+export const isGrOrEq = (d1: Date, d2: Date) => {
+  return d1.getTime() >= d2.getTime();
+};

@@ -31,8 +31,7 @@ export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, 
           selectedDate: ({ selectedDate }, { delta }: ChangeYearEvent) => ({
             ...selectedDate, year: selectedDate.year + delta
           })
-        }),
-        'showCalendar'
+        })
       ]
     },
     SELECT_MONTH: {
@@ -66,6 +65,12 @@ export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, 
 export interface IBotMachineContext extends IMachineContextBase {
   customerId?: string;
   employeeId?: string;
+  /**
+   * Устанавливается в true после окончания регистрации пользователя.
+   * Т.е. поле проверки названия предприятия, персонального номера
+   * и, если активирована защита, после проверки ПИН кода.
+   */
+  verified?: boolean;
   dateBegin: IDate;
   dateEnd: IDate;
   dateBegin2: IDate;
@@ -145,7 +150,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             {
               cond: 'findEmployee',
               actions: 'assignEmployeeId',
-              target: 'mainMenu'
+              target: '.verification'
             },
             {
               actions: 'unknownEmployee'
@@ -155,6 +160,35 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
         states: {
           question: {
             entry: 'askPersonalNumber'
+          },
+          verification: {
+            on: {
+              '': [
+                {
+                  cond: 'isProtected',
+                  target: 'checkPIN'
+                },
+                {
+                  target: '#botMachine.mainMenu',
+                  actions: assign({ verified: ({ customerId, employeeId }) => !!customerId && !!employeeId  })
+                }
+              ]
+            }
+          },
+          checkPIN: {
+            on: {
+              ENTER_TEXT: [
+                {
+                  cond: 'checkPIN',
+                  actions: assign({ verified: ({ customerId, employeeId }) => !!customerId && !!employeeId  }),
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  actions: 'invalidPIN'
+                }
+              ]
+            },
+            entry: 'askPIN'
           }
         },
       },
@@ -165,6 +199,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             {
               cond: (_, { command }: MenuCommandEvent) => command === '.payslip',
               target: 'payslip'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.latestPayslip',
+              target: 'latestPayslip'
             },
             {
               cond: (_, { command }: MenuCommandEvent) => command === '.detailedPayslip',
@@ -250,7 +288,13 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       },
       logout: {
         type: 'final',
-        entry: ['sayGoodbye', 'logout']
+        entry: 'logout'
+      },
+      latestPayslip: {
+        on: {
+          '': '#botMachine.mainMenu'
+        },
+        entry: 'showLatestPayslip'
       },
       payslip: {
         initial: 'enterDate',

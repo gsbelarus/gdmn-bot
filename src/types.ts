@@ -1,9 +1,27 @@
 import { Language, LName } from "./stringResources";
 import { IBotMachineContext } from "./machine";
 import { StateValue } from "xstate";
+import { ILoggerParams } from "./log";
+
+export interface IConfig {
+  telegram: {
+    token: string;
+  },
+  viber: {
+    token: string;
+    callbackHost: string;
+    disabled?: boolean;
+  },
+  httpPort: number,
+  httpsPort: number,
+  logger: ILoggerParams;
+};
 
 export interface IDate {
   year: number;
+  /**
+   * Индекс месяца, начиная с 0 (январь).
+   */
   month: number;
 };
 
@@ -22,6 +40,11 @@ export interface IUpdate {
 export interface ICustomer {
   id: string;
   name: string;
+  /**
+   * Защита регистрации сотрудников дополнительным ПИН кодом.
+   * См. https://docs.google.com/document/d/1XoWdsyjaMDgc0p2B7eidObij6vShxbpUqA_bBDe5ku8
+   */
+  protected?: boolean;
   aliases: string[];
 };
 
@@ -30,6 +53,9 @@ export interface IEmployee {
   firstName: string;
   lastName: string;
   patrName: string;
+  //TODO: я бы этот параметр сделал необязательным. Не у всех он будет
+  //заполнен. И лучше назвать dateOfBirth
+  birthday: Date;
   passportId: string;
 };
 
@@ -45,6 +71,11 @@ export interface IAccountLink {
    */
   lastMenuId?: number;
   lastUpdated?: Date;
+  /**
+   * Дата конца периода последнего в хронологическом порядке расчетного листка,
+   * который был автоматически выслан в чат пользователя.
+   */
+  payslipSentOn?: Date;
 };
 
 export interface IAccDeds {
@@ -60,6 +91,7 @@ export type AccDedType = 'ACCRUAL' | 'DEDUCTION' | 'TAX_DEDUCTION' | 'ADVANCE' |
 export interface IAccDed {
   name: LName;
   type: AccDedType;
+  n?: number;
 };
 
 export interface IPosition {
@@ -78,8 +110,14 @@ export interface ISalary {
   s: number;
   d: Date;
 };
+
 export interface IHourRate {
   s: number;
+  d: Date;
+};
+
+export interface IPayForm {
+  slr: boolean;
   d: Date;
 };
 
@@ -94,6 +132,7 @@ export interface IPayslip {
   emplId: string;
   dept: IDepartment[];
   pos: IPosition[];
+  payForm: IPayForm[];
   salary: ISalary[];
   hourrate?: IHourRate[];
   data: {
@@ -112,6 +151,7 @@ export interface IPayslipItem {
   id: string;
   name: LName;
   s: number;
+  n: number;
   type?: AccDedType;
   det?: IDet;
 };
