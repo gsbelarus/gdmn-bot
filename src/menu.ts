@@ -23,6 +23,20 @@ export type Menu = MenuItem[][];
 
 export const keyboardMenu: Menu = [
   [
+    { type: 'BUTTON', caption: stringResources.menuWage, command: '.wage' },
+    { type: 'BUTTON', caption: stringResources.menuOther, command: '.other' }
+  ],
+  [
+    { type: 'BUTTON', caption: stringResources.menuSettings, command: '.settings' },
+    { type: 'BUTTON', caption: stringResources.menuLogout, command: '.logout' }
+  ],
+  [
+    { type: 'LINK', caption: stringResources.menuHelp, url: 'http://gsbelarus.com' }
+  ]
+];
+
+export const keyboardWage: Menu = [
+  [
     { type: 'BUTTON', caption: stringResources.menuPayslip, command: '.payslip' },
     { type: 'BUTTON', caption: stringResources.menuDetailedPayslip, command: '.detailedPayslip' }
   ],
@@ -31,11 +45,24 @@ export const keyboardMenu: Menu = [
     { type: 'BUTTON', caption: stringResources.menuComparePayslip, command: '.comparePayslip' }
   ],
   [
-    { type: 'BUTTON', caption: stringResources.menuSettings, command: '.settings' },
-    { type: 'BUTTON', caption: stringResources.menuLogout, command: '.logout' }
+    { type: 'BUTTON', caption: stringResources.btnBackToMenu, command: '.cancelWage' },
+  ]
+];
+
+export const keyboardOther: Menu = [
+  [
+    { type: 'BUTTON', caption: stringResources.menuSchedule, command: '.schedule' },
+    { type: 'BUTTON', caption: stringResources.menuTable, command: '.table' }
   ],
   [
-    { type: 'LINK', caption: stringResources.menuHelp, url: 'http://gsbelarus.com' }
+    { type: 'BUTTON', caption: stringResources.menuBirthdays, command: '.birthdays' },
+    { type: 'BUTTON', caption: stringResources.menuRates, command: '.rates' }
+  ],
+  [
+    { type: 'BUTTON', caption: stringResources.menuBillboard, command: '.billboard' },
+  ],
+  [
+    { type: 'BUTTON', caption: stringResources.btnBackToMenu, command: '.cancelOther' },
   ]
 ];
 

@@ -54,7 +54,7 @@ export interface IEmployee {
   lastName: string;
   patrName: string;
   //TODO: я бы этот параметр сделал необязательным. Не у всех он будет
-  //заполнен. И лучше назвать dateOfBirth
+  //заполнен.
   birthday: Date;
   passportId: string;
 };
