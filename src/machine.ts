@@ -31,8 +31,7 @@ export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, 
           selectedDate: ({ selectedDate }, { delta }: ChangeYearEvent) => ({
             ...selectedDate, year: selectedDate.year + delta
           })
-        }),
-        'showCalendar'
+        })
       ]
     },
     SELECT_MONTH: {
