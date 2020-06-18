@@ -466,7 +466,6 @@ export class Bot {
           const t = await s;
           let text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
 
-          //TODO: сделать отдельные функции
           if (text && text.slice(0, 7) === '^FIXED\n') {
             text = text.slice(7);
           }
@@ -681,12 +680,9 @@ export class Bot {
       const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
         .read(employeeId);
 
-      //TODO: обратите внимание! если массив будет пустой, делаем проверку, чтобы
-      //не вылетела ошибка позже
       if (payslip?.data[0]?.de) {
         let maxPayslipDate = str2Date(payslip.data[0].de);
 
-        //TODO: перебирать массив можно просто. не надо вызывать Object.values
         for (const { de } of payslip.data) {
           const paySlipD = str2Date(de);
           if (isGr(paySlipD, maxPayslipDate)) {
@@ -1408,25 +1404,27 @@ export class Bot {
       return res;
     }
 
-    if (body === '/start' || service?.state.done || (!service && !accountLink)) {
+    if (body === '/start' || service?.state.done) {
       createNewService(true);
       return;
     }
 
     if (!service) {
       service = createNewService(false);
+
+      if (!accountLink) {
+        return;
+      }
     }
 
     let e: BotMachineEvent | undefined;
 
     switch (type) {
       case 'MESSAGE':
-        //console.log(`MESSAGE: ${body}`);
         e = { type: 'ENTER_TEXT', text: body };
         break;
 
       case 'ACTION': {
-        //console.log(`ACTION: ${body}`);
         if (body.slice(0, 1) === '{') {
           e = { ...JSON.parse(body), update };
         } else {
@@ -1650,7 +1648,7 @@ export class Bot {
         await reply(text, keyboardMenu)({ chatId, semaphore: new Semaphore() });
       }
     }
-    //TODO: обновить дату последнего изменения
+
     accountLinkDB.write(chatId, {
       ...accountLink[1],
       payslipSentOn: lastPayslipDE,
