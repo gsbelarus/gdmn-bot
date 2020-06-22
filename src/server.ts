@@ -98,9 +98,6 @@ router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
   return next();
 });
 
-// TODO: ид сотрудника, данные которого передаются, можно сразу включать в URI,
-// например: /zarobak/v1/upload_paySlips?employeeId=445566
-// тогда сразу будет видно на каком именно сотруднике произошла ошибка
 router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
   try {
     const { customerId, objData, rewrite } = ctx.request.body;

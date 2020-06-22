@@ -49,14 +49,18 @@ export interface ICustomer {
 };
 
 export interface IEmployee {
+  /**
+   * РУИД сотрудника.
+   */
   id: string;
+  /**
+   * Идентификационный номер из паспорта.
+   */
+  passportId: string;
   firstName: string;
   lastName: string;
-  patrName: string;
-  //TODO: я бы этот параметр сделал необязательным. Не у всех он будет
-  //заполнен.
-  birthday: Date;
-  passportId: string;
+  patrName?: string;
+  birthday?: Date;
 };
 
 export interface IAccountLink {

@@ -14,7 +14,6 @@ import { Logger, ILogger } from "./log";
 import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN } from "./files";
 import { hashELF64 } from "./hashELF64";
 
-//TODO: добавить типы для TS и заменить на import
 const vb = require('viber-bot');
 const ViberBot = vb.Bot
 const BotEvents = vb.Events
