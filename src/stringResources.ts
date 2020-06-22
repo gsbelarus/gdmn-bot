@@ -81,9 +81,9 @@ export const stringResources = {
     be: (employee: string, lang: Language, curr: string) => `Бягучыя настройкі:\n\tСупрацоўнік: ${employee}\n\tМова: ${lang}\n\tВалюта: ${curr}`
   } as ILocString,
   showSelectedDate: {
-    en: (d: IDate) => `Selected month ${d.month + 1}.${d.year}`,
-    ru: (d: IDate) => `Выбран месяц ${d.month + 1}.${d.year}`,
-    be: (d: IDate) => `Выбраны месяц ${d.month + 1}.${d.year}`
+    en: (d: IDate) => `Selected month ${(d.month + 1).toString().padStart(2, '0')}.${d.year}`,
+    ru: (d: IDate) => `Выбран месяц ${(d.month + 1).toString().padStart(2, '0')}.${d.year}`,
+    be: (d: IDate) => `Выбраны месяц ${(d.month + 1).toString().padStart(2, '0')}.${d.year}`
   },
   shortMonth0: {
     en: 'jan',
