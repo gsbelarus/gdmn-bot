@@ -197,6 +197,34 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
         on: {
           MENU_COMMAND: [
             {
+              cond: (_, { command }: MenuCommandEvent) => command === '.wage',
+              target: 'wage'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.other',
+              target: 'other'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.settings',
+              target: 'settings'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.logout',
+              target: 'logout'
+            }
+          ]
+        },
+        states: {
+          showMenu: {
+            entry: 'showMainMenu'
+          }
+        }
+      },
+      wage: {
+        initial: 'showWage',
+        on: {
+          MENU_COMMAND: [
+            {
               cond: (_, { command }: MenuCommandEvent) => command === '.payslip',
               target: 'payslip'
             },
@@ -217,20 +245,32 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
               target: 'comparePayslip'
             },
             {
-              cond: (_, { command }: MenuCommandEvent) => command === '.settings',
-              target: 'settings'
+              cond: (_, { command }: MenuCommandEvent) => command === '.cancelWage',
+              target: 'mainMenu'
             },
-            {
-              cond: (_, { command }: MenuCommandEvent) => command === '.logout',
-              target: 'logout'
-            }
           ]
         },
         states: {
-          showMenu: {
-            entry: 'showMainMenu'
+          showWage: {
+            entry: 'showWage'
           }
-        }
+        },
+      },
+      other: {
+        initial: 'showOther',
+        on: {
+          MENU_COMMAND: [
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.cancelOther',
+              target: 'mainMenu'
+            },
+          ]
+        },
+        states: {
+          showOther: {
+            entry: 'showOther'
+          }
+        },
       },
       settings: {
         initial: 'showSettings',

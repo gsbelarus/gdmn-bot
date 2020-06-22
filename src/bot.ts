@@ -6,7 +6,7 @@ import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions }
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
 import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq } from "./util/utils";
-import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency } from "./menu";
+import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
@@ -14,7 +14,6 @@ import { Logger, ILogger } from "./log";
 import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN } from "./files";
 import { hashELF64 } from "./hashELF64";
 
-//TODO: добавить типы для TS и заменить на import
 const vb = require('viber-bot');
 const ViberBot = vb.Bot
 const BotEvents = vb.Events
@@ -302,6 +301,8 @@ export class Bot {
             reply(stringResources.mainMenuCaption, keyboardMenu)(ctx);
           }
         },
+        showWage: reply(stringResources.mainMenuCaption, keyboardWage),
+        showOther: reply(stringResources.mainMenuCaption, keyboardOther),
         showPayslip: getShowPayslipFunc('CONCISE', reply),
         showLatestPayslip: getShowLatestPayslipFunc(reply),
         showDetailedPayslip: getShowPayslipFunc('DETAIL', reply),
