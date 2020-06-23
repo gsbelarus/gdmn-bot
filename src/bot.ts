@@ -1601,11 +1601,6 @@ export class Bot {
       payslip.write(employeeId, newPayslipData);
     }
     payslip.flush();
-
-    //TODO: оповестить всех клиентов о новых расчетных листках
-    // надо организовать цикл по всем аккаунт линк и если текущий диалог
-    // находится в состоянии главного меню, вывести там через машину
-    // состояний кратский расчетный листок
   }
 
   public async sendLatestPayslip(customerId: string, employeeId: string) {
