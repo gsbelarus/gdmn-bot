@@ -103,8 +103,10 @@ dist
 # TernJS port file
 .tern-port
 
-/data/*.json
+/data/customers.json
+/data/nbrbrates.json
 /data/**/*.json
+
 /**/*.pem
 /**/*.pfx
 
