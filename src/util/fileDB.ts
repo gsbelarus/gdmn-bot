@@ -36,6 +36,7 @@ export class FileDB<T extends Object> {
     this._check = check;
     this._ignore = ignore;
     this._logger = logger ?? console;
+    this._restore = restore;
   }
 
   private _load(): IData<T> {
