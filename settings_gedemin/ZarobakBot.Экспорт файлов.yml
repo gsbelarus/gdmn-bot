@@ -5,10 +5,10 @@ Properties:
   RUID: 1193786287_1320926324
   Name: "ZarobakBot.Экспорт файлов"
   Caption: "ZarobakBot.Экспорт файлов"
-  Version: "1.0.0.23"
+  Version: "1.0.0.28"
   Optional: False
   Internal: True
-  MD5: 3F188F17DA1DE4CAD9E2EE8B341BFC8D
+  MD5: D53C18F26EDCF5164855B96162DDD6E4
 Uses: 
   - "158513268_1444931844 ZarobakBot.Сбор данных"
 Objects: 
@@ -62,7 +62,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-06-08T10:23:18+03:00
+      EDITIONDATE: 2020-06-23T12:35:46+03:00
       DISPLAYSCRIPT: | 
         BOT_SENDFILE
         
@@ -88,16 +88,16 @@ Objects:
           call oXMLHTTP.setRequestHeader("Content-Type", "application/json")
           on error resume next
           call oXMLHTTP.Send(JSON)
+          on error goto 0
           if Err.Number <> 0 then
-            MsgBox "Ошибка передачи файла " & Err.Message
+            call Application.MessageBox("Ошибка передачи файла " & Err.Message, "Внимание!", vbOKOnly + vbCritical + vbSystemModal)
             bot_SendFile = false
           elseif oXMLHTTP.status <> 200 then
-            MsgBox "Ошибка обработки данных на сервере"
+            call Application.MessageBox("Ошибка обработки данных на сервере. Статус: " & oXMLHTTP.status, "Внимание!", vbOKOnly + vbCritical + vbSystemModal)
             bot_SendFile = false
           else
             bot_SendFile = true
           end If
-          on error goto 0
         
         End Function
         
@@ -430,7 +430,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-13T15:30:21+03:00
+      EDITIONDATE: 2020-06-23T12:40:46+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTPAYSLIPSU
         
@@ -447,15 +447,16 @@ Objects:
         '#include BOT_SENDFILE
         '#include BOT_PREPAREPAYSLIP
         Function bot_exportPaySlipsU(Period, customerId, companyId, URL, isRewrite, isManual)
-          dim Jsons, i, Creator, isSendedFile
+          bot_exportPaySlipsU = true
+          dim Jsons, i, Creator
           set Creator = new TCreator
           set Jsons = Creator.GetObject(nil, "TStringList", "")
           'Формирование списка Json файлов в разрезе сотрудника
           call bot_PreparePaySlip(Period, customerId, companyId, isRewrite, isManual, Jsons)
           'Отправим на сервер по одному
           for i = 0 to Jsons.Count - 1
-            isSendedFile = bot_SendFile(Jsons(i), URL)
-            if not isSendedFile then
+            bot_exportPaySlipsU = bot_SendFile(Jsons(i), URL)
+            if not bot_exportPaySlipsU then
               exit function
             end if
           next
@@ -494,7 +495,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-03T00:44:29+03:00
+      EDITIONDATE: 2020-06-23T12:05:28+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTACCDEDSU
         
@@ -514,7 +515,7 @@ Objects:
           'Формирование Json файла со списком начислений/удержаний
           call bot_PrepareAccDed(customerId, isManual, Json)
           'Отправка на сервер
-          bot_SendFile Json.Text, URL
+          bot_exportAccDedsU = bot_SendFile(Json.Text, URL)
         End Function
         
     Set: 
@@ -550,7 +551,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-03T22:52:22+03:00
+      EDITIONDATE: 2020-06-23T12:05:57+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTEMPLOYEESU
         
@@ -571,7 +572,7 @@ Objects:
           'Формирование Json файла со списком всех сотрудников за период
           call bot_PrepareEmployees(customerId, companyId, isManual, Json)
           'Отправка на сервер
-          bot_SendFile Json.Text, URL
+          bot_exportEmployeesU = bot_SendFile(Json.Text, URL)
         End Function
         
     Set: 
@@ -606,7 +607,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-12T11:56:18+03:00
+      EDITIONDATE: 2020-06-23T12:24:32+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTDATA
         
@@ -640,22 +641,31 @@ Objects:
           set Creator = new TCreator
           dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
           P.StartWork "ZarobakBot", "Экспорт данных", 3*(count+1), True, True
-          
+        
           for i = 0 to count
             customer = Split(customerArray(i), ",")
             customerId = customer(0)
             companyId = gdcBaseManager.GetIDByRUIDString(customer(1))
-            
+        
             P.StartStep "Виды начислений " & customerId, 1
-            call bot_exportAccDedsU(customerId, URL & upload_accDedRefs, false)
+            if not bot_exportAccDedsU(customerId, URL & upload_accDedRefs, false) then
+              P.EndWork "Экспорт остановлен!", False
+              exit function
+            end if
         
             P.StartStep "Сотрудники " & customerId, 1
-            call bot_exportEmployeesU(customerId, companyId, URL & upload_employees, false)
-            
+            if not bot_exportEmployeesU(customerId, companyId, URL & upload_employees, false) then
+              P.EndWork "Экспорт остановлен!", False
+              exit function
+            end if
+        
             P.StartStep "Расчетные листки " & customerId, 1
-            call bot_exportPaySlipsU(Period, customerId, companyId, URL & upload_paySlips, isRewrite, false)
+            if not bot_exportPaySlipsU(Period, customerId, companyId, URL & upload_paySlips, isRewrite, false) then
+              P.EndWork "Экспорт остановлен!", False
+              exit function
+            end if
           next
-          
+        
           P.EndWork "Экспорт выполнен!", False
         End Function
         
