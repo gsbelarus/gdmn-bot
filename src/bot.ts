@@ -210,6 +210,14 @@ export class Bot {
         // запись из акаунт линк.
         // аналогично обрабатываться в функции reply для вайбера
         this._logger.error(chatId, undefined, e);
+        console.log('test error');
+        console.log(e);
+        //Если чат был заблокирован, то удалим запись из аккаунта
+        if (e.code === 403) {
+          this._telegramAccountLink.delete(chatId);
+          delete this._service[this.getUniqId('TELEGRAM', chatId)];
+          this._log.info(`Chat blocked, ${chatId}`);
+        }
       } finally {
         semaphore.release();
       }
@@ -1595,11 +1603,6 @@ export class Bot {
       payslip.write(employeeId, newPayslipData);
     }
     payslip.flush();
-
-    //TODO: оповестить всех клиентов о новых расчетных листках
-    // надо организовать цикл по всем аккаунт линк и если текущий диалог
-    // находится в состоянии главного меню, вывести там через машину
-    // состояний кратский расчетный листок
   }
 
   public async sendLatestPayslip(customerId: string, employeeId: string) {
