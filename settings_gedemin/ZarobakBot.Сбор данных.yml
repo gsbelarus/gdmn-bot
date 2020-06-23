@@ -5,10 +5,10 @@ Properties:
   RUID: 158513268_1444931844
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.25"
+  Version: "1.0.0.28"
   Optional: False
   Internal: True
-  MD5: 77F66B9D7DEF26E27C1C2C49F178A001
+  MD5: 0ADA8EE84AC7A20891E0E18801B067F3
 Objects: 
   - 
     Properties: 
@@ -77,7 +77,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-06-13T21:49:55+03:00
+      EDITIONDATE: 2020-06-23T14:16:55+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREPAYSLIP
         BOT_PREPAREPAYSLIP_ROLLBACK
@@ -131,7 +131,9 @@ Objects:
               "    LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = tline.USR$EMPLKEY " & _
               "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
               "    JOIN USR$WG_EMPLWORKTERM w ON w.USR$FIRSTMOVEKEY = ml.USR$FIRSTMOVE " & _
-              "  WHERE COALESCE(TRIM(p.PERSONALNUMBER), '') <> '' AND " & _
+              "    LEFT JOIN USR$WG_P_EMPLCARDSTATE(tline.USR$EMPLKEY, :pDate) pcard ON 1 = 1 " & _
+              "    LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
+              "  WHERE COALESCE(TRIM(card.USR$PERSONALNUMBER), '') <> '' AND " & _
               "    t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
               "    AND doc.COMPANYKEY = :companyId " & _
               "    AND (w.USR$DATEEND > :pDate OR w.USR$DATEEND IS NULL) " & _
@@ -148,6 +150,9 @@ Objects:
             dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
             P.StartWork "ZarobakBot", "Формируем данные..", count, True, True
           end if
+        
+          Dim b
+          If isRewrite Then b = "true" Else b = "false"
         
           'Формируем расчетные листки за период,
           'но сотрудников берем тех, кто работает на дату окончания последнего итогового начисления - pDate
@@ -200,8 +205,10 @@ Objects:
             "      LEFT JOIN WG_POSITION pos ON pos.ID = ml.USR$POSITIONKEY " & _
             "      LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = tline.USR$EMPLKEY " & _
             "      JOIN usr$wg_emplworkterm workterm ON workterm.USR$FIRSTMOVEKEY = ml.USR$FIRSTMOVE " & _
+            "      LEFT JOIN USR$WG_P_EMPLCARDSTATE(tline.USR$EMPLKEY, :pDate) pcard ON 1 = 1 " & _
+            "      LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
             "      LEFT JOIN GD_P_GETRUID(p.CONTACTKEY) r ON 1 = 1 " & _
-            "    WHERE COALESCE(p.PERSONALNUMBER, '') <> '' AND " & _
+            "    WHERE COALESCE(card.USR$PERSONALNUMBER, '') <> '' AND " & _
             "      t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
             "      AND (ml.USR$MOVEMENTTYPE <> 3 OR tline.USR$CREDIT <> 0 OR tline.USR$DEBIT <> 0) " & _
             "      AND doc.COMPANYKEY = :companyId " & _
@@ -558,9 +565,6 @@ Objects:
                 """data"": [" & employeeItems & "]"  & _
                 "}"
         
-              Dim b
-              If isRewrite Then b = "true" Else b = "false"
-        
               Jsons.Add("{""version"":""1.0""," & _
                 """customerId"":""" & customerId & """," & _
                 """rewrite"":" & b & "," & _
@@ -581,6 +585,7 @@ Objects:
             'добавляем запись по сотруднику
             qSelDep.Close
             qSelDep.ParamByName("EmplKey").AsInteger = qSel.FieldByName("EmployeeKey").AsInteger
+            qSelDep.ParamByName("CompanyId").AsInteger = companyId
             qSelDep.ExecQuery
             JsonDept = qSelDep.FieldByName("JSON_DEPT").AsString
             JsonPos = qSelDep.FieldByName("JSON_POS").AsString
@@ -821,7 +826,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-06-13T21:15:41+03:00
+      EDITIONDATE: 2020-06-23T13:51:13+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREEMPLOYEES
         BOT_PREPAREEMPLOYEES_ROLLBACK
@@ -866,15 +871,17 @@ Objects:
             set qSelCount = Creator.GetObject(nil, "TIBSQL", "")
             qSelCount.Transaction = gdcBaseManager.ReadTransaction
             qSelCount.SQL.Text = _
-              "SELECT COUNT(DISTINCT TRIM(p.PERSONALNUMBER)) " & _
+              "SELECT COUNT(DISTINCT TRIM(card.USR$PERSONALNUMBER)) " & _
               "FROM GD_CONTACT own " & _
               "  LEFT JOIN GD_CONTACT c ON own.LB <= c.LB AND own.RB >= c.RB " & _
               "  JOIN USR$WG_TOTALLINE l ON l.USR$EMPLKEY = c.ID " & _
               "  JOIN GD_EMPLOYEE empl ON empl.CONTACTKEY = c.ID " & _
               "  JOIN GD_PEOPLE p ON p.CONTACTKEY = c.ID " & _
               "  JOIN USR$WG_EMPLWORKTERM w ON w.USR$EMPLKEY = c.ID " & _
+              "  LEFT JOIN USR$WG_P_EMPLCARDSTATE(c.ID, :pDate) pcard ON 1 = 1 " & _
+              "  LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
               "WHERE own.ID = :companyId " & _
-              "  AND COALESCE(TRIM(p.PERSONALNUMBER), '') <> '' " & _
+              "  AND COALESCE(TRIM(card.USR$PERSONALNUMBER), '') <> '' " & _
               "  AND (w.USR$DATEEND > :pDate OR w.USR$DATEEND IS NULL) "
             qSelCount.ParamByName("companyId").AsInteger = companyId
             qSelCount.ParamByName("pDate").AsDateTime = pDate

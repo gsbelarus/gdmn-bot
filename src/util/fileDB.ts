@@ -51,7 +51,7 @@ export class FileDB<T extends Object> {
 
             if (!this._check || this._check(data)) {
               this._logger.info(`Data has been loaded from ${this._fn}. Keys: ${Object.keys(parsed.data).length}...`);
-              this._data = parsed.data;
+              this._data = data;
             }
           }
         }

@@ -210,8 +210,6 @@ export class Bot {
         // запись из акаунт линк.
         // аналогично обрабатываться в функции reply для вайбера
         this._logger.error(chatId, undefined, e);
-        console.log('test error');
-        console.log(e);
         //Если чат был заблокирован, то удалим запись из аккаунта
         if (e.code === 403) {
           this._telegramAccountLink.delete(chatId);
