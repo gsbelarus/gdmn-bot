@@ -95,6 +95,18 @@ export const keyboardCurrency: Menu = [
   [{ type: 'BUTTON', caption: stringResources.btnBackToSettingsMenu, command: '.cancelSettings' }]
 ];
 
+export const keyboardCurrencyRates: Menu = [
+  ...[
+      ['BYN', stringResources.currencyBYN],
+      ['USD', stringResources.currencyUSD],
+      ['EUR', stringResources.currencyEUR],
+      ['RUB', stringResources.currencyRUR],
+      ['PLN', stringResources.currencyPLN],
+      ['UAH', stringResources.currencyUAH],
+     ].map( l => ([{ type: 'BUTTON', caption: l[1], command: `{ "type": "SELECT_CURRENCY", "id": "${l[0]}" }` } as IMenuButton]) ),
+  [{ type: 'BUTTON', caption: stringResources.btnBackToMenu, command: '.cancelRates' }]
+];
+
 export const keyboardCalendar = (year: number): Menu => {
   const mm = [
     [ [0, stringResources.shortMonth0], [1, stringResources.shortMonth1], [2, stringResources.shortMonth2],   [ 3, stringResources.shortMonth3] ],

@@ -6,7 +6,7 @@ import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions }
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
 import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str } from "./util/utils";
-import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther } from "./menu";
+import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
@@ -339,6 +339,16 @@ ${formatList(birthdayTomorrow)}`
       )(rest);
     };
 
+    // const getShowRatesFunc = (payslipType: PayslipType, reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+    //   const { accountLink, platform, ...rest } = checkAccountLink(ctx);
+    //   const { dateBegin } = ctx;
+    //   const { customerId, employeeId, language, currency } = accountLink;
+
+
+
+    //   reply(this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', platform, dateBegin, dateEnd, dateBegin2))(rest);
+    // };
+
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
       actions: {
         askCompanyName: reply(stringResources.askCompanyName),
@@ -410,6 +420,8 @@ ${formatList(birthdayTomorrow)}`
           }
         },
         showSelectCurrencyMenu: reply(stringResources.selectCurrency, keyboardCurrency),
+        showSelectCurrencyRatesMenu: reply(stringResources.selectCurrency, keyboardCurrencyRates),
+        showCurrencyRatesForMonth: reply('dfvdsfvdf', keyboardMenu),
         selectCurrency: (ctx, event) => {
           if (event.type === 'MENU_COMMAND') {
             const { accountLink, chatId, platform } = checkAccountLink(ctx);
