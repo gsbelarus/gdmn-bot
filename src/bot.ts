@@ -5,7 +5,7 @@ import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
-import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq } from "./util/utils";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, isBirthday, date2str } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate } from "./currency";
@@ -278,6 +278,53 @@ export class Bot {
       }
     };
 
+    const getShowBirthdaysFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+      const { accountLink, ...rest } = checkAccountLink(ctx);
+      const { customerId, language } = accountLink;
+      const employees = this._getEmployees(customerId).getMutable(false);
+      const birthdaysToday: string[] = [];
+      const birthdaysTomorrow: string[] = [];
+      const today = new Date();
+
+      //Получим последние данные по сотруднику и вычислим подразделение
+      const getDepartment = (employeeId: string) => {
+        const lastPayslipDE = this._getLastPayslipDate(customerId, employeeId);
+        if (lastPayslipDE) {
+          const d: IDate = {year: lastPayslipDE.getFullYear(), month: lastPayslipDE.getMonth()};
+          const data = this._getPayslipData(customerId, employeeId, d, d);
+          return data ? `\n${getLName(data.department, [language ?? 'ru'])}` : '';
+        }
+        return '';
+      };
+
+      for (const [employeeId, emploee ] of Object.entries(employees)) {
+        if (emploee.birthday) {
+          const birthday = str2Date(emploee.birthday);
+          let department = '';
+          //Если день рождения у сотрудника сегодня, записываем в массив birthdaysToday
+          if (isBirthday(birthday)) {
+            department = getDepartment(employeeId);
+            birthdaysToday.push(`${emploee.lastName} ${emploee.firstName} ${emploee.patrName}${department}`);
+          } else {
+            const nextBirthday = new Date(birthday);
+            nextBirthday.setDate(nextBirthday.getDate() + 1);
+            //Если день рождения у сотрудника завтра, записываем в массив birthdaysTomorrow
+            if (isBirthday(nextBirthday)) {
+              department = getDepartment(employeeId);
+              birthdaysTomorrow.push(`${emploee.lastName} ${emploee.firstName} ${emploee.patrName}${department}`);
+            }
+          }
+        }
+      }
+
+      const tomorrowDate = new Date();
+      tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+      const lng = language ?? 'ru';
+      const text = `***${getLocString(stringResources.todayBirthday, lng)} (${date2str(today, 'DD.MM.YYYY')})***\n\n${birthdaysToday.sort((a, b) => a > b ? 1 : -1).join('\n\n')}\n\n***${getLocString(stringResources.tomorrowBirthday, lng)} (${date2str(tomorrowDate, 'DD.MM.YYYY')})***\n\n${birthdaysTomorrow.sort((a, b) => a > b ? 1 : -1).join('\n\n')}`
+
+      reply(text)(rest);
+    };
+
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
       actions: {
         askCompanyName: reply(stringResources.askCompanyName),
@@ -309,6 +356,7 @@ export class Bot {
         },
         showWage: reply(stringResources.mainMenuCaption, keyboardWage),
         showOther: reply(stringResources.mainMenuCaption, keyboardOther),
+        showBirthdays: getShowBirthdaysFunc(reply),
         showPayslip: getShowPayslipFunc('CONCISE', reply),
         showLatestPayslip: getShowLatestPayslipFunc(reply),
         showDetailedPayslip: getShowPayslipFunc('DETAIL', reply),
