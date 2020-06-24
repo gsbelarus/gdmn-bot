@@ -5,7 +5,7 @@ import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
-import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, isBirthday, date2str } from "./util/utils";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate } from "./currency";
@@ -278,51 +278,65 @@ export class Bot {
       }
     };
 
-    const getShowBirthdaysFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+    const getShowBirthdaysFunc = (reply: ReplyFunc) => (ctx: IBotMachineContext) => {
       const { accountLink, ...rest } = checkAccountLink(ctx);
       const { customerId, language } = accountLink;
       const employees = this._getEmployees(customerId).getMutable(false);
-      const birthdaysToday: string[] = [];
-      const birthdaysTomorrow: string[] = [];
-      const today = new Date();
 
       //Получим последние данные по сотруднику и вычислим подразделение
       const getDepartment = (employeeId: string) => {
         const lastPayslipDE = this._getLastPayslipDate(customerId, employeeId);
         if (lastPayslipDE) {
-          const d: IDate = {year: lastPayslipDE.getFullYear(), month: lastPayslipDE.getMonth()};
-          const data = this._getPayslipData(customerId, employeeId, d, d);
-          return data ? `\n${getLName(data.department, [language ?? 'ru'])}` : '';
+          const data = this._getPayslipData(customerId, employeeId, { year: lastPayslipDE.getFullYear(), month: lastPayslipDE.getMonth() });
+          if (data) {
+            return `\n${getLName(data.department, [language ?? 'ru'])}`;
+          }
         }
         return '';
       };
 
-      for (const [employeeId, emploee ] of Object.entries(employees)) {
-        if (emploee.birthday) {
-          const birthday = str2Date(emploee.birthday);
-          let department = '';
-          //Если день рождения у сотрудника сегодня, записываем в массив birthdaysToday
-          if (isBirthday(birthday)) {
-            department = getDepartment(employeeId);
-            birthdaysToday.push(`${emploee.lastName} ${emploee.firstName} ${emploee.patrName}${department}`);
-          } else {
-            const nextBirthday = new Date(birthday);
-            nextBirthday.setDate(nextBirthday.getDate() + 1);
-            //Если день рождения у сотрудника завтра, записываем в массив birthdaysTomorrow
-            if (isBirthday(nextBirthday)) {
-              department = getDepartment(employeeId);
-              birthdaysTomorrow.push(`${emploee.lastName} ${emploee.firstName} ${emploee.patrName}${department}`);
-            }
-          }
+      const today = new Date();
+      const todayD = today.getDate();
+      const todayM = today.getMonth();
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowD = tomorrow.getDate();
+      const tomorrowM = tomorrow.getMonth();
+
+      const birthdayToday = Object.entries(employees).filter(
+        ([_, { birthday }]) => {
+          const d = birthday && str2Date(birthday);
+          return d && d.getDate() === todayD && d.getMonth() === todayM;
         }
-      }
+      );
 
-      const tomorrowDate = new Date();
-      tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+      const birthdayTomorrow = Object.entries(employees).filter(
+        ([_, { birthday }]) => {
+          const d = birthday && str2Date(birthday);
+          return d && d.getDate() === tomorrowD && d.getMonth() === tomorrowM;
+        }
+      );
+
+      const formatList = (l: typeof birthdayToday) => l
+        .sort(
+          (a, b) => a[1].lastName.localeCompare(b[1].lastName)
+        )
+        .map(
+          ([id, { firstName, lastName, patrName}]) => `${lastName} ${firstName} ${patrName ?? ''}${getDepartment(id)}`
+        )
+        .join('\n');
+
       const lng = language ?? 'ru';
-      const text = `***${getLocString(stringResources.todayBirthday, lng)} (${date2str(today, 'DD.MM.YYYY')})***\n\n${birthdaysToday.sort((a, b) => a > b ? 1 : -1).join('\n\n')}\n\n***${getLocString(stringResources.tomorrowBirthday, lng)} (${date2str(tomorrowDate, 'DD.MM.YYYY')})***\n\n${birthdaysTomorrow.sort((a, b) => a > b ? 1 : -1).join('\n\n')}`
+      reply(
+`🎂 ${getLocString(stringResources.todayBirthday, lng)} (${date2str(today, 'DD.MM.YYYY')}) 🎁
 
-      reply(text)(rest);
+${formatList(birthdayToday)}
+
+🎂 ${getLocString(stringResources.tomorrowBirthday, lng)} (${date2str(tomorrow, 'DD.MM.YYYY')}) 🎁
+
+${formatList(birthdayTomorrow)}`
+      )(rest);
     };
 
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
