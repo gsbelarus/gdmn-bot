@@ -325,15 +325,15 @@ export class Bot {
         .map(
           ([id, { firstName, lastName, patrName}]) => `${lastName} ${firstName} ${patrName ?? ''}${getDepartment(id)}`
         )
-        .join('\n');
+        .join('\n\n');
 
       const lng = language ?? 'ru';
       reply(
-`🎂 ${getLocString(stringResources.todayBirthday, lng)} (${date2str(today, 'DD.MM.YYYY')}) 🎁
+`🎂 ${getLocString(stringResources.todayBirthday, lng)} ${date2str(today, 'DD.MM.YYYY')}:
 
 ${formatList(birthdayToday)}
 
-🎂 ${getLocString(stringResources.tomorrowBirthday, lng)} (${date2str(tomorrow, 'DD.MM.YYYY')}) 🎁
+🎁 ${getLocString(stringResources.tomorrowBirthday, lng)} ${date2str(tomorrow, 'DD.MM.YYYY')}:
 
 ${formatList(birthdayTomorrow)}`
       )(rest);
