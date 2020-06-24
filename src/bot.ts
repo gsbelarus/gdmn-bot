@@ -214,7 +214,7 @@ export class Bot {
         if (e.code === 403) {
           this._telegramAccountLink.delete(chatId);
           delete this._service[this.getUniqId('TELEGRAM', chatId)];
-          this._log.info(`Chat blocked, ${chatId}`);
+          this._logger.info(chatId, undefined, `Chat was deleted`);
         }
       } finally {
         semaphore.release();
@@ -618,7 +618,7 @@ export class Bot {
         const chatId = response.userProfile.id;
         this._viberAccountLink.delete(chatId);
         delete this._service[this.getUniqId('VIBER', chatId)];
-        this._log.info(`User unsubscribed, ${response}`);
+        this._logger.info(chatId, undefined, `User unsubscribed, ${response}`);
       });
 
       /*
