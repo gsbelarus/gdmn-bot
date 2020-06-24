@@ -85,6 +85,16 @@ export const stringResources = {
     ru: (d: IDate) => `Выбран месяц ${(d.month + 1).toString().padStart(2, '0')}.${d.year}`,
     be: (d: IDate) => `Выбраны месяц ${(d.month + 1).toString().padStart(2, '0')}.${d.year}`
   },
+  todayBirthday: {
+    en: 'Birthdays today',
+    ru: 'Дни рождения сегодня',
+    be: 'Дні народзінаў сёння',
+  },
+  tomorrowBirthday: {
+    en: 'Birthdays tomorrow',
+    ru: 'Дни рождения завтра',
+    be: 'Дні народзінаў заўтра',
+  },
   shortMonth0: {
     en: 'jan',
     ru: 'янв',

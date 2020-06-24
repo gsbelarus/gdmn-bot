@@ -264,6 +264,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
               cond: (_, { command }: MenuCommandEvent) => command === '.cancelOther',
               target: 'mainMenu'
             },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.birthdays',
+              target: 'showBirthdays'
+            },
           ]
         },
         states: {
@@ -271,6 +275,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             entry: 'showOther'
           }
         },
+      },
+     showBirthdays: {
+        on: { '': '#botMachine.mainMenu' },
+        entry: 'showBirthdays'
       },
       settings: {
         initial: 'showSettings',

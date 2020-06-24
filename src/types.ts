@@ -60,6 +60,10 @@ export interface IEmployee {
   firstName: string;
   lastName: string;
   patrName?: string;
+  /**
+   * Дата рождения. При считывании из файла и при обработке
+   * POST запроса с Гедымина, преобразовывается
+   */
   birthday?: Date;
 };
 

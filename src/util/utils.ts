@@ -70,3 +70,8 @@ export const isLs = (d1: Date, d2: Date) => {
 export const isGrOrEq = (d1: Date, d2: Date) => {
   return d1.getTime() >= d2.getTime();
 };
+
+export const isBirthday = (birtday: Date) => {
+  const today = new Date();
+  return today.getMonth() === birtday.getMonth() && today.getDate() === birtday.getDate();
+}
