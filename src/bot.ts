@@ -328,15 +328,17 @@ export class Bot {
         .join('\n\n');
 
       const lng = language ?? 'ru';
-      let text = (birthdayToday.length
-        ? `🎂 ${getLocString(stringResources.todayBirthday, lng)} ${date2str(today, 'DD.MM.YYYY')}:
+      let text = '';
 
-${formatList(birthdayToday)}\n\n` : '') + (birthdayTomorrow.length
-        ? `🎁 ${getLocString(stringResources.tomorrowBirthday, lng)} ${date2str(tomorrow, 'DD.MM.YYYY')}:
+      if (birthdayToday.length) {
+        text = `🎂 ${getLocString(stringResources.todayBirthday, lng)} ${date2str(today, 'DD.MM.YYYY')}:\n\n${formatList(birthdayToday)}\n\n`;
+      }
 
-${formatList(birthdayTomorrow)}` : '');
+      if (birthdayTomorrow.length) {
+        text += `🎁 ${getLocString(stringResources.tomorrowBirthday, lng)} ${date2str(tomorrow, 'DD.MM.YYYY')}:\n\n${formatList(birthdayTomorrow)}`;
+      }
 
-      reply(text !== '' ? text : getLocString(stringResources.noBirthdays, lng))(rest);
+      reply(text || getLocString(stringResources.noBirthdays, lng))(rest);
     };
 
     const getShowRatesFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
