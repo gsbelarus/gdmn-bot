@@ -13,7 +13,7 @@
 
 import { FileDB, IData } from './util/fileDB';
 import { date2str } from './util/utils';
-import { MINDATE } from './constants';
+import { MINDATE, URLNBRBRATES, URLNBRBCURRENCIES } from './constants';
 import fetch from 'node-fetch';
 import { LName, Language, getLName } from './stringResources';
 import { IDate } from './types';
@@ -33,6 +33,10 @@ interface ICurrency {
 
 let currenciesDB: FileDB<ICurrency> | undefined = undefined;
 
+export interface ICurrencyRates {
+
+}
+
 /**
  * Функция считывает справочник валют с диска. Если на диске нет нужной нам информации,
  * то справочник берется с сайта национального банка и записывается на диск для
@@ -50,7 +54,7 @@ export async function initCurrencies(log: ILogger) {
   );
 
   if (fdb.isEmpty()) {
-    const urlNBRBCurrencies = "http://www.nbrb.by/API/ExRates/Currencies";
+
 
     interface INBRBCurrency  {
       Cur_ID: number;
@@ -73,7 +77,7 @@ export async function initCurrencies(log: ILogger) {
     };
 
     try {
-      const fetched = await fetch(urlNBRBCurrencies, {});
+      const fetched = await fetch(URLNBRBCURRENCIES, {});
       const parsed: INBRBCurrency[] = await fetched.json();
 
       for (const currency of parsed) {
@@ -203,7 +207,6 @@ export const getCurrRate = async (forDate: IDate, currency: string, log: ILogger
 
     // курса на дату нет
     // попробуем загрузить из интернета
-    const urlNBRBRates = "http://www.nbrb.by/API/ExRates/Rates";
 
     interface INBRBRate {
       Cur_ID: number;
@@ -215,7 +218,7 @@ export const getCurrRate = async (forDate: IDate, currency: string, log: ILogger
     };
 
     try {
-      const fetched = await fetch(`${urlNBRBRates}?Periodicity=0&onDate=${strDate}`, {});
+      const fetched = await fetch(`${URLNBRBRATES}?Periodicity=0&onDate=${strDate}`, {});
       const parsed: INBRBRate[] = await fetched.json();
 
       if (Array.isArray(parsed)) {
@@ -245,4 +248,86 @@ export const getCurrRate = async (forDate: IDate, currency: string, log: ILogger
   }
 
   return rate ? { date, rate } : undefined;
+};
+
+
+export const getCurrRateForDate = async (date: Date, currency: string, log: ILogger) => {
+  if (!currenciesDB) {
+    throw new Error('No currency db');
+  }
+
+  let currId = '';
+
+  for (const s of Object.entries(currenciesDB?.getMutable(false))) {
+    if (s[1].abbreviation === currency) {
+      currId = s[0];
+    }
+  }
+
+  if (!currId) {
+    throw new Error(`Invalid currency abbreviation ${currency}`);
+  }
+
+  if (!ratesDB) {
+    // загружаем курсы с диска
+    ratesDB = new FileDB<ICurrencyRates>(
+      getRatesFN(),
+      log,
+      {},
+      undefined,
+      (data: IData<ICurrencyRates>) => !Object.keys(data).length || typeof Object.values(data)[0] === 'object',
+      true
+    );
+  }
+
+  let rate: number | undefined = undefined;
+
+  const strDate = date2str(date, 'YYYY.MM.DD');
+  const ratesForDate = ratesDB.read(strDate);
+  rate = ratesForDate?.[currId];
+
+  if (rate !== undefined) {
+    return rate;
+  }
+
+  // курса на дату нет
+  // попробуем загрузить из интернета
+
+
+  interface INBRBRate {
+    Cur_ID: number;
+    Date: Date;
+    Cur_Abbreviation: string;
+    Cur_Scale: number;
+    Cur_Name: string;
+    Cur_OfficialRate: number;
+  };
+
+  try {
+    const fetched = await fetch(`${URLNBRBRATES}?Periodicity=0&onDate=${strDate}`, {});
+    const parsed: INBRBRate[] = await fetched.json();
+
+    if (Array.isArray(parsed)) {
+      const c = parsed.find( p => p['Cur_ID'].toString() === currId );
+      const scale = c?.['Cur_Scale'];
+      const officialRate = c?.['Cur_OfficialRate'];
+
+      if (scale && scale > 0 && officialRate && officialRate > 0) {
+        rate = parseFloat((officialRate / scale).toFixed(4));
+
+        if (ratesForDate) {
+          ratesDB.write(strDate, { ...ratesForDate, [currId]: rate });
+        } else {
+          ratesDB.write(strDate, { [currId]: rate });
+        }
+
+        ratesDB.flush();
+      }
+    }
+  }
+  catch (e) {
+    console.error(`Error fetching currencyRate list: ${e}`);
+  }
+
+  return rate;
 };

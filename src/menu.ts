@@ -97,7 +97,6 @@ export const keyboardCurrency: Menu = [
 
 export const keyboardCurrencyRates: Menu = [
   ...[
-      ['BYN', stringResources.currencyBYN],
       ['USD', stringResources.currencyUSD],
       ['EUR', stringResources.currencyEUR],
       ['RUB', stringResources.currencyRUR],

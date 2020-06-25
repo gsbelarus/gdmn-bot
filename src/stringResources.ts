@@ -95,6 +95,11 @@ export const stringResources = {
     ru: 'Дни рождения завтра',
     be: 'Дні народзінаў заўтра',
   },
+  noBirthdays: {
+    en: 'No birthdays today and tomorrow',
+    ru: 'Сегодня и завтра нет дней рождений',
+    be: 'Сёння і заўтра няма дзён народзінаў',
+  },
   shortMonth0: {
     en: 'jan',
     ru: 'янв',
@@ -321,9 +326,14 @@ export const stringResources = {
     be: 'Вярнуцца ў меню настроек...'
   },
   cantLoadRate: {
-    en: (currencyId: string) => `Unable to get currency rate for ${currencyId}`,
-    ru: (currencyId: string) => `Невозможно загрузить курс валюты ${currencyId}`,
-    be: (currencyId: string) => `Немагчыма загрузіць курс валюты ${currencyId}`
+    en: (currencyId: string) => `Unable to get currency rate for ${currencyId}.`,
+    ru: (currencyId: string) => `Невозможно загрузить курс валюты ${currencyId}.`,
+    be: (currencyId: string) => `Немагчыма загрузіць курс валюты ${currencyId}.`
+  } as ILocString,
+  ratesForMonth: {
+    en: (currencyId: string, date: IDate) => `💱 ${currencyId} rate for ${new Date(date.year, date.month).toLocaleString('en', {month: 'long'})} ${date.year}:\n`,
+    ru: (currencyId: string, date: IDate) => `💱 Курс валюты ${currencyId} за ${new Date(date.year, date.month).toLocaleString('ru', {month: 'long'})} ${date.year}:\n`,
+    be: (currencyId: string, date: IDate) => `💱 Курс валюты ${currencyId} за ${new Date(date.year, date.month).toLocaleString('be', {month: 'long'})} ${date.year}:\n`
   } as ILocString,
   payslipTitle: {
     en: 'Payslip',

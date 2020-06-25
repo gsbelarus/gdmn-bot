@@ -1,5 +1,5 @@
 import { FileDB, IData } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, ICurrencyRate } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
@@ -8,7 +8,7 @@ import { getLocString, str2Language, Language, getLName, ILocString, stringResou
 import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates } from "./menu";
 import { Semaphore } from "./semaphore";
-import { getCurrRate } from "./currency";
+import { getCurrRate, getCurrRateForDate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { Logger, ILogger } from "./log";
 import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN } from "./files";
@@ -328,26 +328,43 @@ export class Bot {
         .join('\n\n');
 
       const lng = language ?? 'ru';
-      reply(
-`🎂 ${getLocString(stringResources.todayBirthday, lng)} ${date2str(today, 'DD.MM.YYYY')}:
+      let text = (birthdayToday.length
+        ? `🎂 ${getLocString(stringResources.todayBirthday, lng)} ${date2str(today, 'DD.MM.YYYY')}:
 
-${formatList(birthdayToday)}
+${formatList(birthdayToday)}\n\n` : '') + (birthdayTomorrow.length
+        ? `🎁 ${getLocString(stringResources.tomorrowBirthday, lng)} ${date2str(tomorrow, 'DD.MM.YYYY')}:
 
-🎁 ${getLocString(stringResources.tomorrowBirthday, lng)} ${date2str(tomorrow, 'DD.MM.YYYY')}:
+${formatList(birthdayTomorrow)}` : '');
 
-${formatList(birthdayTomorrow)}`
-      )(rest);
+      reply(text !== '' ? text : getLocString(stringResources.noBirthdays, lng))(rest);
     };
 
-    // const getShowRatesFunc = (payslipType: PayslipType, reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
-    //   const { accountLink, platform, ...rest } = checkAccountLink(ctx);
-    //   const { dateBegin } = ctx;
-    //   const { customerId, employeeId, language, currency } = accountLink;
+    const getShowRatesFunc = (reply: ReplyFunc, keyboard: Menu) => async (ctx: IBotMachineContext) => {
+      const { accountLink, platform, ...rest } = checkAccountLink(ctx);
+      const { currencyDate, currencyId } = ctx;
+      const { customerId, employeeId, language, currency } = accountLink;
+      const rates: string[] = [];
+      const lng = language ?? 'ru';
 
+      if (currencyId) {
+        const daysInMonth = new Date(currencyDate.year, currencyDate.month + 1, 0).getDate();
 
+        for (let i = 1; i <= daysInMonth; i++) {
+          const date = new Date(currencyDate.year, currencyDate.month, i);
+          const rate = await getCurrRateForDate(date, currencyId, this._log);
+          if (rate) {
+            rates.push(`${date2str(date, 'DD.MM.YYYY')}  ${rate}`);
+          }
 
-    //   reply(this.getPayslip(customerId, employeeId, payslipType, language ?? 'ru', currency ?? 'BYN', platform, dateBegin, dateEnd, dateBegin2))(rest);
-    // };
+        }
+      }
+
+      reply(rates.length
+        ? `${getLocString(stringResources.ratesForMonth, lng, currency, currencyDate)}\n${rates.join('\n')}`
+        : getLocString(stringResources.cantLoadRate, lng, currency),
+        keyboard
+        )(rest);
+    };
 
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
       actions: {
@@ -421,7 +438,7 @@ ${formatList(birthdayTomorrow)}`
         },
         showSelectCurrencyMenu: reply(stringResources.selectCurrency, keyboardCurrency),
         showSelectCurrencyRatesMenu: reply(stringResources.selectCurrency, keyboardCurrencyRates),
-        showCurrencyRatesForMonth: reply('dfvdsfvdf', keyboardMenu),
+        showCurrencyRatesForMonth: getShowRatesFunc(reply, keyboardMenu),
         selectCurrency: (ctx, event) => {
           if (event.type === 'MENU_COMMAND') {
             const { accountLink, chatId, platform } = checkAccountLink(ctx);
