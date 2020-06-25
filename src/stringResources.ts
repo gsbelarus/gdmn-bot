@@ -326,14 +326,14 @@ export const stringResources = {
     be: 'Вярнуцца ў меню настроек...'
   },
   cantLoadRate: {
-    en: (currencyId: string) => `Unable to get currency rate for ${currencyId}.`,
+    en: (currencyId: string) => `Unable to load currency rate for ${currencyId}.`,
     ru: (currencyId: string) => `Невозможно загрузить курс валюты ${currencyId}.`,
     be: (currencyId: string) => `Немагчыма загрузіць курс валюты ${currencyId}.`
   } as ILocString,
   ratesForMonth: {
-    en: (currencyId: string, date: IDate) => `💱 ${currencyId} rate for ${new Date(date.year, date.month).toLocaleString('en', {month: 'long'})} ${date.year}:\n`,
-    ru: (currencyId: string, date: IDate) => `💱 Курс валюты ${currencyId} за ${new Date(date.year, date.month).toLocaleString('ru', {month: 'long'})} ${date.year}:\n`,
-    be: (currencyId: string, date: IDate) => `💱 Курс валюты ${currencyId} за ${new Date(date.year, date.month).toLocaleString('be', {month: 'long'})} ${date.year}:\n`
+    en: (currencyId: string, date: IDate) => `Currency rate for ${new Date(date.year, date.month).toLocaleString('en', {month: 'long'})} ${date.year},\nFor one ${currencyId} in rubles:\n`,
+    ru: (currencyId: string, date: IDate) => `Курс валюты за ${new Date(date.year, date.month).toLocaleString('ru', {month: 'long'})} ${date.year},\nза один ${currencyId} в рублях:\n`,
+    be: (currencyId: string, date: IDate) => `Курс валюты за ${new Date(date.year, date.month).toLocaleString('be', {month: 'long'})} ${date.year},\nза адзін ${currencyId} у рублях:\n`
   } as ILocString,
   payslipTitle: {
     en: 'Payslip',

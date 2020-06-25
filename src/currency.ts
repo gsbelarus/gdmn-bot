@@ -258,9 +258,9 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
 
   let currId = '';
 
-  for (const s of Object.entries(currenciesDB?.getMutable(false))) {
-    if (s[1].abbreviation === currency) {
-      currId = s[0];
+  for (const [id, data] of Object.entries(currenciesDB?.getMutable(false))) {
+    if (data.abbreviation === currency) {
+      currId = id;
     }
   }
 

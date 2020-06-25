@@ -342,32 +342,35 @@ export class Bot {
     };
 
     const getShowRatesFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
-      const { accountLink, platform, ...rest } = checkAccountLink(ctx);
-      const { currencyDate, currencyId, semaphore } = ctx;
-      const { language, currency } = accountLink;
-      const rates: string[] = [];
-      const lng = language ?? 'ru';
+      const { currencyDate, currencyId, semaphore, chatId } = ctx;
 
-      semaphore?.acquire();
+      if (!currencyId) {
+        return;
+      }
+
+      const { accountLink } = checkAccountLink(ctx);
+
+      await semaphore?.acquire();
       try {
-        if (currencyId) {
-          const daysInMonth = new Date(currencyDate.year, currencyDate.month + 1, 0).getDate();
+        const { language } = accountLink;
+        const rates: string[] = [];
+        const daysInMonth = new Date(currencyDate.year, currencyDate.month + 1, 0).getDate();
 
-          for (let i = 1; i <= daysInMonth; i++) {
-            const date = new Date(currencyDate.year, currencyDate.month, i);
-            const rate = await getCurrRateForDate(date, currencyId, this._log);
-            if (rate) {
-              rates.push(`${date2str(date, 'DD.MM.YYYY')}  ${rate}`);
-            }
-
+        for (let i = 1; i <= daysInMonth; i++) {
+          const date = new Date(currencyDate.year, currencyDate.month, i);
+          const rate = await getCurrRateForDate(date, currencyId, this._log);
+          if (rate) {
+            rates.push(`${date2str(date, 'DD.MM.YYYY')} -- ${rate}`);
           }
         }
 
-        reply(rates.length
-          ? `${getLocString(stringResources.ratesForMonth, lng, currency, currencyDate)}\n${rates.join('\n')}`
-          : getLocString(stringResources.cantLoadRate, lng, currency),
-          //keyboard
-          )(rest);
+        const lng = language ?? 'ru';
+        const text = rates.join('\n');
+
+        reply(text
+          ? `${getLocString(stringResources.ratesForMonth, lng, currencyId, currencyDate)}\n${text}`
+          : getLocString(stringResources.cantLoadRate, lng, currencyId)
+          )({ chatId, semaphore: new Semaphore() });
       } finally {
         semaphore?.release();
       }
