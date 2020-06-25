@@ -74,18 +74,25 @@ export interface IBotMachineContext extends IMachineContextBase {
   dateBegin: IDate;
   dateEnd: IDate;
   dateBegin2: IDate;
+  /**
+   * ИД валюты для отображения курсов.
+   */
+  currencyId?: string;
+  currencyDate: IDate;
 };
 
-export type StartEvent        = { type: 'START' } & Required<IMachineContextBase>;
-export type MainMenuEvent     = { type: 'MAIN_MENU' } & Required<IMachineContextBase> & { customerId: string; employeeId: string; forceMainMenu: boolean; };
-export type EnterTextEvent    = { type: 'ENTER_TEXT';    text: string; };
-export type MenuCommandEvent  = { type: 'MENU_COMMAND';  command: string; };
+export type StartEvent           = { type: 'START' } & Required<IMachineContextBase>;
+export type MainMenuEvent        = { type: 'MAIN_MENU' } & Required<IMachineContextBase> & { customerId: string; employeeId: string; forceMainMenu: boolean; };
+export type EnterTextEvent       = { type: 'ENTER_TEXT';  text: string; };
+export type MenuCommandEvent     = { type: 'MENU_COMMAND';  command: string; };
+export type SelectCurrencyEvent  = { type: 'SELECT_CURRENCY'; id: string; };
 
 export type BotMachineEvent = CalendarMachineEvent
   | StartEvent
   | EnterTextEvent
   | MenuCommandEvent
-  | MainMenuEvent;
+  | MainMenuEvent
+  | SelectCurrencyEvent;
 
 export function isEnterTextEvent(event: BotMachineEvent): event is EnterTextEvent {
   return event.type === 'ENTER_TEXT' && typeof event.text === 'string';
@@ -99,6 +106,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       dateBegin: { year: new Date().getFullYear(), month: 0 },
       dateEnd: { year: new Date().getFullYear(), month: 11 },
       dateBegin2: { year: new Date().getFullYear(), month: 0 },
+      currencyDate: { year: new Date().getFullYear(), month: 0 }
     },
     states: {
       init: {
@@ -268,6 +276,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
               cond: (_, { command }: MenuCommandEvent) => command === '.birthdays',
               target: 'showBirthdays'
             },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.rates',
+              target: 'showCurrencyRates'
+            }
           ]
         },
         states: {
@@ -276,9 +288,60 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           }
         },
       },
-     showBirthdays: {
+      showBirthdays: {
         on: { '': '#botMachine.mainMenu' },
         entry: 'showBirthdays'
+      },
+      showCurrencyRates: {
+        initial: 'selectCurrency',
+        on: {
+          MENU_COMMAND: {
+            cond: (_, { command }: MenuCommandEvent) => command === '.cancelRates',
+            target: '#botMachine.mainMenu'
+          },
+          SELECT_CURRENCY: {
+            actions: assign({ currencyId: (_, { id }: SelectCurrencyEvent) => id }),
+            target: '.selectMonth'
+          }
+        },
+        states: {
+          selectCurrency: {
+            entry: 'showSelectCurrencyRatesMenu'
+          },
+          selectMonth: {
+            invoke: {
+              id: 'calendarMachine',
+              src: calendarMachine,
+              autoForward: true,
+              data: (ctx: IBotMachineContext) => ({
+                selectedDate: ctx.currencyDate,
+                canceled: false,
+                dateKind: 'PERIOD_MONTH',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
+              }),
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  target: 'showCurrencyRatesForMonth',
+                  actions: assign({
+                    currencyDate: (_, event) => event.data.selectedDate
+                  })
+                }
+              ]
+            }
+          },
+          showCurrencyRatesForMonth: {
+            on: {
+              '': '#botMachine.mainMenu'
+            },
+            entry: 'showCurrencyRatesForMonth'
+          }
+        }
       },
       settings: {
         initial: 'showSettings',
@@ -331,7 +394,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           },
           showSettings: {
             entry: 'showSettings'
-          }
+          },
         },
       },
       logout: {
