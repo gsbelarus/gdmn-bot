@@ -339,31 +339,36 @@ ${formatList(birthdayTomorrow)}` : '');
       reply(text !== '' ? text : getLocString(stringResources.noBirthdays, lng))(rest);
     };
 
-    const getShowRatesFunc = (reply: ReplyFunc, keyboard: Menu) => async (ctx: IBotMachineContext) => {
+    const getShowRatesFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
       const { accountLink, platform, ...rest } = checkAccountLink(ctx);
-      const { currencyDate, currencyId } = ctx;
-      const { customerId, employeeId, language, currency } = accountLink;
+      const { currencyDate, currencyId, semaphore } = ctx;
+      const { language, currency } = accountLink;
       const rates: string[] = [];
       const lng = language ?? 'ru';
 
-      if (currencyId) {
-        const daysInMonth = new Date(currencyDate.year, currencyDate.month + 1, 0).getDate();
+      semaphore?.acquire();
+      try {
+        if (currencyId) {
+          const daysInMonth = new Date(currencyDate.year, currencyDate.month + 1, 0).getDate();
 
-        for (let i = 1; i <= daysInMonth; i++) {
-          const date = new Date(currencyDate.year, currencyDate.month, i);
-          const rate = await getCurrRateForDate(date, currencyId, this._log);
-          if (rate) {
-            rates.push(`${date2str(date, 'DD.MM.YYYY')}  ${rate}`);
+          for (let i = 1; i <= daysInMonth; i++) {
+            const date = new Date(currencyDate.year, currencyDate.month, i);
+            const rate = await getCurrRateForDate(date, currencyId, this._log);
+            if (rate) {
+              rates.push(`${date2str(date, 'DD.MM.YYYY')}  ${rate}`);
+            }
+
           }
-
         }
-      }
 
-      reply(rates.length
-        ? `${getLocString(stringResources.ratesForMonth, lng, currency, currencyDate)}\n${rates.join('\n')}`
-        : getLocString(stringResources.cantLoadRate, lng, currency),
-        keyboard
-        )(rest);
+        reply(rates.length
+          ? `${getLocString(stringResources.ratesForMonth, lng, currency, currencyDate)}\n${rates.join('\n')}`
+          : getLocString(stringResources.cantLoadRate, lng, currency),
+          //keyboard
+          )(rest);
+      } finally {
+        semaphore?.release();
+      }
     };
 
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
@@ -438,7 +443,7 @@ ${formatList(birthdayTomorrow)}` : '');
         },
         showSelectCurrencyMenu: reply(stringResources.selectCurrency, keyboardCurrency),
         showSelectCurrencyRatesMenu: reply(stringResources.selectCurrency, keyboardCurrencyRates),
-        showCurrencyRatesForMonth: getShowRatesFunc(reply, keyboardMenu),
+        showCurrencyRatesForMonth: getShowRatesFunc(reply),
         selectCurrency: (ctx, event) => {
           if (event.type === 'MENU_COMMAND') {
             const { accountLink, chatId, platform } = checkAccountLink(ctx);
