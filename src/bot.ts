@@ -595,14 +595,6 @@ ${formatList(birthdayTomorrow)}` : '');
         avatar: ''
       });
 
-      // this._viber.on(BotEvents.SUBSCRIBED, async (response: any) => {
-      //   if (!response?.userProfile) {
-      //     console.error('Invalid chat context');
-      //   } else {
-      //     this.start(response.userProfile.id.toString());
-      //   }
-      // });
-
       this._viber.onError( (...args: any[]) => this._log.error(...args) );
 
       this._viber.on(BotEvents.SUBSCRIBED, (response: any) => {
@@ -656,24 +648,13 @@ ${formatList(birthdayTomorrow)}` : '');
         }
       });
 
-      this._viber.on(BotEvents.UNSUBSCRIBED, async (response: any) => {
-        //TODO: проверить когда вызывается это событие
-        const chatId = response.userProfile.id;
-        this._viberAccountLink.delete(chatId);
-        delete this._service[this.getUniqId('VIBER', chatId)];
-        this._logger.info(chatId, undefined, `User unsubscribed, ${response}`);
-      });
-
-      /*
-      this._viber.on(BotEvents.CONVERSATION_STARTED, async (response: any, isSubscribed: boolean) => {
-        if (!response?.userProfile) {
-          console.error('Invalid chat context');
-        } else {
-          this.start(response.userProfile.id.toString(),
-          `Здравствуйте${response?.userProfile.name ? ', ' + response.userProfile.name : ''}!\nДля подписки введите любое сообщение.`);
+      this._viber.on(BotEvents.UNSUBSCRIBED, (chatId: any) => {
+        if (chatId) {
+          this._viberAccountLink.delete(chatId);
+          delete this._service[this.getUniqId('VIBER', chatId)];
+          this._logger.info(chatId, undefined, 'User unsubscribed.');
         }
       });
-      */
     }
   }
 
