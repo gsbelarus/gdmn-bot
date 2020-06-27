@@ -169,7 +169,7 @@ https.createServer({ cert, ca, key },
   }
 );
 
-bot.launch();
+bot.launch({ key, cert });
 
 /**
  * При завершении работы сервера скидываем на диск все данные.

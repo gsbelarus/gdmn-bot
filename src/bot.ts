@@ -1346,8 +1346,14 @@ export class Bot {
     return '^FIXED\n' + (platform === 'TELEGRAM' ? payslipView(s) : payslipViewViber(s));
   }
 
-  launch() {
-    this._telegram.launch();
+  launch(tlsOptions: { key: any, cert: any }) {
+    this._telegram.launch({
+      webhook: {
+        domain: 'https://zarobak.gdmn.app',
+        tlsOptions,
+        port: 8443
+      }
+    });
   }
 
   /**
