@@ -139,6 +139,10 @@ const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bun
   .map(cert => cert +'-----END CERTIFICATE-----\r\n')
   .pop();
 
+if (!ca) {
+  throw new Error('No CA file or file is invalid');
+}  
+
 const viberCallback = bot.viber?.middleware();
 
 https.createServer({ cert, ca, key },
@@ -169,7 +173,7 @@ https.createServer({ cert, ca, key },
   }
 );
 
-bot.launch({ key, cert });
+bot.launch({ key, cert, ca });
 
 /**
  * При завершении работы сервера скидываем на диск все данные.

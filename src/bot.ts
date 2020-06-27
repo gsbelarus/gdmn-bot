@@ -1346,14 +1346,23 @@ export class Bot {
     return '^FIXED\n' + (platform === 'TELEGRAM' ? payslipView(s) : payslipViewViber(s));
   }
 
-  launch(tlsOptions: { key: any, cert: any }) {
-    this._telegram.launch({
-      webhook: {
-        domain: 'https://zarobak.gdmn.app',
+  async launch(tlsOptions: { key: Buffer, cert: Buffer, ca: string }) {
+    // Установливаем webHook
+    await this._telegram.telegram.setWebhook('https://zarobak.gdmn.app:8443/secret');
+    
+    // Запускаем https webhook
+    await this._telegram.startWebhook('/secret', tlsOptions, 8443);
+    /*
+    return this._telegram.launch({
+      webhook: {        
+        domain: 'zarobak.gdmn.app',
         tlsOptions,
         port: 8443
       }
     });
+    
+    return this._telegram.launch();
+  */
   }
 
   /**
