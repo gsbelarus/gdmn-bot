@@ -6,7 +6,10 @@ import { ILoggerParams } from "./log";
 export interface IConfig {
   telegram: {
     token: string;
-    callbackHost: string;
+    useWebHook?: boolean;
+    callbackHost?: string;
+    hookPath?: string;
+    port?: number;
   },
   viber: {
     token: string;

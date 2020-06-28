@@ -173,7 +173,12 @@ https.createServer({ cert, ca, key },
   }
 );
 
-bot.launch({ key, cert, ca });
+if (config.telegram.useWebHook) {
+  const { callbackHost, hookPath, port } = config.telegram;
+  bot.launchTelegram(callbackHost, hookPath, port, { key, cert, ca });
+} else {
+  bot.launchTelegram();
+}
 
 /**
  * При завершении работы сервера скидываем на диск все данные.

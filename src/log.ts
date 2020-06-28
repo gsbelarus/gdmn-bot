@@ -83,7 +83,7 @@ export class Logger {
   private _formatMsg(level: Level, chatId: string | undefined, userId: string | undefined, ...data: any[]) {
     const d = new Date();
     const date = `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`;
-    const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds()}`;
+    const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
     const chat = chatId ? `, chatId: ${chatId}` : '';
     const user = userId ? `, userId: ${userId}` : '';
     return `[${level}] ${date} ${time}${user}${chat}: ${data.length === 1 ? data[0] : data}`;
