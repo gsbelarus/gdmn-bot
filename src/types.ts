@@ -6,6 +6,10 @@ import { ILoggerParams } from "./log";
 export interface IConfig {
   telegram: {
     token: string;
+    useWebHook?: boolean;
+    callbackHost?: string;
+    hookPath?: string;
+    port?: number;
   },
   viber: {
     token: string;
@@ -182,4 +186,11 @@ export interface IPayslipData {
 export interface ICurrencyRate {
   date: Date,
   rate: number
-}
+};
+
+export interface IUserGroups {
+  [id: string]: {
+    name: string;
+    users: string[];
+  }
+};

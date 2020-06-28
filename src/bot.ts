@@ -1346,8 +1346,13 @@ export class Bot {
     return '^FIXED\n' + (platform === 'TELEGRAM' ? payslipView(s) : payslipViewViber(s));
   }
 
-  launch() {
-    this._telegram.launch();
+  async launchTelegram(callbackHost?: string, hookPath?: string, port?: number, tlsOptions?: { key: Buffer, cert: Buffer, ca: string }) {
+    if (callbackHost && hookPath && port && tlsOptions) {
+      await this._telegram.telegram.setWebhook(`${callbackHost}:${port}${hookPath}`);
+      await this._telegram.startWebhook(hookPath, tlsOptions, port);
+    } else {
+      await this._telegram.launch();
+    }
   }
 
   /**
