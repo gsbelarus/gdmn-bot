@@ -277,6 +277,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
               target: 'showBirthdays'
             },
             {
+              cond: (_, { command }: MenuCommandEvent) => command === '.billboard',
+              target: 'sendAnnouncement'
+            },
+            {
               cond: (_, { command }: MenuCommandEvent) => command === '.rates',
               target: 'showCurrencyRates'
             }
@@ -287,6 +291,20 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             entry: 'showOther'
           }
         },
+      },
+      sendAnnouncement: {
+        initial: 'enterAnnouncement',
+        on: {
+          MENU_COMMAND: {
+            cond: (_, { command }: MenuCommandEvent) => command === '.cancelEnterAnnouncement',
+            target: '#botMachine.mainMenu'
+          }
+        },
+        states: {
+          enterAnnouncement: {
+            entry: 'enterAnnouncementInvitation'
+          }
+        }
       },
       showBirthdays: {
         on: { '': '#botMachine.mainMenu' },

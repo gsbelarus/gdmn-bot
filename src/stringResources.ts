@@ -340,6 +340,11 @@ export const stringResources = {
     ru: 'Расчетный листок',
     be: 'Разліковы лісток'
   },
+  enterAnnouncementInvitation: {
+    en: 'Enter text of the announcement:',
+    ru: 'Введите текст объявления:',
+    be: 'Увядзіце тэкст аб\'явы:'
+  },
   comparativePayslipTitle: {
     en: 'Comparative payslip',
     ru: 'Сравнительный листок',

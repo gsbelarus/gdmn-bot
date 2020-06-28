@@ -188,9 +188,15 @@ export interface ICurrencyRate {
   rate: number
 };
 
-export interface IUserGroups {
-  [id: string]: {
-    name: string;
-    users: string[];
+export interface IUserGroup {
+  id: string;
+  name: LName;
+};
+
+export type UserGroups = IUserGroup[];
+
+export interface IUsersByGroups {
+  [groupId: string]: {
+    userIds: string[];
   }
 };
