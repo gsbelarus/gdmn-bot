@@ -51,8 +51,15 @@ export const keyboardWage: Menu = [
 
 export const keyboardEnterAnnouncement: Menu = [
   [
-    { type: 'BUTTON', caption: stringResources.btnBackToMenu, command: '.cancelEnterAnnouncement' },
+    { type: 'BUTTON', caption: stringResources.btnCancelEnterAnnouncement, command: '.cancelEnterAnnouncement' },
   ]
+];
+
+export const keyboardSendAnnouncement: Menu = [
+  [{ type: 'BUTTON', caption: stringResources.btnSendToDepartment, command: '.sendToDepartment' }],
+  [{ type: 'BUTTON', caption: stringResources.btnSendToEnterprise, command: '.sendToEnterprise' }],
+  [{ type: 'BUTTON', caption: stringResources.btnSendToAll, command: '.sendToAll' }],
+  [{ type: 'BUTTON', caption: stringResources.btnCancelSendAnnouncement, command: '.cancelSendAnnouncement' }],
 ];
 
 export const keyboardOther: Menu = [

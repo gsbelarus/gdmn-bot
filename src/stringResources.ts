@@ -345,6 +345,36 @@ export const stringResources = {
     ru: 'Введите текст объявления:',
     be: 'Увядзіце тэкст аб\'явы:'
   },
+  btnCancelEnterAnnouncement: {
+    en: 'Cancel',
+    ru: 'Отменить ввод',
+    be: 'Адмяніць увод'
+  },
+  btnSendToDepartment: {
+    en: 'Send to my department',
+    ru: 'Разослать всем в подразделении',
+    be: 'Разаслаць усім у падраздзяленні'
+  },
+  btnSendToEnterprise: {
+    en: 'Send to all in enterprise',
+    ru: 'Разослать всем на предприятии',
+    be: 'Разаслаць усім на прадпрыемстве'
+  },
+  btnSendToAll: {
+    en: 'Send to all',
+    ru: 'Разослать всем',
+    be: 'Разаслаць усім'
+  },
+  btnCancelSendAnnouncement: {
+    en: 'Cancel',
+    ru: 'Отменить рассылку',
+    be: 'Адмяніць рассылку'
+  },
+  sendAnnouncementMenuCaption: {
+    en: 'Check the message text and choose type of mailing.',
+    ru: 'Проверьте текст сообщения и выберите тип рассылки.',
+    be: 'Праверце тэкст паведамлення і выбярыце тып рассылкі.'
+  },
   comparativePayslipTitle: {
     en: 'Comparative payslip',
     ru: 'Сравнительный листок',

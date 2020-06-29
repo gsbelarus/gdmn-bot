@@ -295,14 +295,22 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       sendAnnouncement: {
         initial: 'enterAnnouncement',
         on: {
-          MENU_COMMAND: {
-            cond: (_, { command }: MenuCommandEvent) => command === '.cancelEnterAnnouncement',
-            target: '#botMachine.mainMenu'
+          MENU_COMMAND: [
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.cancelEnterAnnouncement' || command === '.cancelSendAnnouncement',
+              target: '#botMachine.mainMenu'
+            }
+          ],
+          ENTER_TEXT: {
+            target: '.sendAnnouncementMenu'
           }
         },
         states: {
           enterAnnouncement: {
             entry: 'enterAnnouncementInvitation'
+          },
+          sendAnnouncementMenu: {
+            entry: 'sendAnnouncementMenu'
           }
         }
       },
