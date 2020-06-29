@@ -200,3 +200,18 @@ export interface IUsersByGroups {
     userIds: string[];
   }
 };
+
+export interface IAnnouncement {
+  id: string;
+  date: Date;
+  fromCustomerId: string;
+  fromEmployeeId: string;
+  /**
+   * Если CustomerId не указан, то сообщение рассылается
+   * всем пользователям чат-бота.
+   */
+  toCustomerId?: string;
+  toDepartmentId?: string;
+  toEmployeeId?: string;
+  body: string;
+};

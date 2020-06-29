@@ -1,5 +1,5 @@
 import { FileDB, IData } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, ICurrencyRate } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, ICurrencyRate, IAnnouncement } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
@@ -11,8 +11,9 @@ import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { Logger, ILogger } from "./log";
-import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN } from "./files";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN } from "./files";
 import { hashELF64 } from "./hashELF64";
+import { v4 as uuidv4 } from 'uuid';
 
 const vb = require('viber-bot');
 const ViberBot = vb.Bot
@@ -82,6 +83,7 @@ export class Bot {
   private _telegramCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
   private _telegramMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
+  private _announcements: FileDB<Omit<IAnnouncement, 'id'>>;
   private _botStarted = new Date();
   private _callbacksReceived = 0;
   /**
@@ -101,7 +103,18 @@ export class Bot {
     this._logger = logger;
     this._log = this._logger.getLogger();
 
-    const restorer = (data: IData<IAccountLink>): IData<IAccountLink> => Object.fromEntries(
+    const annRestorer = (data: IData<Omit<IAnnouncement, 'id'>>): IData<Omit<IAnnouncement, 'id'>> => Object.fromEntries(
+      Object.entries(data).map(
+        ([key, announcement]) => [key, {
+          ...announcement,
+          date: new Date(announcement.date)
+        }]
+      )
+    );
+
+    this._announcements = new FileDB<Omit<IAnnouncement, 'id'>>(getAnnouncementsFN(), this._log, {}, annRestorer);
+
+    const ALRestorer = (data: IData<IAccountLink>): IData<IAccountLink> => Object.fromEntries(
       Object.entries(data).map(
         ([key, accountLink]) => [key, {
           ...accountLink,
@@ -111,8 +124,8 @@ export class Bot {
       )
     );
 
-    this._telegramAccountLink = new FileDB<IAccountLink>(getAccountLinkFN('TELEGRAM'), this._log, {}, restorer);
-    this._viberAccountLink = new FileDB<IAccountLink>(getAccountLinkFN('VIBER'), this._log, {}, restorer);
+    this._telegramAccountLink = new FileDB<IAccountLink>(getAccountLinkFN('TELEGRAM'), this._log, {}, ALRestorer);
+    this._viberAccountLink = new FileDB<IAccountLink>(getAccountLinkFN('VIBER'), this._log, {}, ALRestorer);
 
     /**************************************************************/
     /**************************************************************/
@@ -409,7 +422,21 @@ export class Bot {
         showOther: reply(stringResources.mainMenuCaption, keyboardOther),
         enterAnnouncementInvitation: reply(stringResources.enterAnnouncementInvitation, keyboardEnterAnnouncement),
         sendAnnouncementMenu: reply(stringResources.sendAnnouncementMenuCaption, keyboardSendAnnouncement),
-        sendToDepartment: reply(stringResources.notEnoughRights),
+        sendToDepartment: ctx => {
+          //TODO: проверить на права
+          const { customerId, employeeId, announcement } = ctx;
+          if (customerId && employeeId && announcement) {
+            this._announcements.write(uuidv4(), {
+              date: new Date(),
+              fromCustomerId: customerId,
+              fromEmployeeId: employeeId,
+              toCustomerId: customerId,
+              toEmployeeId: employeeId,
+              //TODO: определить текущее подразделение сотрудника и записать сюда
+              body: announcement
+            });
+          }
+        },
         sendToEnterprise: reply(stringResources.notEnoughRights),
         sendToAll: reply(stringResources.notEnoughRights),
         showBirthdays: getShowBirthdaysFunc(reply),
@@ -1373,6 +1400,7 @@ export class Bot {
   finalize() {
     this._telegramAccountLink.flush();
     this._viberAccountLink.flush();
+    this._announcements.flush();
   }
 
   createService(inPlatform: Platform, inChatId: string) {

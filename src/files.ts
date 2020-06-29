@@ -6,6 +6,7 @@ export const getAccountLinkFN = (platform: Platform) => platform === 'TELEGRAM'
   : path.resolve(process.cwd(), 'data/viber/accountlink.json');
 export const getCurrenciesFN = () => path.resolve(process.cwd(), `data/nbrbcurrencies.json`);
 export const getRatesFN = () => path.resolve(process.cwd(), `data/nbrbrates.json`);
+export const getAnnouncementsFN = () => path.resolve(process.cwd(), `data/announcements.json`);
 export const getCustomersFN = () => path.resolve(process.cwd(), 'data/customers.json');
 export const getPayslipFN = (customerId: string, employeeId: string) => path.resolve(process.cwd(), `data/payslip/${customerId}/${employeeId}.json`);
 export const getAccDedFN = (customerId: string) => path.resolve(process.cwd(), `data/payslip/${customerId}/accdedref.json`);
