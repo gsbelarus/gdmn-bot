@@ -375,6 +375,11 @@ export const stringResources = {
     ru: 'Проверьте текст сообщения и выберите тип рассылки.',
     be: 'Праверце тэкст паведамлення і выбярыце тып рассылкі.'
   },
+  notEnoughRights: {
+    en: 'You don\'t have enough rights to send announcements.',
+    ru: 'У вас недостаточно прав для рассылки объявлений.',
+    be: 'У вас недастаткова правоў для рассылкі аб\'яў.'
+  },
   comparativePayslipTitle: {
     en: 'Comparative payslip',
     ru: 'Сравнительный листок',

@@ -79,6 +79,10 @@ export interface IBotMachineContext extends IMachineContextBase {
    */
   currencyId?: string;
   currencyDate: IDate;
+  /**
+   * Текст объявления.
+   */
+  announcement?: string;
 };
 
 export type StartEvent           = { type: 'START' } & Required<IMachineContextBase>;
@@ -299,10 +303,26 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             {
               cond: (_, { command }: MenuCommandEvent) => command === '.cancelEnterAnnouncement' || command === '.cancelSendAnnouncement',
               target: '#botMachine.mainMenu'
-            }
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.sendToDepartment',
+              target: '#botMachine.mainMenu',
+              actions: 'sendToDepartment'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.sendToEnterprise',
+              target: '#botMachine.mainMenu',
+              actions: 'sendToEnterprise'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.sendToAll',
+              target: '#botMachine.mainMenu',
+              actions: 'sendToAll'
+            },
           ],
           ENTER_TEXT: {
-            target: '.sendAnnouncementMenu'
+            target: '.sendAnnouncementMenu',
+            actions: assign({ announcement: (_, { text }: EnterTextEvent) => text })
           }
         },
         states: {
