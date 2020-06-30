@@ -425,13 +425,16 @@ export class Bot {
         sendToDepartment: ctx => {
           //TODO: проверить на права
           const { customerId, employeeId, announcement } = ctx;
+
           if (customerId && employeeId && announcement) {
+            const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
+              .read(employeeId);
+
             this._announcements.write(uuidv4(), {
               date: new Date(),
               fromCustomerId: customerId,
               fromEmployeeId: employeeId,
               toCustomerId: customerId,
-              toEmployeeId: employeeId,
               //TODO: определить текущее подразделение сотрудника и записать сюда
               body: announcement
             });
@@ -1469,7 +1472,7 @@ export class Bot {
    * выбор пункта в меню, вызов команды и т.п.
    * @param update IUpdate
    */
-  onUpdate(update: IUpdate) {
+  async onUpdate(update: IUpdate) {
     this._callbacksReceived++;
 
     const { platform, chatId, type, body, language } = update;
@@ -1485,9 +1488,9 @@ export class Bot {
         `Callbacks received: ${this._callbacksReceived}`
       ];
       if (platform === 'TELEGRAM') {
-        this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
+        await this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
       } else {
-        this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
+        await this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
       }
       return;
     }
@@ -1584,9 +1587,9 @@ export class Bot {
         // машины
 
         if (platform === 'TELEGRAM') {
-          this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
+          await this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
         } else {
-          this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
+          await this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
         }
 
         createNewService(true);
