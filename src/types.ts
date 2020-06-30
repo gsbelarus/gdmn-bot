@@ -106,6 +106,10 @@ export interface IAccDed {
   n?: number;
 };
 
+export interface IDepartment {
+  name: LName;
+};
+
 export interface IPosition {
   id: string;
   name: LName;
@@ -181,6 +185,16 @@ export interface IPayslipData {
   salary?: number;
   hourrate?: number;
   rate?: number;
+};
+
+export interface ITimeSheet {
+  emplId: string;
+  data: {
+    date: Date;
+    dept: string;
+    t: string;
+    h: string;
+  }[];
 };
 
 export interface ICurrencyRate {

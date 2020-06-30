@@ -79,6 +79,7 @@ export interface IBotMachineContext extends IMachineContextBase {
    */
   currencyId?: string;
   currencyDate: IDate;
+  tableDate: IDate;
   /**
    * Текст объявления.
    */
@@ -110,7 +111,8 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       dateBegin: { year: new Date().getFullYear(), month: 0 },
       dateEnd: { year: new Date().getFullYear(), month: 11 },
       dateBegin2: { year: new Date().getFullYear(), month: 0 },
-      currencyDate: { year: new Date().getFullYear(), month: 0 }
+      currencyDate: { year: new Date().getFullYear(), month: 0 },
+      tableDate: { year: new Date().getFullYear(), month: 0 }
     },
     states: {
       init: {
@@ -287,6 +289,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             {
               cond: (_, { command }: MenuCommandEvent) => command === '.rates',
               target: 'showCurrencyRates'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.table',
+              target: 'showTable'
             }
           ]
         },
@@ -389,6 +395,46 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           }
         }
       },
+
+
+      showTable: {
+        initial: 'enterDate',
+        states: {
+          enterDate: {
+            invoke: {
+              id: 'calendarMachine',
+              src: calendarMachine,
+              autoForward: true,
+              data: (ctx: IBotMachineContext) => ({
+                selectedDate: ctx.tableDate,
+                canceled: false,
+                dateKind: 'PERIOD_MONTH',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
+              }),
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  target: 'showTable',
+                  actions: assign({
+                    tableDate: (_, event) => event.data.selectedDate,
+                  })
+                }
+              ]
+            }
+          },
+          showTable: {
+            on: { '': '#botMachine.mainMenu' },
+            entry: 'showTable'
+          }
+        }
+      },
+
+
       settings: {
         initial: 'showSettings',
         on: {

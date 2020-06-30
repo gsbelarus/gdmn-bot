@@ -1,5 +1,5 @@
 import { FileDB, IData } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, ICurrencyRate, IAnnouncement } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, ITimeSheet, IDepartment } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
@@ -11,7 +11,7 @@ import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { Logger, ILogger } from "./log";
-import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN } from "./files";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getDepartmentFN } from "./files";
 import { hashELF64 } from "./hashELF64";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -83,6 +83,7 @@ export class Bot {
   private _telegramCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
   private _telegramMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
+  private _departments: { [customerId: string]: FileDB<Omit<IDepartment, 'id'>> } = {};
   private _announcements: FileDB<Omit<IAnnouncement, 'id'>>;
   private _botStarted = new Date();
   private _callbacksReceived = 0;
@@ -389,6 +390,13 @@ export class Bot {
       }
     };
 
+    const getShowTableFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+      const { accountLink, platform, ...rest } = checkAccountLink(ctx);
+      const { tableDate } = ctx;
+      const { customerId, employeeId, language, currency } = accountLink;
+      reply(tableDate.month.toString())(rest);
+    };
+
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
       actions: {
         askCompanyName: reply(stringResources.askCompanyName),
@@ -445,6 +453,7 @@ export class Bot {
         showDetailedPayslip: getShowPayslipFunc('DETAIL', reply),
         showPayslipForPeriod: getShowPayslipFunc('DETAIL', reply),
         showComparePayslip: getShowPayslipFunc('COMPARE', reply),
+        showTable: getShowTableFunc(reply),
         showSettings: ctx => {
           const { accountLink, ...rest } = checkAccountLink(ctx);
           const { customerId, employeeId } = ctx;
@@ -1626,6 +1635,50 @@ export class Bot {
     }
 
     employee.flush();
+  }
+
+  upload_departments(customerId: string, objData: Object) {
+    let department = this._departments[customerId];
+
+    if (!department) {
+      department = new FileDB<Omit<IDepartment, 'id'>>(getDepartmentFN(customerId), this._log);
+      this._departments[customerId] = department;
+    }
+
+    department.clear();
+
+    for (const [key, value] of Object.entries(objData)) {
+      department.write(key, value as any);
+    }
+
+    department.flush();
+  }
+
+  upload_timeSheets(customerId: string, objData: ITimeSheet, rewrite: boolean) {
+    const employeeId = objData.emplId;
+    const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log);
+
+    if (rewrite) {
+      timeSheet.clear();
+    }
+
+    const prevTimeSheetData = timeSheet.read(employeeId);
+
+    // если на диске не было файла или там было пусто, то
+    // просто запишем данные, которые пришли из интернета
+    if (!prevTimeSheetData) {
+      timeSheet.write(employeeId, objData);
+
+    } else {
+      // данные есть. надо объединить прибывшие данные с тем
+      // что уже есть на диске
+      const newTimeSheetData = {
+        ...prevTimeSheetData,
+        data: [...prevTimeSheetData.data]
+      };
+      timeSheet.write(employeeId, newTimeSheetData);
+    }
+    timeSheet.flush();
   }
 
   upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
