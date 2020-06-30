@@ -140,14 +140,18 @@ export class FileDB<T extends Object> {
 
       const dirName = path.dirname(this._fn);
 
-      if (!fs.existsSync(dirName)) {
-        // создадим папку, если она не существует
-        fs.mkdirSync(dirName, { recursive: true });
-      }
+      try {
+        if (!fs.existsSync(dirName)) {
+          // создадим папку, если она не существует
+          fs.mkdirSync(dirName, { recursive: true });
+        }
 
-      fs.writeFileSync(this._fn, JSON.stringify(envelope, undefined, 2), { encoding: 'utf8' });
-      this._modified = false;
-      this._logger.info(`Data has been written to ${this._fn}...`);
+        fs.writeFileSync(this._fn, JSON.stringify(envelope, undefined, 2), { encoding: 'utf8' });
+        this._modified = false;
+        this._logger.info(`Data has been written to ${this._fn}...`);
+      } catch (e) {
+        this._logger.error(`Error writting to file ${this._fn}. ${e}`);
+      }
     }
   }
 };
