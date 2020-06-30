@@ -390,11 +390,51 @@ export class Bot {
       }
     };
 
-    const getShowTableFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+    const getShowTableFunc = (reply: ReplyFunc) => (ctx: IBotMachineContext) => {
       const { accountLink, platform, ...rest } = checkAccountLink(ctx);
       const { tableDate } = ctx;
       const { customerId, employeeId, language, currency } = accountLink;
-      reply(tableDate.month.toString())(rest);
+      const lng = language ?? 'ru';
+
+      const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log)
+        .read(employeeId);
+
+      if (!timeSheet) {
+       reply(getLocString(stringResources.noData, lng))(rest);
+      } else {
+
+        // //Цикл по всем дням
+        // for (const value of Object.values(payslip.data)) {
+        //   const valueDB = str2Date(value.db);
+
+
+        const table = Object.entries(timeSheet.data).filter(
+          ([_, { d }]) => {
+            const date = str2Date(d);
+            return date.getFullYear() === tableDate.year && date.getMonth() === tableDate.month;
+          }
+        );
+
+        const getDepartment = (deptId: string) => {
+          const department = this._getDepartment(customerId, deptId);
+          if (department) {
+              return `\n${getLName(department.name, [language ?? 'ru'])}`;
+          }
+          return '';
+        };
+
+
+        const formatList = table
+          .sort(
+            (a, b) => isGr(str2Date(a[1].d), str2Date(b[1].d)) ? 1 : -1
+          )
+          .map(
+            ([id, { d, dept, h, t}]) =>`${d} ${t}${h !== 0 ? ' ' + h : ''}${getDepartment(dept)}`
+          )
+          .join('\n');
+
+        reply(formatList)(rest);
+      }
     };
 
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
@@ -771,6 +811,25 @@ export class Bot {
   private _getEmployee(customerId: string, employeeId: string) {
     const employees = this._getEmployees(customerId);
     return employees && employees.read(employeeId);
+  }
+
+  private _getDepartments(customerId: string) {
+    let departments = this._departments[customerId];
+
+    if (!departments) {
+      const db = new FileDB<Omit<IDepartment, 'id'>>(getDepartmentFN(customerId), this._log);
+      if (!db.isEmpty()) {
+        this._departments[customerId] = db;
+        return db;
+      }
+    }
+
+    return departments;
+  }
+
+  private _getDepartment(customerId: string, departmentId: string) {
+    const departments = this._getDepartments(customerId);
+    return departments && departments.read(departmentId);
   }
 
   private _findCompany = (_: any, event: BotMachineEvent) => {

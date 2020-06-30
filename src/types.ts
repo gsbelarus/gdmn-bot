@@ -107,6 +107,7 @@ export interface IAccDed {
 };
 
 export interface IDepartment {
+  id: string;
   name: LName;
 };
 
@@ -190,10 +191,10 @@ export interface IPayslipData {
 export interface ITimeSheet {
   emplId: string;
   data: {
-    date: Date;
+    d: Date;
     dept: string;
     t: string;
-    h: string;
+    h: number;
   }[];
 };
 
