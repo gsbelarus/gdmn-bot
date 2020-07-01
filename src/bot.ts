@@ -1488,11 +1488,12 @@ export class Bot {
       service = interpret(this._viberMachine);
     }
 
-    service = service.onTransition( (state) => {
+    service = service.onTransition( (state, event) => {
         const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
 
+        //TODO: temporarily
+        this._logger.debug(inChatId, undefined, `State: ${state.toStrings().join('->')}, Event: ${event.type}`);
         /*
-        this._logger.debug(inChatId, undefined, `State: ${state.toStrings().join('->')}, Event: ${type}`);
         this._logger.debug(inChatId, undefined, `State value: ${JSON.stringify(state.value)}`);
         this._logger.debug(inChatId, undefined, `State context: ${JSON.stringify(state.context)}`);
         if (Object.keys(state.children).length) {
@@ -1544,6 +1545,9 @@ export class Bot {
     this._callbacksReceived++;
 
     const { platform, chatId, type, body, language } = update;
+
+    //TODO: temporarily
+    await this._logger.info(chatId, undefined, `${type} -- ${body}`);
 
     if (body === 'diagnostics') {
       this.finalize();
@@ -1680,6 +1684,8 @@ export class Bot {
     }
 
     customerAccDed.flush();
+
+    this._log.info(`AccDed reference for customer: ${customerId} has been uploaded.`);
   }
 
   uploadEmployees(customerId: string, objData: Object) {
@@ -1697,6 +1703,8 @@ export class Bot {
     }
 
     employee.flush();
+
+    this._log.info(`Customer: ${customerId}. ${Object.keys(objData).length} employees have been uploaded.`);
   }
 
   upload_departments(customerId: string, objData: Object) {
@@ -1836,6 +1844,8 @@ export class Bot {
       payslip.write(employeeId, newPayslipData);
     }
     payslip.flush();
+
+    this._log.info(`Payslips for employee: ${employeeId}, customer: ${customerId} have been uploaded.`);
   }
 
   public async sendLatestPayslip(customerId: string, employeeId: string) {
