@@ -428,7 +428,7 @@ export const stringResources = {
   payslipDeductions: {
     en: '  Deductions:',
     ru: '  Удержания:',
-    be: '  Ўтрымання:'
+    be: '  Вылічэнні:'
   },
   payslipAdvance: {
     en: '  Advance:',

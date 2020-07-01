@@ -291,7 +291,7 @@ export class Bot {
       }
     };
 
-    const getShowBirthdaysFunc = (reply: ReplyFunc) => (ctx: IBotMachineContext) => {
+    const getShowBirthdaysFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
       const { accountLink, ...rest } = checkAccountLink(ctx);
       const { customerId, language } = accountLink;
       const employees = this._getEmployees(customerId).getMutable(false);
@@ -331,27 +331,32 @@ export class Bot {
         }
       );
 
-      const formatList = (l: typeof birthdayToday) => l
-        .sort(
-          (a, b) => a[1].lastName.localeCompare(b[1].lastName)
-        )
-        .map(
-          ([id, { firstName, lastName, patrName}]) => `${lastName} ${firstName} ${patrName ?? ''}${getDepartment(id)}`
-        )
-        .join('\n\n');
+      try {
+        const formatList = (l: typeof birthdayToday) => l
+          .sort(
+            (a, b) => a[1].lastName.localeCompare(b[1].lastName)
+          )
+          .map(
+            ([id, { firstName, lastName, patrName}]) => `${lastName} ${firstName} ${patrName ?? ''}${getDepartment(id)}`
+          )
+          .join('\n\n');
 
-      const lng = language ?? 'ru';
-      let text = '';
+        const lng = language ?? 'ru';
+        let text = '';
 
-      if (birthdayToday.length) {
-        text = `🎂 ${getLocString(stringResources.todayBirthday, lng)} ${date2str(today, 'DD.MM.YYYY')}:\n\n${formatList(birthdayToday)}\n\n`;
+        if (birthdayToday.length) {
+          text = `🎂 ${getLocString(stringResources.todayBirthday, lng)} ${date2str(today, 'DD.MM.YYYY')}:\n\n${formatList(birthdayToday)}\n\n`;
+        }
+
+        if (birthdayTomorrow.length) {
+          text += `🎁 ${getLocString(stringResources.tomorrowBirthday, lng)} ${date2str(tomorrow, 'DD.MM.YYYY')}:\n\n${formatList(birthdayTomorrow)}`;
+        }
+
+        await reply(text || getLocString(stringResources.noBirthdays, lng))(rest);
+      } catch(e) {
+        await this._logger.error(ctx.chatId, undefined, e);
+        await reply('Unable to get data on employees birthdays...')(rest);
       }
-
-      if (birthdayTomorrow.length) {
-        text += `🎁 ${getLocString(stringResources.tomorrowBirthday, lng)} ${date2str(tomorrow, 'DD.MM.YYYY')}:\n\n${formatList(birthdayTomorrow)}`;
-      }
-
-      reply(text || getLocString(stringResources.noBirthdays, lng))(rest);
     };
 
     const getShowRatesFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
@@ -861,7 +866,7 @@ export class Bot {
     if (!payslip.dept.length || !payslip.pos.length || !payslip.payForm.length || !payslip.salary.length) {
       const msg = `Missing departments, positions, payforms or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
       this._log.error(msg);
-      throw new Error(msg)
+      throw new Error(msg);
     }
 
     let department = payslip.dept[0].name;
