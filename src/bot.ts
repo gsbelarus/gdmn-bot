@@ -1616,6 +1616,8 @@ export class Bot {
     }
 
     customerAccDed.flush();
+
+    this._log.info(`AccDed reference for customer: ${customerId} has been uploaded.`);
   }
 
   uploadEmployees(customerId: string, objData: Object) {
@@ -1633,6 +1635,8 @@ export class Bot {
     }
 
     employee.flush();
+
+    this._log.info(`Customer: ${customerId}. ${Object.keys(objData).length} employees have been uploaded.`);
   }
 
   upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
@@ -1728,6 +1732,8 @@ export class Bot {
       payslip.write(employeeId, newPayslipData);
     }
     payslip.flush();
+
+    this._log.info(`Payslips for employee: ${employeeId}, customer: ${customerId} have been uploaded.`);
   }
 
   public async sendLatestPayslip(customerId: string, employeeId: string) {
