@@ -98,11 +98,11 @@ router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
   return next();
 });
 
-router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
+router.post('/zarobak/v1/upload_paySlips', async (ctx, next) => {
   try {
     const { customerId, objData, rewrite } = ctx.request.body;
     bot.upload_payslips(customerId, objData, rewrite);
-    bot.sendLatestPayslip(customerId, objData.emplId);
+    await bot.sendLatestPayslip(customerId, objData.emplId);
     ctx.status = 200;
     ctx.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {
@@ -141,7 +141,7 @@ const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bun
 
 if (!ca) {
   throw new Error('No CA file or file is invalid');
-}  
+}
 
 const viberCallback = bot.viber?.middleware();
 

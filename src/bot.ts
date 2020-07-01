@@ -430,14 +430,28 @@ export class Bot {
             const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
               .read(employeeId);
 
-            this._announcements.write(uuidv4(), {
-              date: new Date(),
-              fromCustomerId: customerId,
-              fromEmployeeId: employeeId,
-              toCustomerId: customerId,
-              //TODO: определить текущее подразделение сотрудника и записать сюда
-              body: announcement
-            });
+            if (payslip?.dept.length) {
+              const { dept } = payslip;
+
+              let lastDate = dept[0].d;
+              let lastId = dept[0].id;
+
+              for (const { d, id } of dept) {
+                if (d > lastDate) {
+                  lastDate = d;
+                  lastId = id;
+                }
+              }
+
+              this._announcements.write(uuidv4(), {
+                date: new Date(),
+                fromCustomerId: customerId,
+                fromEmployeeId: employeeId,
+                toCustomerId: customerId,
+                toDepartmentId: lastId,
+                body: announcement
+              });
+            }
           }
         },
         sendToEnterprise: reply(stringResources.notEnoughRights),
