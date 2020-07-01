@@ -59,6 +59,10 @@ export const str2Date = (date: Date | string) => {
   }
 };
 
+export const isEq = (d1: Date, d2: Date) => {
+  return d1.getTime() === d2.getTime();
+};
+
 export const isGr = (d1: Date, d2: Date) => {
   return d1.getTime() > d2.getTime();
 };

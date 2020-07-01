@@ -1,11 +1,11 @@
 import { FileDB, IData } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, ICurrencyRate, IAnnouncement } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
-import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str } from "./util/utils";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
@@ -437,7 +437,7 @@ export class Bot {
               let lastId = dept[0].id;
 
               for (const { d, id } of dept) {
-                if (d > lastDate) {
+                if (isGr(d, lastDate)) {
                   lastDate = d;
                   lastId = id;
                 }
@@ -1683,7 +1683,7 @@ export class Bot {
 
       // объединяем начисления
       for (const d of objData.data) {
-        const i = newPayslipData.data.findIndex( a => a.typeId === d.typeId && a.db === d.db && a.de === d.de );
+        const i = newPayslipData.data.findIndex( a => a.typeId === d.typeId && isEq(a.db, d.db) && isEq(a.de, d.de) );
         if (i === -1) {
           newPayslipData.data.push(d);
         } else {
@@ -1693,7 +1693,7 @@ export class Bot {
 
       // объединяем подразделения
       for (const d of objData.dept) {
-        const i = newPayslipData.dept.findIndex( a => a.id === d.id && a.d === d.d );
+        const i = newPayslipData.dept.findIndex( a => a.id === d.id && isEq(a.d, d.d) );
         if (i === -1) {
           newPayslipData.dept.push(d);
         } else {
@@ -1703,7 +1703,7 @@ export class Bot {
 
       // объединяем должности
       for (const p of objData.pos) {
-        const i = newPayslipData.pos.findIndex( a => a.id === p.id && a.d === p.d );
+        const i = newPayslipData.pos.findIndex( a => a.id === p.id && isEq(a.d, p.d) );
         if (i === -1) {
           newPayslipData.pos.push(p);
         } else {
@@ -1713,7 +1713,7 @@ export class Bot {
 
       // объединяем формы оплат
       for (const p of objData.payForm) {
-        const i = newPayslipData.payForm.findIndex( a => a.d === p.d );
+        const i = newPayslipData.payForm.findIndex( a => isEq(a.d, p.d) );
         if (i === -1) {
           newPayslipData.payForm.push(p);
         } else {
@@ -1723,7 +1723,7 @@ export class Bot {
 
       // объединяем оклады
       for (const p of objData.salary) {
-        const i = newPayslipData.salary.findIndex( a => a.d === p.d );
+        const i = newPayslipData.salary.findIndex( a => isEq(a.d, p.d) );
         if (i === -1) {
           newPayslipData.salary.push(p);
         } else {
@@ -1734,7 +1734,7 @@ export class Bot {
       if (objData.hourrate) {
         // объединяем чтс
         for (const p of objData.hourrate) {
-          const i = newPayslipData.hourrate.findIndex( a => a.d === p.d );
+          const i = newPayslipData.hourrate.findIndex( a => isEq(a.d, p.d) );
           if (i === -1) {
             newPayslipData.hourrate.push(p);
           } else {
