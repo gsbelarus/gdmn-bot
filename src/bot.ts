@@ -1420,11 +1420,12 @@ export class Bot {
       service = interpret(this._viberMachine);
     }
 
-    service = service.onTransition( (state) => {
+    service = service.onTransition( (state, event) => {
         const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
 
+        //TODO: temporarily
+        this._logger.debug(inChatId, undefined, `State: ${state.toStrings().join('->')}, Event: ${event.type}`);
         /*
-        this._logger.debug(inChatId, undefined, `State: ${state.toStrings().join('->')}, Event: ${type}`);
         this._logger.debug(inChatId, undefined, `State value: ${JSON.stringify(state.value)}`);
         this._logger.debug(inChatId, undefined, `State context: ${JSON.stringify(state.context)}`);
         if (Object.keys(state.children).length) {
@@ -1478,7 +1479,7 @@ export class Bot {
     const { platform, chatId, type, body, language } = update;
 
     //TODO: temporarily
-    this._logger.info(chatId, undefined, `${type} -- ${body}`);
+    await this._logger.info(chatId, undefined, `${type} -- ${body}`);
 
     if (body === 'diagnostics') {
       this.finalize();
