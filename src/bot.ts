@@ -14,6 +14,7 @@ import { Logger, ILogger } from "./log";
 import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getDepartmentFN } from "./files";
 import { hashELF64 } from "./hashELF64";
 import { v4 as uuidv4 } from 'uuid';
+import { hourTypes } from "./constants";
 
 const vb = require('viber-bot');
 const ViberBot = vb.Bot
@@ -393,21 +394,15 @@ export class Bot {
     const getShowTableFunc = (reply: ReplyFunc) => (ctx: IBotMachineContext) => {
       const { accountLink, platform, ...rest } = checkAccountLink(ctx);
       const { tableDate } = ctx;
-      const { customerId, employeeId, language, currency } = accountLink;
+      const { customerId, employeeId, language } = accountLink;
       const lng = language ?? 'ru';
 
       const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log)
         .read(employeeId);
 
       if (!timeSheet) {
-       reply(getLocString(stringResources.noData, lng))(rest);
+        reply(getLocString(stringResources.noData, lng))(rest);
       } else {
-
-        // //Цикл по всем дням
-        // for (const value of Object.values(payslip.data)) {
-        //   const valueDB = str2Date(value.db);
-
-
         const table = Object.entries(timeSheet.data).filter(
           ([_, { d }]) => {
             const date = str2Date(d);
@@ -415,25 +410,23 @@ export class Bot {
           }
         );
 
-        const getDepartment = (deptId: string) => {
-          const department = this._getDepartment(customerId, deptId);
-          if (department) {
-              return `\n${getLName(department.name, [language ?? 'ru'])}`;
-          }
-          return '';
-        };
-
-
         const formatList = table
           .sort(
             (a, b) => isGr(str2Date(a[1].d), str2Date(b[1].d)) ? 1 : -1
           )
           .map(
-            ([id, { d, dept, h, t}]) =>`${d} ${t}${h !== 0 ? ' ' + h : ''}${getDepartment(dept)}`
+            ([id, { d, h, t}]) => {
+              const date = str2Date(d);
+              return `${date.getDate()}, ${date.toLocaleString(lng, {weekday: 'short'})}${t === 0 ? '' : ' ' + getLName(hourTypes[t].name, [language ?? 'ru'])}${h === 0 ? '' : ' ' + h}${date.getDay() === 0 ? '\n   ***' : ''}`
+              }
           )
           .join('\n');
 
-        reply(formatList)(rest);
+        if (formatList !== '') {
+          reply(`${getLocString(stringResources.tableTitle, lng, tableDate)}${formatList}`)(rest);
+        } else {
+          reply(getLocString(stringResources.noData, lng))(rest);
+        }
       }
     };
 
@@ -1707,23 +1700,6 @@ export class Bot {
     this._log.info(`Customer: ${customerId}. ${Object.keys(objData).length} employees have been uploaded.`);
   }
 
-  upload_departments(customerId: string, objData: Object) {
-    let department = this._departments[customerId];
-
-    if (!department) {
-      department = new FileDB<Omit<IDepartment, 'id'>>(getDepartmentFN(customerId), this._log);
-      this._departments[customerId] = department;
-    }
-
-    department.clear();
-
-    for (const [key, value] of Object.entries(objData)) {
-      department.write(key, value as any);
-    }
-
-    department.flush();
-  }
-
   upload_timeSheets(customerId: string, objData: ITimeSheet, rewrite: boolean) {
     const employeeId = objData.emplId;
     const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log);
@@ -1738,14 +1714,24 @@ export class Bot {
     // просто запишем данные, которые пришли из интернета
     if (!prevTimeSheetData) {
       timeSheet.write(employeeId, objData);
-
     } else {
       // данные есть. надо объединить прибывшие данные с тем
       // что уже есть на диске
-      const newTimeSheetData = {
+      const newTimeSheetData =  {
         ...prevTimeSheetData,
         data: [...prevTimeSheetData.data]
       };
+
+      // объединяем начисления
+      for (const d of objData.data) {
+        const i = newTimeSheetData.data.findIndex( a => a.d === d.d );
+        if (i === -1) {
+          newTimeSheetData.data.push(d);
+        } else {
+          newTimeSheetData.data[i] = d;
+        }
+      }
+
       timeSheet.write(employeeId, newTimeSheetData);
     }
     timeSheet.flush();
@@ -1765,7 +1751,6 @@ export class Bot {
     // просто запишем данные, которые пришли из интернета
     if (!prevPayslipData) {
       payslip.write(employeeId, objData);
-
     } else {
       // данные есть. надо объединить прибывшие данные с тем
       // что уже есть на диске

@@ -127,20 +127,6 @@ router.post('/zarobak/v2/upload_timeSheets', (ctx, next) => {
   return next();
 });
 
-router.post('/zarobak/v2/upload_departments', (ctx, next) => {
-  try {
-    const { customerId, objData } = ctx.request.body;
-    bot.upload_departments(customerId, objData);
-    ctx.status = 200;
-    ctx.body = JSON.stringify({ status: 200, result: `ok` });
-  } catch(err) {
-    log.error(`Error in departments uploading. ${err.message}`);
-    ctx.status = 500;
-    ctx.body = JSON.stringify({ status: 500, result: err.message });
-  }
-  return next();
-});
-
 app
   .use(bodyParser({
     jsonLimit: '20mb',

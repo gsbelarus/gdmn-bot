@@ -331,9 +331,14 @@ export const stringResources = {
     be: (currencyId: string) => `Немагчыма загрузіць курс валюты ${currencyId}.`
   } as ILocString,
   ratesForMonth: {
-    en: (currencyId: string, date: IDate) => `Currency rate for ${new Date(date.year, date.month).toLocaleString('en', {month: 'long'})} ${date.year},\nFor one ${currencyId} in rubles:\n`,
+    en: (currencyId: string, date: IDate) => `Currency rate for ${new Date(date.year, date.month).toLocaleString('en-US', {month: 'long'})} ${date.year},\nFor one ${currencyId} in rubles:\n`,
     ru: (currencyId: string, date: IDate) => `Курс валюты за ${new Date(date.year, date.month).toLocaleString('ru', {month: 'long'})} ${date.year},\nза один ${currencyId} в рублях:\n`,
     be: (currencyId: string, date: IDate) => `Курс валюты за ${new Date(date.year, date.month).toLocaleString('be', {month: 'long'})} ${date.year},\nза адзін ${currencyId} у рублях:\n`
+  } as ILocString,
+  tableTitle: {
+    en: (date: IDate) => `Time sheet for ${new Date(date.year, date.month).toLocaleString('en-US', {month: 'long'})} ${date.year}:\n`,
+    ru: (date: IDate) => `Табель рабочего времени за ${new Date(date.year, date.month).toLocaleString('ru', {month: 'long'})} ${date.year}:\n`,
+    be: (date: IDate) => `Табель рабочага часу за ${new Date(date.year, date.month).toLocaleString('be', {month: 'long'})} ${date.year}:\n`
   } as ILocString,
   payslipTitle: {
     en: 'Payslip',

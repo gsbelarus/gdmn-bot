@@ -192,8 +192,7 @@ export interface ITimeSheet {
   emplId: string;
   data: {
     d: Date;
-    dept: string;
-    t: string;
+    t: number;
     h: number;
   }[];
 };
@@ -206,6 +205,15 @@ export interface ICurrencyRate {
 export interface IUserGroup {
   id: string;
   name: LName;
+};
+
+export interface IHourType {
+ // id: string;
+  name: LName;
+};
+
+export interface IHourTypes {
+ [id: string]: IHourType
 };
 
 export type UserGroups = IUserGroup[];
