@@ -1477,6 +1477,9 @@ export class Bot {
 
     const { platform, chatId, type, body, language } = update;
 
+    //TODO: temporarily
+    this._logger.info(chatId, undefined, `${type} -- ${body}`);
+
     if (body === 'diagnostics') {
       this.finalize();
       const data = [
