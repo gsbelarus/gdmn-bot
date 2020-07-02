@@ -190,7 +190,7 @@ export interface IPayslipData {
 
 export interface ITimeSheet {
   emplId: string;
-    data: {
+  data: {
     d: Date;
     t: number;
     h: number;

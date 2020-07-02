@@ -88,7 +88,7 @@ export class Bot {
   private _announcements: FileDB<Omit<IAnnouncement, 'id'>>;
   private _botStarted = new Date();
   private _callbacksReceived = 0;
-  /**
+   /**
    * справочники начислений/удержаний для каждого клиента.
    * ключем объекта выступает РУИД записи из базы Гедымина.
   */
@@ -1764,6 +1764,25 @@ export class Bot {
     }
     timeSheet.flush();
   }
+
+  // upload_schedules(customerId: string, objData: Object) {
+  //   let schedules = this._schedules[customerId];
+
+  //   if (!schedules) {
+  //     schedules = new FileDB<IAccDed>(getAccDedFN(customerId), this._log);
+  //     this._customerAccDeds[customerId] = schedules;
+  //   }
+
+  //   schedules.clear();
+
+  //   for (const [key, value] of Object.entries(objData)) {
+  //     schedules.write(key, value as any);
+  //   }
+
+  //   schedules.flush();
+
+  //   this._log.info(`AccDed reference for customer: ${customerId} has been uploaded.`);
+  // }
 
   upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
     const employeeId = objData.emplId;

@@ -5,10 +5,10 @@ Properties:
   RUID: 1193786287_1320926324
   Name: "ZarobakBot.Экспорт файлов"
   Caption: "ZarobakBot.Экспорт файлов"
-  Version: "1.0.0.28"
+  Version: "1.0.0.33"
   Optional: False
   Internal: True
-  MD5: D53C18F26EDCF5164855B96162DDD6E4
+  MD5: 6023A115D44ACE9685819A89DA3FF621
 Uses: 
   - "158513268_1444931844 ZarobakBot.Сбор данных"
 Objects: 
@@ -54,11 +54,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-23T14:19:06+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -117,11 +118,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-23T14:19:06+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -180,11 +182,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-23T14:19:06+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -247,11 +250,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-23T14:19:06+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -313,11 +317,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-23T14:19:07+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -375,7 +380,7 @@ Objects:
       DontRemove: False
       IncludeSiblings: False
     Fields: 
-      PARENT: "710000_17 Исследователь"
+      PARENT: "147048865_974374174 Исследователь\\Зарплата и Отдел кадров"
       NAME: "ZarobakBot"
       CLASSNAME: ~
       CMD: "1193786363_1320926323"
@@ -384,7 +389,7 @@ Objects:
       IMGINDEX: 138
       ORDR: ~
       SUBTYPE: ~
-      EDITIONDATE: 2020-05-04T20:51:33+03:00
+      EDITIONDATE: 2020-07-02T17:59:00+03:00
       DISABLED: 0
   - 
     Properties: 
@@ -394,8 +399,8 @@ Objects:
       DontRemove: False
       IncludeSiblings: False
     Fields: 
-      PARENT: "1193786363_1320926323 Исследователь\\ZarobakBot"
-      NAME: "Экпорт данных"
+      PARENT: "1193786363_1320926323 Исследователь\\Зарплата и Отдел кадров\\ZarobakBot"
+      NAME: "Экспорт данных"
       CLASSNAME: ~
       CMD: "1437186325_1434991069"
       CMDTYPE: 1
@@ -403,7 +408,7 @@ Objects:
       IMGINDEX: 174
       ORDR: ~
       SUBTYPE: ~
-      EDITIONDATE: 2020-05-03T22:07:00+03:00
+      EDITIONDATE: 2020-07-01T17:31:45+03:00
       DISABLED: 0
   - 
     Properties: 
@@ -422,11 +427,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-23T14:19:07+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -487,11 +493,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-23T14:19:07+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -543,11 +550,12 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-06-23T14:19:07+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -586,12 +594,13 @@ Objects:
   - 
     Properties: 
       Class: "TgdcFunction"
-      RUID: 1437186325_1434991069
+      RUID: 1173044690_1450749196
       AlwaysOverwrite: False
       DontRemove: False
       IncludeSiblings: False
+      HeadObject: 1173044824_1450749196
     Fields: 
-      NAME: "bot_exportData"
+      NAME: "bot_exportTimeSheetsU"
       COMMENT: ~
       EVENT: ~
       FUNCTIONTYPE: ~
@@ -599,32 +608,159 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: ~
+      MODIFYDATE: 2020-07-02T17:32:49+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
+      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
-      USEDEBUGINFO: 0
-      EDITIONDATE: 2020-06-23T12:24:32+03:00
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-02T17:32:49+03:00
       DISPLAYSCRIPT: | 
-        BOT_EXPORTDATA
+        BOT_EXPORTTIMESHEETSU
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAFBFUklPRAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
+        UFJTVAoAAABDVVNUT01FUklECgAAAENVU1RPTUVSSUQAAAAAAAAAAAAAAAAFAAAAAAAAAAAAAAAA
+        Rk5TVFBSU1QJAAAAQ09NUEFOWUlECQAAAENPTVBBTllJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AABGTlNUUFJTVAMAAABVUkwDAAAAVVJMAAAAAAAAAAAAAAAABQAAAAAAAAAAAAAAAEZOU1RQUlNU
+        CQAAAElTUkVXUklURQkAAABJU1JFV1JJVEUAAAAAAAAAAAAAAAAGAAAAAAAAAAAAAAAARk5TVEZM
+        UFI=
+      SCRIPT: | 
+        '#include BOT_PREPARETIMESHEET
+        Option Explicit
+        '#include BOT_SENDFILE
+        Function bot_exportTimeSheetsU(Period, customerId, companyId, URL, isRewrite)
+          bot_exportTimeSheetsU = true
+          dim Jsons, i, Creator
+          set Creator = new TCreator
+          set Jsons = Creator.GetObject(nil, "TStringList", "")
+          'Формирование списка Json файлов в разрезе сотрудника
+          call bot_PrepareTimeSheet(Period, customerId, companyId, isRewrite, Jsons)
+          'Отправим на сервер по одному
+          for i = 0 to Jsons.Count - 1
+            bot_exportTimeSheetsU = bot_SendFile(Jsons(i), URL)
+            if not bot_exportTimeSheetsU then
+              exit function
+            end if
+          next
+        End Function
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1173044672_1450749196 bot_PrepareTimeSheet"
+          - 
+            ADDFUNCTIONKEY: "1193785048_1320926324 bot_SendFile"
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173044927_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_exportSchedulesU"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-02T17:32:41+03:00
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-02T17:32:41+03:00
+      DISPLAYSCRIPT: | 
+        BOT_EXPORTSCHEDULESU
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAFBFUklPRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
+        UFJTVAoAAABDVVNUT01FUklECgAAAENVU1RPTUVSSUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        Rk5TVFBSU1QJAAAAQ09NUEFOWUlECQAAAENPTVBBTllJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AABGTlNUUFJTVAMAAABVUkwDAAAAVVJMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RQUlNU
+        CQAAAElTUkVXUklURQkAAABJU1JFV1JJVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARk5TVEZM
+        UFI=
+      SCRIPT: | 
+        '#include BOT_PREPARESCHEDULES
+        Option Explicit
+        '#include BOT_SENDFILE
+        Function bot_exportSchedulesU(Period, customerId, companyId, URL, isRewrite)
+          bot_exportSchedulesU = true
+          dim Jsons, i, Creator
+          set Creator = new TCreator
+          set Jsons = Creator.GetObject(nil, "TStringList", "")
+          'Формирование списка Json файлов в разрезе сотрудника
+          call bot_PrepareSchedules(Period, customerId, companyId, isRewrite, Jsons)
+          'Отправим на сервер по одному
+          for i = 0 to Jsons.Count - 1
+            bot_exportSchedulesU = bot_SendFile(Jsons(i), URL)
+            if not bot_exportSchedulesU then
+              exit function
+            end if
+          next
+        End Function
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1173044915_1450749196 bot_prepareSchedules"
+          - 
+            ADDFUNCTIONKEY: "1193785048_1320926324 bot_SendFile"
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173044824_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_exportTimeSheets"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-02T17:50:28+03:00
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-02T17:50:28+03:00
+      DISPLAYSCRIPT: | 
+        BOT_EXPORTTIMESHEETS
         
       ENTEREDPARAMS: !!binary > 
         U0xQUlBSU1QGAAAAUEVSSU9EBgAAAM/l8Oju5AAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
-        UFJTVAkAAABJU1JFV1JJVEUdAAAAz+Xw5efg7+jx4PL8IPDg8ffl8u375SDr6PHy6ugAAAAAAAAA
-        AAAAAAAGAAAAAAAAAAAAAAAARk5TVEZMUFI=
+        UFJTVAkAAABJU1JFV1JJVEUTAAAAz+Xw5efg7+jx4PL8IPLg4eXr/wAAAAAAAAAAAAAAAAYAAAAA
+        AAAAAAAAAABGTlNURkxQUg==
       SCRIPT: | 
-        '#include BOT_EXPORTPAYSLIPSU
-        '#include BOT_EXPORTEMPLOYEESU
-        '#include BOT_EXPORTACCDEDSU
+        '#include BOT_EXPORTSCHEDULESU
+        '#include BOT_EXPORTTIMESHEETSU
         '#include BOT_GETSERVERDATA
         Option Explicit
-        Function bot_exportData(Period, isRewrite)
-          const upload_employees = "/zarobak/v1/upload_employees"
-          const upload_accDedRefs = "/zarobak/v1/upload_accDedRefs"
-          const upload_paySlips = "/zarobak/v1/upload_paySlips"
+        Function bot_exportTimeSheets(Period, isRewrite)
+          const upload_timeSheets = "/zarobak/v2/upload_timeSheets"
+          const upload_schedules = "/zarobak/v2/upload_schedules"
         
           dim customerArray, URL, count
           'Из констант получим параметры для отправки на сервер
@@ -640,7 +776,102 @@ Objects:
           dim Creator, i, customer, customerId, companyId
           set Creator = new TCreator
           dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
-          P.StartWork "ZarobakBot", "Экспорт данных", 3*(count+1), True, True
+          P.StartWork "ZarobakBot", "Экспорт данных", 2*(count+1), True, True
+        
+          for i = 0 to count
+            customer = Split(customerArray(i), ",")
+            customerId = customer(0)
+            companyId = gdcBaseManager.GetIDByRUIDString(customer(1))
+        
+            P.StartStep "Табеля " & customerId, 1
+            if not bot_exportTimeSheetsU(Period, customerId, companyId, URL & upload_timeSheets, isRewrite) then
+              P.EndWork "Экспорт остановлен!", False
+              exit function
+            end if
+            
+        '    P.StartStep "Графики рабочего времени " & customerId, 1
+        '    if not bot_exportSchedulesU(Period, customerId, companyId, URL & upload_schedules, isRewrite) then
+        '      P.EndWork "Экспорт остановлен!", False
+        '      exit function
+        '    end if
+            
+          next
+        
+          P.EndWork "Экспорт выполнен!", False
+        End Function
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1173044927_1450749196 bot_exportSchedulesU"
+          - 
+            ADDFUNCTIONKEY: "1173044690_1450749196 bot_exportTimeSheetsU"
+          - 
+            ADDFUNCTIONKEY: "158512755_1444931844 bot_getServerData"
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1437186325_1434991069
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_exportData"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-01T18:10:18+03:00
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2020-07-01T18:10:18+03:00
+      DISPLAYSCRIPT: | 
+        BOT_EXPORTDATA
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAM/l8Oju5AAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
+        UFJTVAkAAABJU1JFV1JJVEUdAAAAz+Xw5efg7+jx4PL8IPDg8ffl8u375SDr6PHy6ugAAAAAAAAA
+        AAAAAAAGAAAAAAAAAAAAAAAARk5TVFBSU1QOAAAASVNSRVdSSVRFVEFCTEUTAAAAz+Xw5efg7+jx
+        4PL8IPLg4eXr/wAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAABGTlNURkxQUg==
+      SCRIPT: | 
+        '#include BOT_EXPORTTIMESHEETSU
+        '#include BOT_EXPORTPAYSLIPSU
+        '#include BOT_EXPORTEMPLOYEESU
+        '#include BOT_EXPORTACCDEDSU
+        '#include BOT_GETSERVERDATA
+        Option Explicit
+        Function bot_exportData(Period, isRewrite, isRewriteTable)
+          const upload_employees = "/zarobak/v1/upload_employees"
+          const upload_accDedRefs = "/zarobak/v1/upload_accDedRefs"
+          const upload_paySlips = "/zarobak/v1/upload_paySlips"
+          const upload_timeSheets = "/zarobak/v2/upload_timeSheets"
+        
+          dim customerArray, URL, count
+          'Из констант получим параметры для отправки на сервер
+          'customerArray - массив данных по клиенту (ид и RUID организации, пример: ("id1,123_456", "id2,789_123"))
+          'URL - путь к серверу
+          call bot_GetServerData(false, customerArray, URL)
+        
+          count = UBound(customerArray)
+          if count < 0 or URL = "" then
+            exit function
+          end if
+        
+          dim Creator, i, customer, customerId, companyId
+          set Creator = new TCreator
+          dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
+          P.StartWork "ZarobakBot", "Экспорт данных", 4*(count+1), True, True
         
           for i = 0 to count
             customer = Split(customerArray(i), ",")
@@ -664,6 +895,13 @@ Objects:
               P.EndWork "Экспорт остановлен!", False
               exit function
             end if
+        
+            P.StartStep "Табеля " & customerId, 1
+            if not bot_exportTimeSheetsU(Period, customerId, companyId, URL & upload_timeSheets, isRewriteTable) then
+              P.EndWork "Экспорт остановлен!", False
+              exit function
+            end if
+        
           next
         
           P.EndWork "Экспорт выполнен!", False
@@ -674,6 +912,8 @@ Objects:
         Table: "RP_ADDITIONALFUNCTION"
         Items: 
           - 
+            ADDFUNCTIONKEY: "1173044690_1450749196 bot_exportTimeSheetsU"
+          - 
             ADDFUNCTIONKEY: "158513035_1444931844 bot_exportPaySlipsU"
           - 
             ADDFUNCTIONKEY: "158513034_1444931844 bot_exportEmployeesU"
@@ -681,3 +921,22 @@ Objects:
             ADDFUNCTIONKEY: "158513032_1444931844 bot_exportAccDedsU"
           - 
             ADDFUNCTIONKEY: "158512755_1444931844 bot_getServerData"
+  - 
+    Properties: 
+      Class: "TgdcExplorer"
+      RUID: 1173044906_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      PARENT: "1193786363_1320926323 Исследователь\\Зарплата и Отдел кадров\\ZarobakBot"
+      NAME: "Экспорт табелей"
+      CLASSNAME: ~
+      CMD: "1173044824_1450749196"
+      CMDTYPE: 1
+      HOTKEY: ~
+      IMGINDEX: 174
+      ORDR: ~
+      SUBTYPE: ~
+      EDITIONDATE: 2020-07-01T17:34:25+03:00
+      DISABLED: 0
