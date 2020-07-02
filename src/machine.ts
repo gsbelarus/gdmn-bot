@@ -80,6 +80,7 @@ export interface IBotMachineContext extends IMachineContextBase {
   currencyId?: string;
   currencyDate: IDate;
   tableDate: IDate;
+  scheduleDate: IDate;
   /**
    * Текст объявления.
    */
@@ -112,7 +113,8 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       dateEnd: { year: new Date().getFullYear(), month: 11 },
       dateBegin2: { year: new Date().getFullYear(), month: 0 },
       currencyDate: { year: new Date().getFullYear(), month: 0 },
-      tableDate: { year: new Date().getFullYear(), month: 0 }
+      tableDate: { year: new Date().getFullYear(), month: 0 },
+      scheduleDate: { year: new Date().getFullYear(), month: 0 }
     },
     states: {
       init: {
@@ -293,6 +295,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             {
               cond: (_, { command }: MenuCommandEvent) => command === '.table',
               target: 'showTable'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.schedule',
+              target: 'showSchedule'
             }
           ]
         },
@@ -395,8 +401,6 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           }
         }
       },
-
-
       showTable: {
         initial: 'enterDate',
         states: {
@@ -433,8 +437,42 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           }
         }
       },
-
-
+     showSchedule: {
+        initial: 'enterDate',
+        states: {
+          enterDate: {
+            invoke: {
+              id: 'calendarMachine',
+              src: calendarMachine,
+              autoForward: true,
+              data: (ctx: IBotMachineContext) => ({
+                selectedDate: ctx.scheduleDate,
+                canceled: false,
+                dateKind: 'PERIOD_MONTH',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
+              }),
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  target: 'showSchedule',
+                  actions: assign({
+                    scheduleDate: (_, event) => event.data.scheduleDate,
+                  })
+                }
+              ]
+            }
+          },
+          showSchedule: {
+            on: { '': '#botMachine.mainMenu' },
+            entry: 'showSchedule'
+          }
+        }
+      },
       settings: {
         initial: 'showSettings',
         on: {

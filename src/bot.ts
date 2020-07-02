@@ -441,6 +441,57 @@ export class Bot {
       }
     };
 
+    const getShowScheduleFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+      const { accountLink, platform, ...rest } = checkAccountLink(ctx);
+      const { tableDate: scheduleDate } = ctx;
+      const { customerId, employeeId, language } = accountLink;
+      const lng = language ?? 'ru';
+
+      const scheduleRestorer = (data: IData<Omit<ISchedule, 'id'>>): IData<Omit<ISchedule, 'id'>> =>
+      Object.fromEntries(
+        Object.entries(data)
+          .map(
+            ([key, schedule]) => [key, {
+             ...schedule,
+             data: schedule.data.map( i => ({...i, d: new Date(i.d)}) )}]
+        )
+      );
+
+      let schedule = this._schedules[customerId];
+
+      // if (!schedule) {
+      //   schedule = new FileDB<Omit<ISchedule, 'id'>>(getScheduleFN(customerId), this._log, scheduleRestorer);
+      //   this._schedules[customerId] = schedule;
+      // };
+
+      //const sheduleID =
+
+
+      // if (!timeSheet) {
+      //   await reply(getLocString(stringResources.noData, lng))(rest);
+      // } else {
+      //   const table = timeSheet.data.filter(
+      //     ({ d }) => d.getFullYear() === scheduleDate.year && d.getMonth() === scheduleDate.month
+      //   );
+
+      //   const formatList = table
+      //     .sort(
+      //       (a, b) => a.d.getTime() - b.d.getTime()
+      //     )
+      //     .map(
+      //       ({ d, h, t}) =>
+      //         `${d.getDate()}, ${d.toLocaleString(lng, {weekday: 'short'})}${t === 0 ? '' : ' ' + getLocString(hourTypes[t], lng)}${h === 0 ? '' : ' ' + h}${d.getDay() === 0 ? '\n   ***' : ''}`
+      //     )
+      //     .join('\n');
+
+      //   if (formatList) {
+      //     await reply(`${getLocString(stringResources.tableTitle, lng, scheduleDate)}${formatList}`)(rest);
+      //   } else {
+      //     await reply(getLocString(stringResources.noData, lng))(rest);
+      //   }
+      // }
+    };
+
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
       actions: {
         askCompanyName: reply(stringResources.askCompanyName),
@@ -515,6 +566,7 @@ export class Bot {
         showPayslipForPeriod: getShowPayslipFunc('DETAIL', reply),
         showComparePayslip: getShowPayslipFunc('COMPARE', reply),
         showTable: getShowTableFunc(reply),
+        showSchedule: getShowScheduleFunc(reply),
         showSettings: ctx => {
           const { accountLink, ...rest } = checkAccountLink(ctx);
           const { customerId, employeeId } = ctx;
