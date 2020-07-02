@@ -424,7 +424,7 @@ export class Bot {
 
         const formatList = table
           .sort(
-            (a, b) => isGr(a.d, b.d) ? 1 : -1
+            (a, b) => a.d.getTime() - b.d.getTime()
           )
           .map(
             ({ d, h, t}) =>
@@ -432,7 +432,7 @@ export class Bot {
           )
           .join('\n');
 
-        if (formatList !== '') {
+        if (formatList) {
           await reply(`${getLocString(stringResources.tableTitle, lng, tableDate)}${formatList}`)(rest);
         } else {
           await reply(getLocString(stringResources.noData, lng))(rest);
