@@ -1756,9 +1756,9 @@ export class Bot {
   }
 
   public async sendLatestPayslip(customerId: string, employeeId: string) {
-    this.sendLatestPayslipToMessenger(customerId, employeeId, this._telegramAccountLink, this._replyTelegram, 'TELEGRAM');
+    await this.sendLatestPayslipToMessenger(customerId, employeeId, this._telegramAccountLink, this._replyTelegram, 'TELEGRAM');
     if (this._replyViber) {
-      this.sendLatestPayslipToMessenger(customerId, employeeId, this._viberAccountLink, this._replyViber, 'VIBER')
+      await this.sendLatestPayslipToMessenger(customerId, employeeId, this._viberAccountLink, this._replyViber, 'VIBER')
     }
   }
 

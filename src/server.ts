@@ -62,61 +62,60 @@ router.get('/', (ctx, next) => {
 });
 
 //TODO: dangerous!
-router.get('/zarobak/v1/shutdown_gdmn_bot_server', async (ctx, next) => {
+router.get('/zarobak/v1/shutdown_gdmn_bot_server', async (ctx) => {
   ctx.status = 200;
   ctx.body = JSON.stringify({ status: 200, result: `ok` });
   await shutdown('Server shutting down...');
   setTimeout( () => process.exit(), 100 );
-  //return next();
 });
 
-router.post('/zarobak/v1/upload_employees', (ctx, next) => {
+router.post('/zarobak/v1/upload_employees', async (ctx) => {
   try {
     const { customerId, objData } = ctx.request.body;
     bot.uploadEmployees(customerId, objData);
-    ctx.status = 200;
-    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+    ctx.response.status = 200;
+    ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {
     log.error(`Error in employees uploading. ${err.message}`);
-    ctx.status = 500;
-    ctx.body = JSON.stringify({ status: 500, result: err.message });
+    ctx.response.status = 500;
+    ctx.response.body = JSON.stringify({ status: 500, result: err.message });
   }
-  return next();
 });
 
-router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
+router.post('/zarobak/v1/upload_accDedRefs', async (ctx) => {
   try {
     const { customerId, objData } = ctx.request.body;
     bot.uploadAccDeds(customerId, objData);
-    ctx.status = 200;
-    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+    ctx.response.status = 200;
+    ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {
     log.error(`Error in accdedrefs uploading. ${err.message}`);
-    ctx.status = 500;
-    ctx.body = JSON.stringify({ status: 500, result: err.message });
+    ctx.response.status = 500;
+    ctx.response.body = JSON.stringify({ status: 500, result: err.message });
   }
-  return next();
 });
 
-router.post('/zarobak/v1/upload_paySlips', async (ctx, next) => {
+router.post('/zarobak/v1/upload_paySlips', async (ctx) => {
   try {
     const { customerId, objData, rewrite } = ctx.request.body;
     bot.upload_payslips(customerId, objData, rewrite);
-    await bot.sendLatestPayslip(customerId, objData.emplId);
-    ctx.status = 200;
-    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+    //TODO: отключаем рассылку. может она подвешивает сервер
+    //await bot.sendLatestPayslip(customerId, objData.emplId);
+    ctx.response.status = 200;
+    ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {
     log.error(`Error in payslips uploading. ${err.message}`);
-    ctx.status = 500;
-    ctx.body = JSON.stringify({ status: 500, result: err.message });
+    ctx.response.status = 500;
+    ctx.response.body = JSON.stringify({ status: 500, result: err.message });
   }
-  return next();
 });
+
+app.on('error', (err, ctx) => log.error('koa server error', err, ctx));
 
 app
   .use(bodyParser({
-    jsonLimit: '20mb',
-    textLimit: '20mb'
+    jsonLimit: '40mb',
+    textLimit: '40mb'
   }))
   .use(router.routes())
   .use(router.allowedMethods());
