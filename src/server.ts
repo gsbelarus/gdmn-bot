@@ -56,9 +56,8 @@ const bot = new Bot(
 const app = new Koa();
 const router = new Router();
 
-router.get('/', (ctx, next) => {
-  ctx.body = 'Zarobak Telegram/Viber Bot. Copyright (c) 2020 by Golden Software of Belarus, Ltd';
-  return next();
+router.get('/', async (ctx) => {
+  ctx.response.body = 'Zarobak Telegram/Viber Bot. Copyright (c) 2020 by Golden Software of Belarus, Ltd';
 });
 
 //TODO: dangerous!
