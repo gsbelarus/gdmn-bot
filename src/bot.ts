@@ -99,6 +99,7 @@ export class Bot {
   private _log: ILogger;
   private _replyTelegram: ReplyFunc;
   private _replyViber?: ReplyFunc;
+  private _semaphore: { [id: string]: Semaphore } = {};
 
   constructor(telegramToken: string, viberToken: string, logger: Logger) {
     this._logger = logger;
@@ -1455,7 +1456,7 @@ export class Bot {
 
   async launchTelegram(callbackHost?: string, hookPath?: string, port?: number, tlsOptions?: { key: Buffer, cert: Buffer, ca: string }) {
     if (callbackHost && hookPath && port && tlsOptions) {
-      await this._telegram.telegram.setWebhook(`${callbackHost}:${port}${hookPath}`);
+      await this._telegram.telegram.setWebhook(`${callbackHost}:${port}${hookPath}`, undefined, 100);
       await this._telegram.startWebhook(hookPath, tlsOptions, port);
     } else {
       await this._telegram.launch();
@@ -1549,130 +1550,144 @@ export class Bot {
     this._callbacksReceived++;
 
     const { platform, chatId, type, body, language } = update;
-
-    //TODO: temporarily
-    await this._logger.info(chatId, undefined, `${type} -- ${body}`);
-
-    if (body === 'diagnostics') {
-      this.finalize();
-      const data = [
-        `Server started: ${this._botStarted}`,
-        `Node version: ${process.versions.node}`,
-        'Memory usage:',
-        JSON.stringify(process.memoryUsage(), undefined, 2),
-        `Services are running: ${Object.values(this._service).length}`,
-        `Callbacks received: ${this._callbacksReceived}`
-      ];
-      if (platform === 'TELEGRAM') {
-        await this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
-      } else {
-        await this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
-      }
-      return;
-    }
-
-    const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-    const accountLink = accountLinkDB.read(chatId);
     const uniqId = this.getUniqId(platform, chatId);
-    let service = this._service[uniqId];
 
-    if (!this._accountLanguage[uniqId]) {
-      if (accountLink?.language) {
-        this._accountLanguage[uniqId] = accountLink.language;
-      } else {
-        this._accountLanguage[uniqId] = language;
-      }
+    let semaphore = this._semaphore[uniqId];
+
+    if (!semaphore) {
+      semaphore = new Semaphore();
+      this._semaphore[uniqId] = semaphore;
     }
 
-    const createNewService = (forceMainMenu = true) => {
-      const res = this.createService(platform, chatId);
+    await semaphore.acquire();
+    try {
 
-      if (accountLink) {
-        const { customerId, employeeId, } = accountLink;
-        res.send({
-          type: 'MAIN_MENU',
-          platform,
-          chatId,
-          customerId,
-          employeeId,
-          forceMainMenu,
-          semaphore: new Semaphore()
-        });
-      } else {
-        res.send({
-          type: 'START',
-          platform,
-          chatId,
-          semaphore: new Semaphore()
-        });
-      }
+      //TODO: temporarily
+      await this._logger.info(chatId, undefined, `${type} -- ${body}`);
 
-      return res;
-    }
-
-    if (body === '/start' || service?.state.done) {
-      await this._logger.debug(chatId, undefined, '/start or done');
-      createNewService(true);
-      return;
-    }
-
-    if (!service) {
-      await this._logger.debug(chatId, undefined, 'no service');
-      service = createNewService(false);
-
-      if (!accountLink) {
+      if (body === 'diagnostics') {
+        this.finalize();
+        const data = [
+          `Server started: ${this._botStarted}`,
+          `Node version: ${process.versions.node}`,
+          'Memory usage:',
+          JSON.stringify(process.memoryUsage(), undefined, 2),
+          `Services are running: ${Object.values(this._service).length}`,
+          `Callbacks received: ${this._callbacksReceived}`
+        ];
+        if (platform === 'TELEGRAM') {
+          await this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
+        } else {
+          await this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
+        }
         return;
       }
-    }
 
-    let e: BotMachineEvent | undefined;
+      const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+      const accountLink = accountLinkDB.read(chatId);
+      let service = this._service[uniqId];
 
-    switch (type) {
-      case 'MESSAGE':
-        e = { type: 'ENTER_TEXT', text: body };
-        break;
-
-      case 'ACTION': {
-        if (body.slice(0, 1) === '{') {
-          e = { ...JSON.parse(body), update };
+      if (!this._accountLanguage[uniqId]) {
+        if (accountLink?.language) {
+          this._accountLanguage[uniqId] = accountLink.language;
         } else {
-          e = { type: 'MENU_COMMAND', command: body };
+          this._accountLanguage[uniqId] = language;
         }
-        break;
       }
 
-      default:
-        e = undefined;
-    }
+      const createNewService = (forceMainMenu = true) => {
+        const res = this.createService(platform, chatId);
 
-    if (e) {
-      service.send(e);
+        if (accountLink) {
+          const { customerId, employeeId, } = accountLink;
+          res.send({
+            type: 'MAIN_MENU',
+            platform,
+            chatId,
+            customerId,
+            employeeId,
+            forceMainMenu,
+            semaphore: new Semaphore()
+          });
+        } else {
+          res.send({
+            type: 'START',
+            platform,
+            chatId,
+            semaphore: new Semaphore()
+          });
+        }
 
-      let childrenStateChanged = false;
+        return res;
+      }
 
-      for (const [_key, ch] of service.children) {
-        if (ch.state.changed) {
-          childrenStateChanged = true;
+      if (body === '/start' || service?.state.done) {
+        await this._logger.debug(chatId, undefined, '/start or done');
+        createNewService(true);
+        return;
+      }
+
+      if (!service) {
+        await this._logger.debug(chatId, undefined, 'no service');
+        service = createNewService(false);
+
+        if (!accountLink) {
+          return;
+        }
+      }
+
+      let e: BotMachineEvent | undefined;
+
+      switch (type) {
+        case 'MESSAGE':
+          e = { type: 'ENTER_TEXT', text: body };
+          break;
+
+        case 'ACTION': {
+          if (body.slice(0, 1) === '{') {
+            e = { ...JSON.parse(body), update };
+          } else {
+            e = { type: 'MENU_COMMAND', command: body };
+          }
           break;
         }
+
+        default:
+          e = undefined;
       }
 
-      if (!service.state.changed && !childrenStateChanged) {
-        // мы каким-то образом попали в ситуацию, когда текущее состояние не
-        // может принять вводимую информацию. например, пользователь
-        // очистил чат или произошел сбой на стороне мессенджера и
-        // то, что видит пользователь отличается от внутреннего состояния
-        // машины
+      if (e) {
+        service.send(e);
 
-        if (platform === 'TELEGRAM') {
-          await this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
-        } else {
-          await this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
+        let childrenStateChanged = false;
+
+        for (const [_key, ch] of service.children) {
+          if (ch.state.changed) {
+            childrenStateChanged = true;
+            break;
+          }
         }
 
-        await this._logger.debug(chatId, undefined, 'we are lost');
-        createNewService(true);
+        if (!service.state.changed && !childrenStateChanged) {
+          // мы каким-то образом попали в ситуацию, когда текущее состояние не
+          // может принять вводимую информацию. например, пользователь
+          // очистил чат или произошел сбой на стороне мессенджера и
+          // то, что видит пользователь отличается от внутреннего состояния
+          // машины
+
+          if (platform === 'TELEGRAM') {
+            await this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
+          } else {
+            await this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
+          }
+
+          await this._logger.debug(chatId, undefined, 'we are lost');
+          createNewService(true);
+        }
       }
+    }
+    finally {
+      semaphore.release();
     }
   }
 
