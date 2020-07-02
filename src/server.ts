@@ -109,18 +109,17 @@ router.post('/zarobak/v1/upload_paySlips', async (ctx) => {
   }
 });
 
-router.post('/zarobak/v2/upload_timeSheets', (ctx, next) => {
+router.post('/zarobak/v2/upload_timeSheets', async (ctx) => {
   try {
     const { customerId, objData, rewrite } = ctx.request.body;
     bot.upload_timeSheets(customerId, objData, rewrite);
-    ctx.status = 200;
-    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+    ctx.response.status = 200;
+    ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {
     log.error(`Error in timesheets uploading. ${err.message}`);
-    ctx.status = 500;
-    ctx.body = JSON.stringify({ status: 500, result: err.message });
+    ctx.response.status = 500;
+    ctx.response.body = JSON.stringify({ status: 500, result: err.message });
   }
-  return next();
 });
 
 app.on('error', (err, ctx) => log.error('koa server error', err, ctx));

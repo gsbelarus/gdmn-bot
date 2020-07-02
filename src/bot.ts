@@ -11,7 +11,7 @@ import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { Logger, ILogger } from "./log";
-import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getDepartmentFN } from "./files";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN } from "./files";
 import { hashELF64 } from "./hashELF64";
 import { v4 as uuidv4 } from 'uuid';
 import { hourTypes } from "./constants";
@@ -84,7 +84,6 @@ export class Bot {
   private _telegramCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
   private _telegramMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
-  private _departments: { [customerId: string]: FileDB<Omit<IDepartment, 'id'>> } = {};
   private _announcements: FileDB<Omit<IAnnouncement, 'id'>>;
   private _botStarted = new Date();
   private _callbacksReceived = 0;
@@ -403,14 +402,14 @@ export class Bot {
       const lng = language ?? 'ru';
 
       const timeSheetRestorer = (data: IData<ITimeSheet>): IData<ITimeSheet> =>
-      Object.fromEntries(
-        Object.entries(data)
-          .map(
-            ([key, timesheet]) => [key, {
-             ...timesheet,
-             data: timesheet.data.map( i => ({...i, d: new Date(i.d)}) )}]
-        )
-      );
+        Object.fromEntries(
+          Object.entries(data)
+            .map(
+              ([key, timesheet]) => [key, {
+              ...timesheet,
+              data: timesheet.data.map( i => ({...i, d: new Date(i.d)}) )}]
+          )
+        );
 
       const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log, {}, timeSheetRestorer)
         .read(employeeId);
@@ -428,7 +427,7 @@ export class Bot {
           )
           .map(
             ({ d, h, t}) =>
-              `${d.getDate()}, ${d.toLocaleString(lng, {weekday: 'short'})}${t === 0 ? '' : ' ' + getLocString(hourTypes[t], lng)}${h === 0 ? '' : ' ' + h}${d.getDay() === 0 ? '\n   ***' : ''}`
+              `${d.getDate()}, ${d.toLocaleString(lng, {weekday: 'short'})}${t ? ' ' + getLocString(hourTypes[t], lng) : ''}${h ? ' ' + h : ''}${d.getDay() ? '': '\n   ***'}`
           )
           .join('\n');
 
@@ -828,24 +827,6 @@ export class Bot {
   private _getEmployee(customerId: string, employeeId: string) {
     const employees = this._getEmployees(customerId);
     return employees && employees.read(employeeId);
-  }
-
-  private _getDepartments(customerId: string) {
-    let departments = this._departments[customerId];
-
-    if (!departments) {
-      const db = new FileDB<Omit<IDepartment, 'id'>>(getDepartmentFN(customerId), this._log);
-      if (!db.isEmpty()) {
-        this._departments[customerId] = db;
-        return db;
-      }
-    }
-
-    return departments;
-  }
-
-  private _getDepartment(customerId: string, departmentId: string) {
-    return this._getDepartments(customerId).read(departmentId);
   }
 
   private _findCompany = (_: any, event: BotMachineEvent) => {
