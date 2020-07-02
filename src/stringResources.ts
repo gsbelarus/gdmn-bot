@@ -400,6 +400,41 @@ export const stringResources = {
     ru: 'д.',
     be: 'д.'
   },
+  nightShift: {
+    en: 'N',
+    ru: 'Н',
+    be: 'Н'
+  },
+  holidayShift: {
+    en: 'H',
+    ru: 'В',
+    be: 'В'
+  },
+  vacationShift: {
+    en: 'V',
+    ru: 'О',
+    be: 'А'
+  },
+  sickShift: {
+    en: 'S',
+    ru: 'Б',
+    be: 'Б'
+  },
+  absenteeismShift: {
+    en: 'A',
+    ru: 'ПР',
+    be: 'ПР'
+  },
+  leaveWOPayShift: {
+    en: 'L',
+    ru: 'А',
+    be: 'А'
+  },
+  appearanceShift: {
+    en: '',
+    ru: '',
+    be: ''
+  },
   payslipDepartment: {
     en: 'Department:',
     ru: 'Подразделение:',
@@ -433,7 +468,7 @@ export const stringResources = {
   payslipDeductions: {
     en: '  Deductions:',
     ru: '  Удержания:',
-    be: '  Ўтрымання:'
+    be: '  Вылічэнні:'
   },
   payslipAdvance: {
     en: '  Advance:',
@@ -444,6 +479,21 @@ export const stringResources = {
     en: '  Payable:',
     ru: '  К выдаче:',
     be: '  Да выдачы:'
+  },
+  payslipPayrollDetail: {
+    en: 'Payable:',
+    ru: 'К выдаче:',
+    be: 'Да выдачы:'
+  },
+  payslipPayrollDebt: {
+    en: '  Due by an employee:',
+    ru: '  Долг за сотрудником:',
+    be: '  Доўг за супрацоўнікам:'
+  },
+  payslipPayrollDebtDetail: {
+    en: 'Due by an employee:',
+    ru: 'Долг за сотрудником:',
+    be: 'Доўг за супрацоўнікам:'
   },
   payslipTaxes: {
     en: 'Taxes:',

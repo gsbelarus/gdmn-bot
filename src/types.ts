@@ -176,7 +176,7 @@ export interface IPayslipItem {
 export interface IPayslipData {
   department: LName;
   position: LName;
-  saldo?: IPayslipItem,
+  saldo: IPayslipItem[],
   tax: IPayslipItem[],
   advance: IPayslipItem[],
   deduction: IPayslipItem[],
@@ -190,7 +190,7 @@ export interface IPayslipData {
 
 export interface ITimeSheet {
   emplId: string;
-  data: {
+    data: {
     d: Date;
     t: number;
     h: number;
@@ -208,12 +208,7 @@ export interface IUserGroup {
 };
 
 export interface IHourType {
- // id: string;
   name: LName;
-};
-
-export interface IHourTypes {
- [id: string]: IHourType
 };
 
 export type UserGroups = IUserGroup[];
