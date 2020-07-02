@@ -5,7 +5,7 @@ import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
-import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq } from "./util/utils";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, pause } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
@@ -194,11 +194,13 @@ export class Bot {
         if (lastMenuId) {
           if (text && keyboard) {
             await editMessageReplyMarkup(true);
+            //await pause(1000);
             const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
             this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
           }
           else if (text && !keyboard) {
             await editMessageReplyMarkup(true);
+            //await pause(1000);
             await this._telegram.telegram.sendMessage(chatId, text, extra);
             this._telegramAccountLink.merge(chatId, {}, ['lastMenuId']);
           }
@@ -592,11 +594,11 @@ export class Bot {
     });
 
     this._telegram.start(
-      ctx => {
+      async (ctx) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
         } else {
-          this.onUpdate({
+          await this.onUpdate({
             platform: 'TELEGRAM',
             chatId: ctx.chat.id.toString(),
             type: 'COMMAND',
@@ -608,14 +610,14 @@ export class Bot {
     );
 
     this._telegram.on('message',
-      ctx => {
+      async (ctx) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
         }
         else if (ctx.message?.text === undefined) {
-          this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat message');
+          await this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat message');
         } else {
-          this.onUpdate({
+          await this.onUpdate({
             platform: 'TELEGRAM',
             chatId: ctx.chat.id.toString(),
             type: 'MESSAGE',
@@ -627,14 +629,14 @@ export class Bot {
     );
 
     this._telegram.on('callback_query',
-      ctx => {
+      async (ctx) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
         }
         else if (ctx.callbackQuery?.data === undefined) {
-          this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat callback query');
+          await this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat callback query');
         } else {
-          this.onUpdate({
+          await this.onUpdate({
             platform: 'TELEGRAM',
             chatId: ctx.chat.id.toString(),
             type: 'ACTION',
@@ -1609,11 +1611,13 @@ export class Bot {
     }
 
     if (body === '/start' || service?.state.done) {
+      await this._logger.debug(chatId, undefined, '/start or done');
       createNewService(true);
       return;
     }
 
     if (!service) {
+      await this._logger.debug(chatId, undefined, 'no service');
       service = createNewService(false);
 
       if (!accountLink) {
@@ -1666,6 +1670,7 @@ export class Bot {
           await this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
         }
 
+        await this._logger.debug(chatId, undefined, 'we are lost');
         createNewService(true);
       }
     }
@@ -1886,6 +1891,7 @@ export class Bot {
 
         const d: IDate = {year: lastPayslipDE.getFullYear(), month: lastPayslipDE.getMonth()};
         const text = await this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', platform, d, d);
+        //FIXME: лимит -- не более 30 сообщений в разные чаты в секунду!
         await reply(text, keyboardMenu)({ chatId, semaphore: new Semaphore() });
       }
     }
