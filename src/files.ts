@@ -13,6 +13,7 @@ export const getAccDedFN = (customerId: string) => path.resolve(process.cwd(), `
 export const getEmployeeFN = (customerId: string) => path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`);
 export const getTimeSheetFN = (customerId: string, employeeId: string) => path.resolve(process.cwd(), `data/timesheet/${customerId}/${employeeId}.json`);
 export const getDepartmentFN = (customerId: string) => path.resolve(process.cwd(), `data/timesheet/${customerId}/departments.json`);
+export const getScheduleFN = (customerId: string) => path.resolve(process.cwd(), `data/timesheet/${customerId}/schedules.json`);
 
 /*
 export const DATA_ROOT = `data/`;

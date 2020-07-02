@@ -1,5 +1,5 @@
 import { FileDB, IData } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, IDepartment, ITimeSheet } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, IDepartment, ITimeSheet, ISchedule } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
@@ -11,7 +11,7 @@ import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { Logger, ILogger } from "./log";
-import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getDepartmentFN } from "./files";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getDepartmentFN, getScheduleFN } from "./files";
 import { hashELF64 } from "./hashELF64";
 import { v4 as uuidv4 } from 'uuid';
 import { hourTypes } from "./constants";
@@ -84,6 +84,7 @@ export class Bot {
   private _telegramCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
   private _telegramMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
+  private _schedules: { [customerId: string]: FileDB<Omit<ISchedule, 'id'>> } = {};
   private _departments: { [customerId: string]: FileDB<Omit<IDepartment, 'id'>> } = {};
   private _announcements: FileDB<Omit<IAnnouncement, 'id'>>;
   private _botStarted = new Date();
@@ -1765,24 +1766,24 @@ export class Bot {
     timeSheet.flush();
   }
 
-  // upload_schedules(customerId: string, objData: Object) {
-  //   let schedules = this._schedules[customerId];
+  upload_schedules(customerId: string, objData: Object, rewrite: boolean) {
+   let schedule = this._schedules[customerId];
 
-  //   if (!schedules) {
-  //     schedules = new FileDB<IAccDed>(getAccDedFN(customerId), this._log);
-  //     this._customerAccDeds[customerId] = schedules;
-  //   }
+    if (!schedule) {
+      schedule = new FileDB<Omit<ISchedule, 'id'>>(getScheduleFN(customerId), this._log);
+      this._schedules[customerId] = schedule;
+    }
 
-  //   schedules.clear();
+    schedule.clear();
 
-  //   for (const [key, value] of Object.entries(objData)) {
-  //     schedules.write(key, value as any);
-  //   }
+    for (const [key, value] of Object.entries(objData)) {
+      schedule.write(key, value as any);
+    }
 
-  //   schedules.flush();
+    schedule.flush();
 
-  //   this._log.info(`AccDed reference for customer: ${customerId} has been uploaded.`);
-  // }
+    this._log.info(`Customer: ${customerId}. ${Object.keys(objData).length} schedules have been uploaded.`);
+  }
 
   upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
     const employeeId = objData.emplId;

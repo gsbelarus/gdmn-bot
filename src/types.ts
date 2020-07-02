@@ -71,6 +71,19 @@ export interface IEmployee {
   birthday?: Date;
 };
 
+export interface ISchedule {
+  /**
+   * РУИД графика.
+   */
+  id: string;
+  name: LName;
+  data: {
+    d: Date;
+    t: number;
+    h: number;
+  }[];
+};
+
 export interface IAccountLink {
   customerId: string;
   employeeId: string;
