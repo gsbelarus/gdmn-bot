@@ -106,6 +106,11 @@ export interface IAccDed {
   n?: number;
 };
 
+export interface IDepartment {
+  id: string;
+  name: LName;
+};
+
 export interface IPosition {
   id: string;
   name: LName;
@@ -171,7 +176,7 @@ export interface IPayslipItem {
 export interface IPayslipData {
   department: LName;
   position: LName;
-  saldo?: IPayslipItem,
+  saldo: IPayslipItem[],
   tax: IPayslipItem[],
   advance: IPayslipItem[],
   deduction: IPayslipItem[],
@@ -183,6 +188,15 @@ export interface IPayslipData {
   rate?: number;
 };
 
+export interface ITimeSheet {
+  emplId: string;
+    data: {
+    d: Date;
+    t: number;
+    h: number;
+  }[];
+};
+
 export interface ICurrencyRate {
   date: Date,
   rate: number
@@ -190,6 +204,10 @@ export interface ICurrencyRate {
 
 export interface IUserGroup {
   id: string;
+  name: LName;
+};
+
+export interface IHourType {
   name: LName;
 };
 

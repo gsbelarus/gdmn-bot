@@ -1,5 +1,5 @@
 import { FileDB, IData } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, IDepartment, ITimeSheet } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
@@ -11,9 +11,10 @@ import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { Logger, ILogger } from "./log";
-import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN } from "./files";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getDepartmentFN } from "./files";
 import { hashELF64 } from "./hashELF64";
 import { v4 as uuidv4 } from 'uuid';
+import { hourTypes } from "./constants";
 
 const vb = require('viber-bot');
 const ViberBot = vb.Bot
@@ -83,6 +84,7 @@ export class Bot {
   private _telegramCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
   private _telegramMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
+  private _departments: { [customerId: string]: FileDB<Omit<IDepartment, 'id'>> } = {};
   private _announcements: FileDB<Omit<IAnnouncement, 'id'>>;
   private _botStarted = new Date();
   private _callbacksReceived = 0;
@@ -394,6 +396,50 @@ export class Bot {
       }
     };
 
+    const getShowTableFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+      const { accountLink, platform, ...rest } = checkAccountLink(ctx);
+      const { tableDate } = ctx;
+      const { customerId, employeeId, language } = accountLink;
+      const lng = language ?? 'ru';
+
+      const timeSheetRestorer = (data: IData<ITimeSheet>): IData<ITimeSheet> =>
+      Object.fromEntries(
+        Object.entries(data)
+          .map(
+            ([key, timesheet]) => [key, {
+             ...timesheet,
+             data: timesheet.data.map( i => ({...i, d: new Date(i.d)}) )}]
+        )
+      );
+
+      const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log, {}, timeSheetRestorer)
+        .read(employeeId);
+
+      if (!timeSheet) {
+        await reply(getLocString(stringResources.noData, lng))(rest);
+      } else {
+        const table = timeSheet.data.filter(
+          ({ d }) => d.getFullYear() === tableDate.year && d.getMonth() === tableDate.month
+        );
+
+        const formatList = table
+          .sort(
+            (a, b) => a.d.getTime() - b.d.getTime()
+          )
+          .map(
+            ({ d, h, t}) =>
+              `${d.getDate()}, ${d.toLocaleString(lng, {weekday: 'short'})}${t === 0 ? '' : ' ' + getLocString(hourTypes[t], lng)}${h === 0 ? '' : ' ' + h}${d.getDay() === 0 ? '\n   ***' : ''}`
+          )
+          .join('\n');
+
+        if (formatList) {
+          await reply(`${getLocString(stringResources.tableTitle, lng, tableDate)}${formatList}`)(rest);
+        } else {
+          await reply(getLocString(stringResources.noData, lng))(rest);
+        }
+      }
+    };
+
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
       actions: {
         askCompanyName: reply(stringResources.askCompanyName),
@@ -467,6 +513,7 @@ export class Bot {
         showDetailedPayslip: getShowPayslipFunc('DETAIL', reply),
         showPayslipForPeriod: getShowPayslipFunc('DETAIL', reply),
         showComparePayslip: getShowPayslipFunc('COMPARE', reply),
+        showTable: getShowTableFunc(reply),
         showSettings: ctx => {
           const { accountLink, ...rest } = checkAccountLink(ctx);
           const { customerId, employeeId } = ctx;
@@ -783,6 +830,24 @@ export class Bot {
     return employees && employees.read(employeeId);
   }
 
+  private _getDepartments(customerId: string) {
+    let departments = this._departments[customerId];
+
+    if (!departments) {
+      const db = new FileDB<Omit<IDepartment, 'id'>>(getDepartmentFN(customerId), this._log);
+      if (!db.isEmpty()) {
+        this._departments[customerId] = db;
+        return db;
+      }
+    }
+
+    return departments;
+  }
+
+  private _getDepartment(customerId: string, departmentId: string) {
+    return this._getDepartments(customerId).read(departmentId);
+  }
+
   private _findCompany = (_: any, event: BotMachineEvent) => {
     if (isEnterTextEvent(event)) {
       const customersDB = new FileDB<Omit<ICustomer, 'id'>>(getCustomersFN(), this._log);
@@ -941,7 +1006,8 @@ export class Bot {
       deduction: [],
       accrual: [],
       tax_deduction: [],
-      privilage: []
+      privilage: [],
+      saldo: []
     } as IPayslipData;
 
     //Цикл по всем записям начислений-удержаний
@@ -953,16 +1019,7 @@ export class Bot {
 
         if (!accDedObj[typeId]) {
           if (typeId === 'saldo') {
-            data.saldo = {
-              id: 'saldo',
-              n: -1,
-              name: {
-                ru: { name: 'Остаток' },
-                be: { name: 'Рэшта' },
-                en: { name: 'Balance' }
-              },
-              s
-            };
+
             continue;
           }
 
@@ -999,18 +1056,21 @@ export class Bot {
           case 'PRIVILAGE':
             fillInPayslipItem(data.privilage, typeId, name, s, det, n);
             break;
+          case 'SALDO':
+            fillInPayslipItem(data.saldo, typeId, name, s, det, n);
+            break;
         }
       }
     };
 
-    return (data.saldo || data.accrual?.length || data.deduction?.length) ? data : undefined;
+    return (data.saldo?.length || data.accrual?.length || data.deduction?.length) ? data : undefined;
   };
 
   private _calcPayslipByRate(data: IPayslipData, rate: number) {
     const { saldo, tax, advance, deduction, accrual, tax_deduction, privilage, salary, hourrate, ...rest } = data;
     return {
       ...rest,
-      saldo: saldo && { ...saldo, s: saldo.s / rate },
+      saldo: saldo && saldo.map( i => ({ ...i, s: i.s / rate }) ),
       tax: tax && tax.map( i => ({ ...i, s: i.s / rate }) ),
       advance: advance && advance.map( i => ({ ...i, s: i.s / rate }) ),
       deduction: deduction && deduction.map( i => ({ ...i, s: i.s / rate }) ),
@@ -1030,6 +1090,7 @@ export class Bot {
     const incomeTax = sumPayslip(data.tax, 'INCOME_TAX');
     const pensionTax = sumPayslip(data.tax, 'PENSION_TAX');
     const tradeUnionTax = sumPayslip(data.tax, 'TRADE_UNION_TAX');
+    const saldo = sumPayslip(data.saldo);
 
     return [
       stringResources.payslipTitle,
@@ -1047,7 +1108,7 @@ export class Bot {
       [stringResources.payslipNetsalary, accruals - taxes],
       [stringResources.payslipDeductions, deds],
       [stringResources.payslipAdvance, advances],
-      [stringResources.payslipPayroll, data.saldo?.s],
+      [saldo > 0 ? stringResources.payslipPayroll : stringResources.payslipPayrollDebt, Math.abs(saldo)],
       '=',
       [stringResources.payslipTaxes, taxes],
       [stringResources.payslipIncometax, incomeTax],
@@ -1064,6 +1125,8 @@ export class Bot {
     const accruals2 = sumPayslip(data2.accrual);
     const taxes2 = sumPayslip(data2.tax);
     const deds2 = sumPayslip(data2.deduction);
+    const saldo = sumPayslip(data.saldo);
+    const saldo2 = sumPayslip(data2.saldo);
 
     return [
       stringResources.comparativePayslipTitle,
@@ -1082,8 +1145,11 @@ export class Bot {
       stringResources.payslipDeductionsWOSpace,
       [deds, deds2, deds2 - deds],
       '=',
+      (saldo2 - saldo) > 0 ? stringResources.payslipPayrollDetail : stringResources.payslipPayrollDebtDetail,
+      [saldo, saldo2, Math.abs(saldo2 - saldo)],
+      '=',
       stringResources.payslipTaxes,
-      [taxes, taxes2, taxes2 - taxes],
+      [taxes, taxes2, taxes2 - taxes]
     ];
   }
 
@@ -1094,6 +1160,7 @@ export class Bot {
     const advances = sumPayslip(data.advance);
     const taxDeds = sumPayslip(data.tax_deduction);
     const privilages = sumPayslip(data.privilage);
+    const saldo = sumPayslip(data.saldo);
 
     const strAccruals = getItemTemplate(data.accrual, lng);
     const strDeductions = getItemTemplate(data.deduction, lng);
@@ -1125,6 +1192,9 @@ export class Bot {
       advances ? '=' : '',
       ...strAdvances,
       advances ? '=' : '',
+      saldo ? '=' : '',
+      [saldo > 0 ? stringResources.payslipPayrollDetail : stringResources.payslipPayrollDebtDetail, Math.abs(saldo)],
+      saldo ? '=' : '',
       [stringResources.payslipTaxes, taxes],
       taxes ? '=' : '',
       ...strTaxes,
@@ -1658,6 +1728,43 @@ export class Bot {
     this._log.info(`Customer: ${customerId}. ${Object.keys(objData).length} employees have been uploaded.`);
   }
 
+  upload_timeSheets(customerId: string, objData: ITimeSheet, rewrite: boolean) {
+    const employeeId = objData.emplId;
+    const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log);
+
+    if (rewrite) {
+      timeSheet.clear();
+    }
+
+    const prevTimeSheetData = timeSheet.read(employeeId);
+
+    // если на диске не было файла или там было пусто, то
+    // просто запишем данные, которые пришли из интернета
+    if (!prevTimeSheetData) {
+      timeSheet.write(employeeId, objData);
+    } else {
+      // данные есть. надо объединить прибывшие данные с тем
+      // что уже есть на диске
+      const newTimeSheetData =  {
+        ...prevTimeSheetData,
+        data: [...prevTimeSheetData.data]
+      };
+
+      // объединяем начисления
+      for (const d of objData.data) {
+        const i = newTimeSheetData.data.findIndex( a => isEq(a.d, d.d) );
+        if (i === -1) {
+          newTimeSheetData.data.push(d);
+        } else {
+          newTimeSheetData.data[i] = d;
+        }
+      }
+
+      timeSheet.write(employeeId, newTimeSheetData);
+    }
+    timeSheet.flush();
+  }
+
   upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
     const employeeId = objData.emplId;
     const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log);
@@ -1672,7 +1779,6 @@ export class Bot {
     // просто запишем данные, которые пришли из интернета
     if (!prevPayslipData) {
       payslip.write(employeeId, objData);
-
     } else {
       // данные есть. надо объединить прибывшие данные с тем
       // что уже есть на диске

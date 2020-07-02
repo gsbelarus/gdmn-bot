@@ -331,9 +331,14 @@ export const stringResources = {
     be: (currencyId: string) => `Немагчыма загрузіць курс валюты ${currencyId}.`
   } as ILocString,
   ratesForMonth: {
-    en: (currencyId: string, date: IDate) => `Currency rate for ${new Date(date.year, date.month).toLocaleString('en', {month: 'long'})} ${date.year},\nFor one ${currencyId} in rubles:\n`,
+    en: (currencyId: string, date: IDate) => `Currency rate for ${new Date(date.year, date.month).toLocaleString('en-US', {month: 'long'})} ${date.year},\nFor one ${currencyId} in rubles:\n`,
     ru: (currencyId: string, date: IDate) => `Курс валюты за ${new Date(date.year, date.month).toLocaleString('ru', {month: 'long'})} ${date.year},\nза один ${currencyId} в рублях:\n`,
     be: (currencyId: string, date: IDate) => `Курс валюты за ${new Date(date.year, date.month).toLocaleString('be', {month: 'long'})} ${date.year},\nза адзін ${currencyId} у рублях:\n`
+  } as ILocString,
+  tableTitle: {
+    en: (date: IDate) => `Time sheet for ${new Date(date.year, date.month).toLocaleString('en-US', {month: 'long'})} ${date.year}:\n`,
+    ru: (date: IDate) => `Табель рабочего времени за ${new Date(date.year, date.month).toLocaleString('ru', {month: 'long'})} ${date.year}:\n`,
+    be: (date: IDate) => `Табель рабочага часу за ${new Date(date.year, date.month).toLocaleString('be', {month: 'long'})} ${date.year}:\n`
   } as ILocString,
   payslipTitle: {
     en: 'Payslip',
@@ -395,6 +400,41 @@ export const stringResources = {
     ru: 'д.',
     be: 'д.'
   },
+  nightShift: {
+    en: 'N',
+    ru: 'Н',
+    be: 'Н'
+  },
+  holidayShift: {
+    en: 'H',
+    ru: 'В',
+    be: 'В'
+  },
+  vacationShift: {
+    en: 'V',
+    ru: 'О',
+    be: 'А'
+  },
+  sickShift: {
+    en: 'S',
+    ru: 'Б',
+    be: 'Б'
+  },
+  absenteeismShift: {
+    en: 'A',
+    ru: 'ПР',
+    be: 'ПР'
+  },
+  leaveWOPayShift: {
+    en: 'L',
+    ru: 'А',
+    be: 'А'
+  },
+  appearanceShift: {
+    en: '',
+    ru: '',
+    be: ''
+  },
   payslipDepartment: {
     en: 'Department:',
     ru: 'Подразделение:',
@@ -439,6 +479,21 @@ export const stringResources = {
     en: '  Payable:',
     ru: '  К выдаче:',
     be: '  Да выдачы:'
+  },
+  payslipPayrollDetail: {
+    en: 'Payable:',
+    ru: 'К выдаче:',
+    be: 'Да выдачы:'
+  },
+  payslipPayrollDebt: {
+    en: '  Due by an employee:',
+    ru: '  Долг за сотрудником:',
+    be: '  Доўг за супрацоўнікам:'
+  },
+  payslipPayrollDebtDetail: {
+    en: 'Due by an employee:',
+    ru: 'Долг за сотрудником:',
+    be: 'Доўг за супрацоўнікам:'
   },
   payslipTaxes: {
     en: 'Taxes:',
