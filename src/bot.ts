@@ -99,7 +99,7 @@ export class Bot {
   private _log: ILogger;
   private _replyTelegram: ReplyFunc;
   private _replyViber?: ReplyFunc;
-  private _semaphore: { [id: string]: Semaphore } = {};
+  private _updateSemaphore: { [id: string]: Semaphore } = {};
 
   constructor(telegramToken: string, viberToken: string, logger: Logger) {
     this._logger = logger;
@@ -363,7 +363,7 @@ export class Bot {
       }
     };
 
-    const getShowRatesFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+    const getShowCurrencyRatesForMonthFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
       const { currencyDate, currencyId, semaphore, chatId } = ctx;
 
       if (!currencyId) {
@@ -389,7 +389,7 @@ export class Bot {
         const lng = language ?? 'ru';
         const text = rates.join('\n');
 
-        reply(text
+        await reply(text
           ? `${getLocString(stringResources.ratesForMonth, lng, currencyId, currencyDate)}\n${text}`
           : getLocString(stringResources.cantLoadRate, lng, currencyId)
           )({ chatId, semaphore: new Semaphore() });
@@ -551,7 +551,7 @@ export class Bot {
         },
         showSelectCurrencyMenu: reply(stringResources.selectCurrency, keyboardCurrency),
         showSelectCurrencyRatesMenu: reply(stringResources.selectCurrency, keyboardCurrencyRates),
-        showCurrencyRatesForMonth: getShowRatesFunc(reply),
+        showCurrencyRatesForMonth: getShowCurrencyRatesForMonthFunc(reply),
         selectCurrency: (ctx, event) => {
           if (event.type === 'MENU_COMMAND') {
             const { accountLink, chatId, platform } = checkAccountLink(ctx);
@@ -1552,16 +1552,15 @@ export class Bot {
     const { platform, chatId, type, body, language } = update;
     const uniqId = this.getUniqId(platform, chatId);
 
-    let semaphore = this._semaphore[uniqId];
+    let updateSemaphore = this._updateSemaphore[uniqId];
 
-    if (!semaphore) {
-      semaphore = new Semaphore();
-      this._semaphore[uniqId] = semaphore;
+    if (!updateSemaphore) {
+      updateSemaphore = new Semaphore();
+      this._updateSemaphore[uniqId] = updateSemaphore;
     }
 
-    await semaphore.acquire();
+    await updateSemaphore.acquire();
     try {
-
       //TODO: temporarily
       await this._logger.info(chatId, undefined, `${type} -- ${body}`);
 
@@ -1621,6 +1620,19 @@ export class Bot {
         return res;
       }
 
+      /**
+       * При переходе из состояния в состояние могут сработать
+       * actions, которые внутри могут вызвать длительные асинхронные
+       * операции. Мы подождем пока такие операции не завершатся.
+       */
+      if (service) {
+        const { semaphore } = service.state.context;
+        if (semaphore && !semaphore.permits) {
+          await semaphore?.acquire();
+          semaphore?.release();
+        }
+      }
+
       if (body === '/start' || service?.state.done) {
         await this._logger.debug(chatId, undefined, '/start or done');
         createNewService(true);
@@ -1675,10 +1687,17 @@ export class Bot {
           // то, что видит пользователь отличается от внутреннего состояния
           // машины
 
-          if (platform === 'TELEGRAM') {
-            await this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
-          } else {
-            await this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
+          const { semaphore } = service.state.context;
+
+          await semaphore?.acquire();
+          try {
+            if (platform === 'TELEGRAM') {
+              await this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
+            } else {
+              await this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
+            }
+          } finally {
+            semaphore?.release();
           }
 
           await this._logger.debug(chatId, undefined, 'we are lost');
@@ -1687,7 +1706,7 @@ export class Bot {
       }
     }
     finally {
-      semaphore.release();
+      updateSemaphore.release();
     }
   }
 

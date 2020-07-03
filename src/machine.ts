@@ -396,7 +396,6 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
         }
       },
 
-
       showTable: {
         initial: 'enterDate',
         states: {
