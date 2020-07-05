@@ -1,5 +1,5 @@
 import { FileDB, IData } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, IDepartment, ITimeSheet } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, ITimeSheet } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
@@ -589,19 +589,12 @@ export class Bot {
 
     this._telegram = new Telegraf(telegramToken);
 
-    /*
-    this._telegram.use((ctx, next) => {
-      this._logger.info(ctx.chat?.id.toString(), ctx.from?.id.toString(), `Telegram Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
-      return next();
-    });
-    */
-
     this._telegram.start(
-      async (ctx) => {
+      (ctx, next) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
         } else {
-          await this.onUpdate({
+          this.onUpdate({
             platform: 'TELEGRAM',
             chatId: ctx.chat.id.toString(),
             type: 'COMMAND',
@@ -609,18 +602,19 @@ export class Bot {
             language: str2Language(ctx.from?.language_code)
           });
         }
+        return next();
       }
     );
 
     this._telegram.on('message',
-      async (ctx) => {
+      (ctx, next) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
         }
         else if (ctx.message?.text === undefined) {
-          await this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat message');
+          this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat message');
         } else {
-          await this.onUpdate({
+          this.onUpdate({
             platform: 'TELEGRAM',
             chatId: ctx.chat.id.toString(),
             type: 'MESSAGE',
@@ -628,21 +622,19 @@ export class Bot {
             language: str2Language(ctx.from?.language_code)
           });
         }
+        return next();
       }
     );
 
     this._telegram.on('callback_query',
-      //TODO: скорее всего в этом месте нет нужды в async функции
-      // и во многих других тоже. мы наставили их когда искали
-      // причину зависания
-      async (ctx) => {
+      (ctx, next) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
         }
         else if (ctx.callbackQuery?.data === undefined) {
-          await this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat callback query');
+          this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat callback query');
         } else {
-          await this.onUpdate({
+          this.onUpdate({
             platform: 'TELEGRAM',
             chatId: ctx.chat.id.toString(),
             type: 'ACTION',
@@ -650,6 +642,7 @@ export class Bot {
             language: str2Language(ctx.from?.language_code)
           });
         }
+        return next();
       }
     );
 

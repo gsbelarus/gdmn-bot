@@ -56,19 +56,21 @@ const bot = new Bot(
 const app = new Koa();
 const router = new Router();
 
-router.get('/', async (ctx) => {
+router.get('/', (ctx, next) => {
   ctx.response.body = 'Zarobak Telegram/Viber Bot. Copyright (c) 2020 by Golden Software of Belarus, Ltd';
+  next();
 });
 
 //TODO: dangerous!
-router.get('/zarobak/v1/shutdown_gdmn_bot_server', async (ctx) => {
+router.get('/zarobak/v1/shutdown_gdmn_bot_server', (ctx, next) => {
   ctx.status = 200;
   ctx.body = JSON.stringify({ status: 200, result: `ok` });
-  await shutdown('Server shutting down...');
-  setTimeout( () => process.exit(), 100 );
+  shutdown('Server shutting down...')
+    .then( () => setTimeout( () => process.exit(), 100 ) );
+  next();
 });
 
-router.post('/zarobak/v1/upload_employees', async (ctx) => {
+router.post('/zarobak/v1/upload_employees', (ctx, next) => {
   try {
     const { customerId, objData } = ctx.request.body;
     bot.uploadEmployees(customerId, objData);
@@ -79,6 +81,7 @@ router.post('/zarobak/v1/upload_employees', async (ctx) => {
     ctx.response.status = 500;
     ctx.response.body = JSON.stringify({ status: 500, result: err.message });
   }
+  next();
 });
 
 router.post('/zarobak/v1/upload_accDedRefs', async (ctx) => {
@@ -94,7 +97,7 @@ router.post('/zarobak/v1/upload_accDedRefs', async (ctx) => {
   }
 });
 
-router.post('/zarobak/v1/upload_paySlips', async (ctx) => {
+router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
   try {
     const { customerId, objData, rewrite } = ctx.request.body;
     bot.upload_payslips(customerId, objData, rewrite);
@@ -107,9 +110,10 @@ router.post('/zarobak/v1/upload_paySlips', async (ctx) => {
     ctx.response.status = 500;
     ctx.response.body = JSON.stringify({ status: 500, result: err.message });
   }
+  next();
 });
 
-router.post('/zarobak/v2/upload_timeSheets', async (ctx) => {
+router.post('/zarobak/v2/upload_timeSheets', (ctx, next) => {
   try {
     const { customerId, objData, rewrite } = ctx.request.body;
     bot.upload_timeSheets(customerId, objData, rewrite);
@@ -120,9 +124,10 @@ router.post('/zarobak/v2/upload_timeSheets', async (ctx) => {
     ctx.response.status = 500;
     ctx.response.body = JSON.stringify({ status: 500, result: err.message });
   }
+  next();
 });
 
-app.on('error', (err, ctx) => log.error('koa server error', err, ctx));
+app.on('error', (err, ctx) => log.error('koa server error', err, ctx) );
 
 app
   .use(bodyParser({
@@ -136,7 +141,7 @@ const koaCallback = app.callback();
 
 const httpServer = http.createServer(koaCallback);
 
-httpServer.listen(config.httpPort, () => log.info(`>>> SERVER: Сервер запущен: http://localhost:${config.httpPort}`) );
+httpServer.listen(config.httpPort, () => log.info(`>>> HTTP server is running at http://localhost:${config.httpPort}`) );
 
 /**
  * HTTPS сервер с платным сертификатом нам нужен для подключения
@@ -178,6 +183,8 @@ https.createServer({ cert, ca, key },
     } else {
       log.warn('Viber bot isn\'t activated.')
     }
+
+    log.info(`>>> HTTPS server is running at https://localhost:${config.httpsPort}`)
 
     // раз в час пишем на диск все несохраненные данные
     setInterval(() => bot.finalize(), 60 * 60 * 1000);
