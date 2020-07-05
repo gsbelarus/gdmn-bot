@@ -29,11 +29,11 @@ export class Semaphore {
     if (this._permits > 0) {
       this._permits -= 1;
       //TODO: temporarily
-      console.log(`Semaphore ${this._name} is free.`)
+      console.log(`Semaphore is free: ${this._name}`)
       return;
     }
 
-    console.log(`Semaphore ${this._name} is locked.`)
+    console.log(`Semaphore is locked: ${this._name}`)
     return new Promise( resolve  => this._queue.push(resolve) );
   }
 
@@ -45,8 +45,7 @@ export class Semaphore {
     } else if (this._permits === 1 && this._queue.length > 0) {
       this._permits -= 1;
       this._queue.shift()?.();
+      console.log(`Semaphore has been released: ${this._name}`);
     }
-
-    console.log(`Semaphore ${this._name} has been released.`);
   }
 };

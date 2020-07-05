@@ -392,7 +392,7 @@ export class Bot {
         await reply(text
           ? `${getLocString(stringResources.ratesForMonth, lng, currencyId, currencyDate)}\n${text}`
           : getLocString(stringResources.cantLoadRate, lng, currencyId)
-          )({ chatId, semaphore: new Semaphore(`Temp semaphore for chatId: ${chatId}`) });
+          )({ chatId, semaphore: new Semaphore(`Temp for chatId: ${chatId}`) });
       } finally {
         semaphore?.release();
       }
@@ -1560,7 +1560,7 @@ export class Bot {
     let updateSemaphore = this._updateSemaphore[uniqId];
 
     if (!updateSemaphore) {
-      updateSemaphore = new Semaphore(`Update semaphore for ${uniqId}`);
+      updateSemaphore = new Semaphore(`onUpdate for ${uniqId}`);
       this._updateSemaphore[uniqId] = updateSemaphore;
     }
 
@@ -1611,14 +1611,14 @@ export class Bot {
             customerId,
             employeeId,
             forceMainMenu,
-            semaphore: new Semaphore(`Semaphore for chatId: $chatId`)
+            semaphore: new Semaphore(`chatId: ${chatId}`)
           });
         } else {
           res.send({
             type: 'START',
             platform,
             chatId,
-            semaphore: new Semaphore(`Semaphore for chatId: $chatId`)
+            semaphore: new Semaphore(`chatId: ${chatId}`)
           });
         }
 
@@ -1931,7 +1931,7 @@ export class Bot {
         const d: IDate = {year: lastPayslipDE.getFullYear(), month: lastPayslipDE.getMonth()};
         const text = await this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', platform, d, d);
         //FIXME: лимит -- не более 30 сообщений в разные чаты в секунду!
-        await reply(text, keyboardMenu)({ chatId, semaphore: new Semaphore(`Temp semaphore for auto send payslip. employeeId: ${employeeId}`) });
+        await reply(text, keyboardMenu)({ chatId, semaphore: new Semaphore(`Temp for auto send payslip. employeeId: ${employeeId}`) });
       }
     }
 
