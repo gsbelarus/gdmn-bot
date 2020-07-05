@@ -41,7 +41,7 @@ export class Semaphore {
     this._permits += 1;
 
     if (this._permits > 1 && this._queue.length > 0) {
-      throw new Error('Release is called without prior acquire');
+      throw new Error('Internal semaphore error');
     } else if (this._permits === 1 && this._queue.length > 0) {
       this._permits -= 1;
       this._queue.shift()?.();
