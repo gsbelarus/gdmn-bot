@@ -591,7 +591,7 @@ export class Bot {
 
     this._telegram.use((ctx, next) => {
       this._logger.info(ctx.chat?.id.toString(), ctx.from?.id.toString(), `Telegram Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
-      return next?.();
+      return next();
     });
 
     this._telegram.start(
