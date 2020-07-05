@@ -392,7 +392,7 @@ export class Bot {
         await reply(text
           ? `${getLocString(stringResources.ratesForMonth, lng, currencyId, currencyDate)}\n${text}`
           : getLocString(stringResources.cantLoadRate, lng, currencyId)
-          )({ chatId, semaphore: new Semaphore() });
+          )({ chatId, semaphore: new Semaphore(`Temp semaphore for chatId: ${chatId}`) });
       } finally {
         semaphore?.release();
       }
@@ -589,10 +589,12 @@ export class Bot {
 
     this._telegram = new Telegraf(telegramToken);
 
+    /*
     this._telegram.use((ctx, next) => {
       this._logger.info(ctx.chat?.id.toString(), ctx.from?.id.toString(), `Telegram Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
       return next();
     });
+    */
 
     this._telegram.start(
       async (ctx) => {
@@ -630,6 +632,9 @@ export class Bot {
     );
 
     this._telegram.on('callback_query',
+      //TODO: скорее всего в этом месте нет нужды в async функции
+      // и во многих других тоже. мы наставили их когда искали
+      // причину зависания
       async (ctx) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
@@ -1555,7 +1560,7 @@ export class Bot {
     let updateSemaphore = this._updateSemaphore[uniqId];
 
     if (!updateSemaphore) {
-      updateSemaphore = new Semaphore();
+      updateSemaphore = new Semaphore(`Update semaphore for ${uniqId}`);
       this._updateSemaphore[uniqId] = updateSemaphore;
     }
 
@@ -1606,14 +1611,14 @@ export class Bot {
             customerId,
             employeeId,
             forceMainMenu,
-            semaphore: new Semaphore()
+            semaphore: new Semaphore(`Semaphore for chatId: $chatId`)
           });
         } else {
           res.send({
             type: 'START',
             platform,
             chatId,
-            semaphore: new Semaphore()
+            semaphore: new Semaphore(`Semaphore for chatId: $chatId`)
           });
         }
 
@@ -1926,7 +1931,7 @@ export class Bot {
         const d: IDate = {year: lastPayslipDE.getFullYear(), month: lastPayslipDE.getMonth()};
         const text = await this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', platform, d, d);
         //FIXME: лимит -- не более 30 сообщений в разные чаты в секунду!
-        await reply(text, keyboardMenu)({ chatId, semaphore: new Semaphore() });
+        await reply(text, keyboardMenu)({ chatId, semaphore: new Semaphore(`Temp semaphore for auto send payslip. employeeId: ${employeeId}`) });
       }
     }
 
