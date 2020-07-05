@@ -134,6 +134,12 @@ app
     jsonLimit: '40mb',
     textLimit: '40mb'
   }))
+  .use(
+    (ctx, next) => {
+      log.info(ctx.request.href);
+      next();
+    }
+  )
   .use(router.routes())
   .use(router.allowedMethods());
 
