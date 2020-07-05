@@ -443,53 +443,35 @@ export class Bot {
 
     const getShowScheduleFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
       const { accountLink, platform, ...rest } = checkAccountLink(ctx);
-      const { tableDate: scheduleDate } = ctx;
+      const { scheduleDate } = ctx;
       const { customerId, employeeId, language } = accountLink;
       const lng = language ?? 'ru';
 
-      const scheduleRestorer = (data: IData<Omit<ISchedule, 'id'>>): IData<Omit<ISchedule, 'id'>> =>
-      Object.fromEntries(
-        Object.entries(data)
+      const schedule = this._getSchedule(customerId, employeeId, new Date(scheduleDate.year, scheduleDate.month + 1, 0));
+
+      if (!schedule) {
+        await reply(getLocString(stringResources.noData, lng))(rest);
+      } else {
+        const table = schedule.data.filter(
+          ({ d }) => d.getFullYear() === scheduleDate.year && d.getMonth() === scheduleDate.month
+        );
+
+        const formatList = table
+          .sort(
+            (a, b) => a.d.getTime() - b.d.getTime()
+          )
           .map(
-            ([key, schedule]) => [key, {
-             ...schedule,
-             data: schedule.data.map( i => ({...i, d: new Date(i.d)}) )}]
-        )
-      );
+            ({ d, h, t}) =>
+              `${d.getDate()}, ${d.toLocaleString(lng, {weekday: 'short'})}${t === 0 ? '' : ' ' + getLocString(hourTypes[t], lng)}${h === 0 ? '' : ' ' + h}${d.getDay() === 0 ? '\n   ***' : ''}`
+          )
+          .join('\n');
 
-      let schedule = this._schedules[customerId];
-
-      // if (!schedule) {
-      //   schedule = new FileDB<Omit<ISchedule, 'id'>>(getScheduleFN(customerId), this._log, scheduleRestorer);
-      //   this._schedules[customerId] = schedule;
-      // };
-
-      //const sheduleID =
-
-
-      // if (!timeSheet) {
-      //   await reply(getLocString(stringResources.noData, lng))(rest);
-      // } else {
-      //   const table = timeSheet.data.filter(
-      //     ({ d }) => d.getFullYear() === scheduleDate.year && d.getMonth() === scheduleDate.month
-      //   );
-
-      //   const formatList = table
-      //     .sort(
-      //       (a, b) => a.d.getTime() - b.d.getTime()
-      //     )
-      //     .map(
-      //       ({ d, h, t}) =>
-      //         `${d.getDate()}, ${d.toLocaleString(lng, {weekday: 'short'})}${t === 0 ? '' : ' ' + getLocString(hourTypes[t], lng)}${h === 0 ? '' : ' ' + h}${d.getDay() === 0 ? '\n   ***' : ''}`
-      //     )
-      //     .join('\n');
-
-      //   if (formatList) {
-      //     await reply(`${getLocString(stringResources.tableTitle, lng, scheduleDate)}${formatList}`)(rest);
-      //   } else {
-      //     await reply(getLocString(stringResources.noData, lng))(rest);
-      //   }
-      // }
+        if (formatList) {
+          await reply(`${getLocString(stringResources.scheduleTitle, lng, scheduleDate)}${getLName(schedule.name, [lng])}\n${formatList}`)(rest);
+        } else {
+          await reply(getLocString(stringResources.noData, lng))(rest);
+        }
+      }
     };
 
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
@@ -533,8 +515,8 @@ export class Bot {
             const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
               .read(employeeId);
 
-            if (payslip?.dept.length) {
-              const { dept } = payslip;
+            if (payslip?.schedule.length) {
+              const { schedule: dept } = payslip;
 
               let lastDate = dept[0].d;
               let lastId = dept[0].id;
@@ -883,22 +865,61 @@ export class Bot {
     return employees && employees.read(employeeId);
   }
 
-  private _getDepartments(customerId: string) {
-    let departments = this._departments[customerId];
+  private _getSchedules(customerId: string) {
+    let schedules = this._schedules[customerId];
 
-    if (!departments) {
-      const db = new FileDB<Omit<IDepartment, 'id'>>(getDepartmentFN(customerId), this._log);
+    if (!schedules) {
+      const scheduleRestorer = (data: IData<Omit<ISchedule, 'id'>>): IData<Omit<ISchedule, 'id'>> =>
+        Object.fromEntries(
+          Object.entries(data)
+            .map(
+              ([key, schedule]) => [key, {
+              ...schedule,
+              data: schedule.data.map( i => ({...i, d: new Date(i.d)}) )}]
+          )
+        );
+
+      const db = new FileDB<Omit<ISchedule, 'id'>>(getScheduleFN(customerId), this._log, {}, scheduleRestorer);
       if (!db.isEmpty()) {
-        this._departments[customerId] = db;
+        this._schedules[customerId] = db;
         return db;
       }
     }
 
-    return departments;
+    return schedules;
   }
 
-  private _getDepartment(customerId: string, departmentId: string) {
-    return this._getDepartments(customerId).read(departmentId);
+  private _getSchedule(customerId: string, employeeId: string, de: Date) {
+    const schedules = this._getSchedules(customerId);
+    const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
+      .read(employeeId);
+
+    if (!payslip) {
+      return undefined;
+    }
+
+    // График получаем из массива графиков schedule,
+    // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
+
+    if (!payslip.schedule.length) {
+      const msg = `Missing schedules arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
+      this._log.error(msg);
+      return undefined;
+      //throw new Error(msg);
+    }
+
+    let scheduleId = payslip.schedule[0].id;
+    let maxDate = str2Date(payslip.schedule[0].d);
+
+    for (const dept of payslip.schedule) {
+      const deptD = str2Date(dept.d);
+      if (isGr(deptD, maxDate) && isLs(deptD, de)) {
+        scheduleId = dept.id;
+        maxDate = deptD;
+      }
+    }
+
+    return schedules && schedules.read(scheduleId);
   }
 
   private _findCompany = (_: any, event: BotMachineEvent) => {
@@ -981,16 +1002,16 @@ export class Bot {
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
     // Аналогично с должностью из массива pos
 
-    if (!payslip.dept.length || !payslip.pos.length || !payslip.payForm.length || !payslip.salary.length) {
+    if (!payslip.schedule.length || !payslip.pos.length || !payslip.payForm.length || !payslip.salary.length) {
       const msg = `Missing departments, positions, payforms or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
       this._log.error(msg);
       throw new Error(msg);
     }
 
-    let department = payslip.dept[0].name;
-    let maxDate = str2Date(payslip.dept[0].d);
+    let department = payslip.schedule[0].name;
+    let maxDate = str2Date(payslip.schedule[0].d);
 
-    for (const dept of payslip.dept) {
+    for (const dept of payslip.schedule) {
       const deptD = str2Date(dept.d);
       if (isGr(deptD, maxDate) && isLs(deptD, de)) {
         department = dept.name;
@@ -1857,7 +1878,7 @@ export class Bot {
       const newPayslipData = {
         ...prevPayslipData,
         data: [...prevPayslipData.data],
-        dept: [...prevPayslipData.dept],
+        dept: [...prevPayslipData.schedule],
         pos: [...prevPayslipData.pos],
         salary: [...prevPayslipData.salary],
         payForm: [...prevPayslipData.payForm],
@@ -1875,7 +1896,7 @@ export class Bot {
       }
 
       // объединяем подразделения
-      for (const d of objData.dept) {
+      for (const d of objData.schedule) {
         const i = newPayslipData.dept.findIndex( a => a.id === d.id && isEq(a.d, d.d) );
         if (i === -1) {
           newPayslipData.dept.push(d);

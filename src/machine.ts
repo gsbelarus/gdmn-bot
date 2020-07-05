@@ -461,7 +461,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
                 {
                   target: 'showSchedule',
                   actions: assign({
-                    scheduleDate: (_, event) => event.data.scheduleDate,
+                    scheduleDate: (_, event) => event.data.selectedDate,
                   })
                 }
               ]

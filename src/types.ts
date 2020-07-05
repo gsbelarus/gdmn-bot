@@ -160,7 +160,7 @@ export interface IDet {
 
 export interface IPayslip {
   emplId: string;
-  dept: IDepartment[];
+  schedule: IDepartment[];
   pos: IPosition[];
   payForm: IPayForm[];
   salary: ISalary[];

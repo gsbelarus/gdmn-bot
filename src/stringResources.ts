@@ -340,6 +340,11 @@ export const stringResources = {
     ru: (date: IDate) => `Табель рабочего времени за ${new Date(date.year, date.month).toLocaleString('ru', {month: 'long'})} ${date.year}:\n`,
     be: (date: IDate) => `Табель рабочага часу за ${new Date(date.year, date.month).toLocaleString('be', {month: 'long'})} ${date.year}:\n`
   } as ILocString,
+  scheduleTitle: {
+    en: (date: IDate) => `Schedule for ${new Date(date.year, date.month).toLocaleString('en-US', {month: 'long'})} ${date.year}:\n`,
+    ru: (date: IDate) => `График рабочего времени за ${new Date(date.year, date.month).toLocaleString('ru', {month: 'long'})} ${date.year}:\n`,
+    be: (date: IDate) => `Графiк рабочага часу за ${new Date(date.year, date.month).toLocaleString('be', {month: 'long'})} ${date.year}:\n`
+  } as ILocString,
   payslipTitle: {
     en: 'Payslip',
     ru: 'Расчетный листок',
