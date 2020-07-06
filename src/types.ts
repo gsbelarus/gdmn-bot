@@ -71,7 +71,7 @@ export interface IEmployee {
   birthday?: Date;
 };
 
-export interface ISchedule {
+export interface IScheduleData {
   /**
    * РУИД графика.
    */
@@ -119,9 +119,10 @@ export interface IAccDed {
   n?: number;
 };
 
-export interface IDepartment {
+export interface ISchedule {
   id: string;
   name: LName;
+  d: Date;
 };
 
 export interface IPosition {
@@ -160,7 +161,8 @@ export interface IDet {
 
 export interface IPayslip {
   emplId: string;
-  schedule: IDepartment[];
+  dept: IDepartment[];
+  schedule: ISchedule[];
   pos: IPosition[];
   payForm: IPayForm[];
   salary: ISalary[];
@@ -205,8 +207,17 @@ export interface ITimeSheet {
   emplId: string;
   data: {
     d: Date;
-    t: number;
-    h: number;
+    t?: number;
+    h?: number;
+  }[];
+};
+
+export interface ITimeSheetJSON {
+  emplId: string;
+  data: {
+    d: string;
+    t?: number;
+    h?: number;
   }[];
 };
 

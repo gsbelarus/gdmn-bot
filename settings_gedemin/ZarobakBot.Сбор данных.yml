@@ -5,10 +5,10 @@ Properties:
   RUID: 158513268_1444931844
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.30"
+  Version: "1.0.0.32"
   Optional: False
   Internal: True
-  MD5: 36CE51BE7AE046EF6D97B25CF620D58B
+  MD5: E0A797032E1F233F1178D4ECF0E2FD65
 Objects: 
   - 
     Properties: 
@@ -70,7 +70,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-06T15:20:29+03:00
+      MODIFYDATE: 2020-07-06T17:40:58+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -79,7 +79,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-07-06T15:20:28+03:00
+      EDITIONDATE: 2020-07-06T17:40:57+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREPAYSLIPS
         BOT_PREPAREPAYSLIP_ROLLBACK
@@ -1444,7 +1444,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-06T13:20:15+03:00
+      MODIFYDATE: 2020-07-06T18:28:44+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -1453,22 +1453,20 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-06T13:20:14+03:00
+      EDITIONDATE: 2020-07-06T18:28:42+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPARESCHEDULES
         BOT_PREPARESCHEDULES_ROLLBACK
         
       ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAFBFUklPRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
-        UFJTVAoAAABDVVNUT01FUklECgAAAENVU1RPTUVSSUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        Rk5TVFBSU1QJAAAAQ09NUEFOWUlECQAAAENPTVBBTllJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        AABGTlNUUFJTVAkAAABJU1JFV1JJVEUJAAAASVNSRVdSSVRFAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        AAAAAEZOU1RQUlNUBAAAAEpTT04EAAAASlNPTgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
-        RkxQUg==
+        U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAEZOU1RQUlNUCQAAAENPTVBBTllJRAkAAABDT01QQU5ZSUQAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAAAARk5TVFBSU1QEAAAASlNPTgQAAABKU09OAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZO
+        U1RGTFBS
       SCRIPT: | 
         '#include BOT_STRREPL
         Option Explicit
-        Function bot_PrepareSchedules(Period, customerId, companyId, isRewrite, ByRef Json)
+        Function bot_PrepareSchedules(customerId, companyId, ByRef Json)
           dim Creator, Transaction
           set Creator = new TCreator
           set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
@@ -1504,10 +1502,7 @@ Objects:
             "FROM WG_TBLCAL c " & _
             "  LEFT JOIN WG_TBLCALDAY d ON d.TBLCALKEY = c.ID " & _
             "  LEFT JOIN GD_P_GETRUID(c.ID) r ON 1 = 1 " & _
-            "WHERE d.THEDAY BETWEEN :DB AND :DE " & _
-            "ORDER BY 1, 2, d.WORKDAY "
-          qSel.ParamByName("DB").AsDateTime = Period(0)
-          qSel.ParamByName("DE").AsDateTime = Period(1)
+            "ORDER BY 1, 2, 3 "
           qSel.ExecQuery
         
           dim name, id, str, objItem
@@ -1542,12 +1537,10 @@ Objects:
           end if
           
           Dim b
-          If isRewrite Then b = "true" Else b = "false"
         
           Json.Text = "{" & _
             """version"":""2.0""," & _
             """customerId"":""" & customerId & """," & _
-            """rewrite"":" & b & "," & _
             """objData"":{" & Json.Text & "}" & _
             "}"
         

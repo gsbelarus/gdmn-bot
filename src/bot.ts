@@ -1,5 +1,5 @@
 import { FileDB, IData } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, IDepartment, ITimeSheet, ISchedule } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, ITimeSheet, IScheduleData, ITimeSheetJSON } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
@@ -73,6 +73,26 @@ const getItemTemplate = (dataItem: IPayslipItem[], lng: Language): Template => d
   .sort( (a, b) => a.n - b.n )
   .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) + ' ' : ''}: `, i.s]);
 
+const scheduleRestorer = (data: IData<Omit<IScheduleData, 'id'>>): IData<Omit<IScheduleData, 'id'>> =>
+  Object.fromEntries(
+    Object.entries(data)
+      .map(
+        ([key, schedule]) => [key, {
+        ...schedule,
+        data: schedule.data.map( i => ({...i, d: new Date(i.d)}) )}]
+    )
+  );
+
+  const timeSheetRestorer = (data: IData<ITimeSheet>): IData<ITimeSheet> =>
+    Object.fromEntries(
+      Object.entries(data)
+        .map(
+          ([key, timesheet]) => [key, {
+          ...timesheet,
+          data: timesheet.data.map( i => ({...i, d: new Date(i.d)}) )}]
+      )
+    );
+
 type ReplyFunc = (s: ILocString | string | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
 
 export class Bot {
@@ -84,7 +104,7 @@ export class Bot {
   private _telegramCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
   private _telegramMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
-  private _schedules: { [customerId: string]: FileDB<Omit<ISchedule, 'id'>> } = {};
+  private _schedules: { [customerId: string]: FileDB<Omit<IScheduleData, 'id'>> } = {};
   private _announcements: FileDB<Omit<IAnnouncement, 'id'>>;
   private _botStarted = new Date();
   private _callbacksReceived = 0;
@@ -425,16 +445,6 @@ export class Bot {
       const { customerId, employeeId, language } = accountLink;
       const lng = language ?? 'ru';
 
-      const timeSheetRestorer = (data: IData<ITimeSheet>): IData<ITimeSheet> =>
-        Object.fromEntries(
-          Object.entries(data)
-            .map(
-              ([key, timesheet]) => [key, {
-              ...timesheet,
-              data: timesheet.data.map( i => ({...i, d: new Date(i.d)}) )}]
-          )
-        );
-
       try {
         const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log, {}, timeSheetRestorer)
           .read(employeeId);
@@ -547,15 +557,16 @@ export class Bot {
             const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
               .read(employeeId);
 
-            if (payslip?.schedule.length) {
-              const { schedule: dept } = payslip;
+            if (payslip?.dept.length) {
+              const { dept } = payslip;
 
-              let lastDate = dept[0].d;
+              let lastDate = str2Date(dept[0].d);
               let lastId = dept[0].id;
 
               for (const { d, id } of dept) {
-                if (isGr(d, lastDate)) {
-                  lastDate = d;
+                const date = str2Date(d);
+                if (isGr(date, lastDate)) {
+                  lastDate = date;
                   lastId = id;
                 }
               }
@@ -903,17 +914,7 @@ export class Bot {
     let schedules = this._schedules[customerId];
 
     if (!schedules) {
-      const scheduleRestorer = (data: IData<Omit<ISchedule, 'id'>>): IData<Omit<ISchedule, 'id'>> =>
-        Object.fromEntries(
-          Object.entries(data)
-            .map(
-              ([key, schedule]) => [key, {
-              ...schedule,
-              data: schedule.data.map( i => ({...i, d: new Date(i.d)}) )}]
-          )
-        );
-
-      const db = new FileDB<Omit<ISchedule, 'id'>>(getScheduleFN(customerId), this._log, {}, scheduleRestorer);
+      const db = new FileDB<Omit<IScheduleData, 'id'>>(getScheduleFN(customerId), this._log, {}, scheduleRestorer);
       if (!db.isEmpty()) {
         this._schedules[customerId] = db;
         return db;
@@ -950,11 +951,11 @@ export class Bot {
     let scheduleId = payslip.schedule[0].id;
     let maxDate = str2Date(payslip.schedule[0].d);
 
-    for (const dept of payslip.schedule) {
-      const deptD = str2Date(dept.d);
-      if (isGr(deptD, maxDate) && isLs(deptD, de)) {
-        scheduleId = dept.id;
-        maxDate = deptD;
+    for (const schedule of payslip.schedule) {
+      const scheduleD = str2Date(schedule.d);
+      if (isGr(scheduleD, maxDate) && isLs(scheduleD, de)) {
+        scheduleId = schedule.id;
+        maxDate = scheduleD;
       }
     }
 
@@ -1606,6 +1607,10 @@ export class Bot {
     this._telegramAccountLink.flush();
     this._viberAccountLink.flush();
     this._announcements.flush();
+
+    for (const s of Object.values(this._schedules)) {
+      s.flush();
+    }
   }
 
   createService(inPlatform: Platform, inChatId: string) {
@@ -1897,7 +1902,7 @@ export class Bot {
     this._log.info(`Customer: ${customerId}. ${Object.keys(objData).length} employees have been uploaded.`);
   }
 
-  upload_timeSheets(customerId: string, objData: ITimeSheet, rewrite: boolean) {
+  upload_timeSheets(customerId: string, objData: ITimeSheetJSON, rewrite: boolean) {
     const employeeId = objData.emplId;
     const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log);
 
@@ -1910,7 +1915,7 @@ export class Bot {
     // если на диске не было файла или там было пусто, то
     // просто запишем данные, которые пришли из интернета
     if (!prevTimeSheetData) {
-      timeSheet.write(employeeId, objData);
+      timeSheet.write(employeeId, {...objData, data: objData.data.map( (i: any) => ({...i, d: new Date(i.d)}) )} );
     } else {
       // данные есть. надо объединить прибывшие данные с тем
       // что уже есть на диске
@@ -1919,13 +1924,14 @@ export class Bot {
         data: [...prevTimeSheetData.data]
       };
 
-      // объединяем начисления
-      for (const d of objData.data) {
-        const i = newTimeSheetData.data.findIndex( a => isEq(a.d, d.d) );
+      // объединяем табеля
+      for (const ts of objData.data) {
+        const date = new Date(ts.d);
+        const i = newTimeSheetData.data.findIndex( a => isEq(a.d, date) );
         if (i === -1) {
-          newTimeSheetData.data.push(d);
+          newTimeSheetData.data.push({...ts, d: date});
         } else {
-          newTimeSheetData.data[i] = d;
+          newTimeSheetData.data[i] = {...ts, d: date};
         }
       }
 
@@ -1934,18 +1940,18 @@ export class Bot {
     timeSheet.flush();
   }
 
-  upload_schedules(customerId: string, objData: Object, rewrite: boolean) {
+  upload_schedules(customerId: string, objData: IScheduleData, rewrite: boolean) {
    let schedule = this._schedules[customerId];
 
     if (!schedule) {
-      schedule = new FileDB<Omit<ISchedule, 'id'>>(getScheduleFN(customerId), this._log);
+      schedule = new FileDB<Omit<IScheduleData, 'id'>>(getScheduleFN(customerId), this._log);
       this._schedules[customerId] = schedule;
     }
 
     schedule.clear();
 
     for (const [key, value] of Object.entries(objData)) {
-      schedule.write(key, value as any);
+      schedule.write(key, {...value, data: value.data.map( (i: any) => ({...i, d: new Date(i.d)}) )} as any);
     }
 
     schedule.flush();

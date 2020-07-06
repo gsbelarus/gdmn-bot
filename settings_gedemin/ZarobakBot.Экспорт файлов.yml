@@ -5,10 +5,10 @@ Properties:
   RUID: 1193786287_1320926324
   Name: "ZarobakBot.Экспорт файлов"
   Caption: "ZarobakBot.Экспорт файлов"
-  Version: "1.0.0.36"
+  Version: "1.0.0.38"
   Optional: False
   Internal: True
-  MD5: E79F31A85743C2C4A1D7351F8CD58048
+  MD5: FE42621F1E52B94D540F7B12A31B8946
 Uses: 
   - "148233742_349062642 Зарплата - исследователь"
   - "158513268_1444931844 ZarobakBot.Сбор данных"
@@ -673,7 +673,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-02T18:42:43+03:00
+      MODIFYDATE: 2020-07-06T18:24:29+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -682,28 +682,26 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-02T18:42:43+03:00
+      EDITIONDATE: 2020-07-06T18:24:28+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTSCHEDULESU
         
       ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAFBFUklPRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
-        UFJTVAoAAABDVVNUT01FUklECgAAAENVU1RPTUVSSUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        Rk5TVFBSU1QJAAAAQ09NUEFOWUlECQAAAENPTVBBTllJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        AABGTlNUUFJTVAMAAABVUkwDAAAAVVJMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RQUlNU
-        CQAAAElTUkVXUklURQkAAABJU1JFV1JJVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARk5TVEZM
-        UFI=
+        U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAEZOU1RQUlNUCQAAAENPTVBBTllJRAkAAABDT01QQU5ZSUQAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAAAARk5TVFBSU1QDAAAAVVJMAwAAAFVSTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
+        RkxQUg==
       SCRIPT: | 
         '#include BOT_PREPARESCHEDULES
         Option Explicit
         '#include BOT_SENDFILE
-        Function bot_exportSchedulesU(Period, customerId, companyId, URL, isRewrite)
+        Function bot_exportSchedulesU(customerId, companyId, URL)
           bot_exportSchedulesU = true
           dim Json, i, Creator
           set Creator = new TCreator
           set Json = Creator.GetObject(nil, "TStringList", "")
           'Формирование списка Json файлов в разрезе сотрудника
-          call bot_PrepareSchedules(Period, customerId, companyId, isRewrite, Json)
+          call bot_PrepareSchedules(customerId, companyId, Json)
           'Отправка на сервер
           bot_exportSchedulesU = bot_SendFile(Json.Text, URL)
         End Function
@@ -732,7 +730,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-06T13:05:17+03:00
+      MODIFYDATE: 2020-07-06T17:50:54+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -741,7 +739,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-06T13:05:16+03:00
+      EDITIONDATE: 2020-07-06T17:50:53+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTTIMESHEETS
         
@@ -770,7 +768,7 @@ Objects:
           dim Creator, i, customer, customerId, companyId
           set Creator = new TCreator
           dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
-          P.StartWork "ZarobakBot", "Экспорт данных", 2*(count+1), True, True
+          P.StartWork "ZarobakBot", "Экспорт данных", 1*(count+1), True, True
         
           for i = 0 to count
             customer = Split(customerArray(i), ",")
@@ -811,7 +809,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-06T16:46:41+03:00
+      MODIFYDATE: 2020-07-06T18:24:24+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -820,19 +818,16 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-06T16:46:40+03:00
+      EDITIONDATE: 2020-07-06T18:24:23+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTSCHEDULES
         
-      ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAM/l8Oju5AAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
-        UFJTVAkAAABJU1JFV1JJVEUVAAAAz+Xw5efg7+jx4PL8IOPw4PTo6uggAAAAAAAAAAAAAAAABgAA
-        AAAAAAAAAAAAAEZOU1RGTFBS
+      ENTEREDPARAMS: ~
       SCRIPT: | 
         '#include BOT_EXPORTSCHEDULESU
         '#include BOT_GETSERVERDATA
         Option Explicit
-        Function bot_exportSchedules(Period, isRewrite)
+        Function bot_exportSchedules()
           const upload_schedules = "/zarobak/v2/upload_schedules"
         
           dim customerArray, URL, count
@@ -857,7 +852,7 @@ Objects:
             companyId = gdcBaseManager.GetIDByRUIDString(customer(1))
         
             P.StartStep "Графики рабочего времени " & customerId, 1
-            if not bot_exportSchedulesU(Period, customerId, companyId, URL & upload_schedules, isRewrite) then
+            if not bot_exportSchedulesU(customerId, companyId, URL & upload_schedules) then
               P.EndWork "Экспорт остановлен!", False
               exit function
             end if
