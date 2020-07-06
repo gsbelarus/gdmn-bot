@@ -63,8 +63,8 @@ router.get('/', (ctx, next) => {
 
 //TODO: dangerous!
 router.get('/zarobak/v1/shutdown_gdmn_bot_server', (ctx, next) => {
-  ctx.status = 200;
-  ctx.body = JSON.stringify({ status: 200, result: `ok` });
+  ctx.response.status = 200;
+  ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
   shutdown('Server shutting down...')
     .then( () => setTimeout( () => process.exit(), 100 ) );
   next();
@@ -84,7 +84,7 @@ router.post('/zarobak/v1/upload_employees', (ctx, next) => {
   next();
 });
 
-router.post('/zarobak/v1/upload_accDedRefs', async (ctx) => {
+router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
   try {
     const { customerId, objData } = ctx.request.body;
     bot.uploadAccDeds(customerId, objData);
@@ -95,6 +95,7 @@ router.post('/zarobak/v1/upload_accDedRefs', async (ctx) => {
     ctx.response.status = 500;
     ctx.response.body = JSON.stringify({ status: 500, result: err.message });
   }
+  next();
 });
 
 router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
@@ -182,6 +183,8 @@ if (!ca) {
 const viberCallback = bot.viber?.middleware();
 
 https.createServer({ cert, ca, key },
+  viberCallback
+  /*
   (req, res) => {
     if (req.headers['x-viber-content-signature']) {
       viberCallback?.(req, res);
@@ -189,6 +192,7 @@ https.createServer({ cert, ca, key },
       koaCallback(req, res);
     }
   }
+  */
 ).listen(config.httpsPort,
   async () => {
     if (config.viber.token && !config.viber.disabled) {
@@ -205,11 +209,9 @@ https.createServer({ cert, ca, key },
     }
 
     log.info(`>>> HTTPS server is running at https://localhost:${config.httpsPort}`)
-
-    // раз в час пишем на диск все несохраненные данные
-    setInterval(() => bot.finalize(), 60 * 60 * 1000);
   }
 );
+
 
 if (config.telegram.useWebHook) {
   const { callbackHost, hookPath, port } = config.telegram;
@@ -217,6 +219,9 @@ if (config.telegram.useWebHook) {
 } else {
   bot.launchTelegram();
 }
+
+// раз в час пишем на диск все несохраненные данные
+setInterval(() => bot.finalize(), 60 * 60 * 1000);
 
 /**
  * При завершении работы сервера скидываем на диск все данные.
@@ -235,7 +240,7 @@ process
     process.exit();
   })
   .on('SIGTERM', async () => {
-    await shutdown('SIGINT received...');
+    await shutdown('SIGTERM received...');
     process.exit();
   })
   .on('unhandledRejection', (reason, p) => console.error({ err: reason }, p) )
