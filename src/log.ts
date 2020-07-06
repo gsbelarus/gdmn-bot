@@ -20,7 +20,7 @@ export class Logger {
   private _fileHandle?: fsPromises.FileHandle;
   private _useConsole?: boolean;
   private _level?: Level;
-  private _semaphore: Semaphore = new Semaphore();
+  private _semaphore: Semaphore = new Semaphore('Logger');
 
   constructor(params: ILoggerParams) {
     this._fileName = params.fileName;

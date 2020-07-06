@@ -62,7 +62,7 @@ export const str2Date = (date: Date | string) => {
 export const isEq = (d1: Date | string, d2: Date | string) => {
   if (typeof d1 === 'string' && typeof d2 === 'string') {
     return d1 === d2;
-  } 
+  }
   else if (d1 instanceof Date && d2 instanceof Date) {
     return d1.getTime() === d2.getTime();
   } else {
@@ -81,3 +81,5 @@ export const isLs = (d1: Date, d2: Date) => {
 export const isGrOrEq = (d1: Date, d2: Date) => {
   return d1.getTime() >= d2.getTime();
 };
+
+export const pause = (ms: number) => new Promise( resolve => setTimeout( resolve, ms ));

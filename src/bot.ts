@@ -5,7 +5,7 @@ import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
-import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq } from "./util/utils";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, pause } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
@@ -85,7 +85,6 @@ export class Bot {
   private _telegramMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
   private _schedules: { [customerId: string]: FileDB<Omit<ISchedule, 'id'>> } = {};
-  private _departments: { [customerId: string]: FileDB<Omit<IDepartment, 'id'>> } = {};
   private _announcements: FileDB<Omit<IAnnouncement, 'id'>>;
   private _botStarted = new Date();
   private _callbacksReceived = 0;
@@ -101,6 +100,7 @@ export class Bot {
   private _log: ILogger;
   private _replyTelegram: ReplyFunc;
   private _replyViber?: ReplyFunc;
+  private _updateSemaphore: { [id: string]: Semaphore } = {};
 
   constructor(telegramToken: string, viberToken: string, logger: Logger) {
     this._logger = logger;
@@ -196,11 +196,13 @@ export class Bot {
         if (lastMenuId) {
           if (text && keyboard) {
             await editMessageReplyMarkup(true);
+            //await pause(1000);
             const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
             this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
           }
           else if (text && !keyboard) {
             await editMessageReplyMarkup(true);
+            //await pause(1000);
             await this._telegram.telegram.sendMessage(chatId, text, extra);
             this._telegramAccountLink.merge(chatId, {}, ['lastMenuId']);
           }
@@ -362,7 +364,7 @@ export class Bot {
       }
     };
 
-    const getShowRatesFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+    const getShowCurrencyRatesForMonthFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
       const { currencyDate, currencyId, semaphore, chatId } = ctx;
 
       if (!currencyId) {
@@ -388,10 +390,10 @@ export class Bot {
         const lng = language ?? 'ru';
         const text = rates.join('\n');
 
-        reply(text
+        await reply(text
           ? `${getLocString(stringResources.ratesForMonth, lng, currencyId, currencyDate)}\n${text}`
           : getLocString(stringResources.cantLoadRate, lng, currencyId)
-          )({ chatId, semaphore: new Semaphore() });
+          )({ chatId, semaphore: new Semaphore(`Temp for chatId: ${chatId}`) });
       } finally {
         semaphore?.release();
       }
@@ -404,14 +406,14 @@ export class Bot {
       const lng = language ?? 'ru';
 
       const timeSheetRestorer = (data: IData<ITimeSheet>): IData<ITimeSheet> =>
-      Object.fromEntries(
-        Object.entries(data)
-          .map(
-            ([key, timesheet]) => [key, {
-             ...timesheet,
-             data: timesheet.data.map( i => ({...i, d: new Date(i.d)}) )}]
-        )
-      );
+        Object.fromEntries(
+          Object.entries(data)
+            .map(
+              ([key, timesheet]) => [key, {
+              ...timesheet,
+              data: timesheet.data.map( i => ({...i, d: new Date(i.d)}) )}]
+          )
+        );
 
       const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log, {}, timeSheetRestorer)
         .read(employeeId);
@@ -429,7 +431,7 @@ export class Bot {
           )
           .map(
             ({ d, h, t}) =>
-              `${d.getDate()}, ${d.toLocaleString(lng, {weekday: 'short'})}${t === 0 ? '' : ' ' + getLocString(hourTypes[t], lng)}${h === 0 ? '' : ' ' + h}${d.getDay() === 0 ? '\n   ***' : ''}`
+              `${d.getDate()}, ${d.toLocaleString(lng, {weekday: 'short'})}${t ? ' ' + getLocString(hourTypes[t], lng) : ''}${h ? ' ' + h : ''}${d.getDay() ? '': '\n   ***'}`
           )
           .join('\n');
 
@@ -584,7 +586,7 @@ export class Bot {
         },
         showSelectCurrencyMenu: reply(stringResources.selectCurrency, keyboardCurrency),
         showSelectCurrencyRatesMenu: reply(stringResources.selectCurrency, keyboardCurrencyRates),
-        showCurrencyRatesForMonth: getShowRatesFunc(reply),
+        showCurrencyRatesForMonth: getShowCurrencyRatesForMonthFunc(reply),
         selectCurrency: (ctx, event) => {
           if (event.type === 'MENU_COMMAND') {
             const { accountLink, chatId, platform } = checkAccountLink(ctx);
@@ -622,13 +624,8 @@ export class Bot {
 
     this._telegram = new Telegraf(telegramToken);
 
-    this._telegram.use((ctx, next) => {
-      this._logger.info(ctx.chat?.id.toString(), ctx.from?.id.toString(), `Telegram Chat ${ctx.chat?.id}: ${ctx.updateType} ${ctx.message?.text !== undefined ? ('-- ' + ctx.message?.text) : ''}`);
-      return next?.();
-    });
-
     this._telegram.start(
-      ctx => {
+      (ctx, next) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
         } else {
@@ -640,11 +637,12 @@ export class Bot {
             language: str2Language(ctx.from?.language_code)
           });
         }
+        return next();
       }
     );
 
     this._telegram.on('message',
-      ctx => {
+      (ctx, next) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
         }
@@ -659,11 +657,12 @@ export class Bot {
             language: str2Language(ctx.from?.language_code)
           });
         }
+        return next();
       }
     );
 
     this._telegram.on('callback_query',
-      ctx => {
+      (ctx, next) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
         }
@@ -678,6 +677,7 @@ export class Bot {
             language: str2Language(ctx.from?.language_code)
           });
         }
+        return next();
       }
     );
 
@@ -1546,7 +1546,7 @@ export class Bot {
 
   async launchTelegram(callbackHost?: string, hookPath?: string, port?: number, tlsOptions?: { key: Buffer, cert: Buffer, ca: string }) {
     if (callbackHost && hookPath && port && tlsOptions) {
-      await this._telegram.telegram.setWebhook(`${callbackHost}:${port}${hookPath}`);
+      await this._telegram.telegram.setWebhook(`${callbackHost}:${port}${hookPath}`, undefined, 100);
       await this._telegram.startWebhook(hookPath, tlsOptions, port);
     } else {
       await this._telegram.launch();
@@ -1640,127 +1640,163 @@ export class Bot {
     this._callbacksReceived++;
 
     const { platform, chatId, type, body, language } = update;
-
-    //TODO: temporarily
-    await this._logger.info(chatId, undefined, `${type} -- ${body}`);
-
-    if (body === 'diagnostics') {
-      this.finalize();
-      const data = [
-        `Server started: ${this._botStarted}`,
-        `Node version: ${process.versions.node}`,
-        'Memory usage:',
-        JSON.stringify(process.memoryUsage(), undefined, 2),
-        `Services are running: ${Object.values(this._service).length}`,
-        `Callbacks received: ${this._callbacksReceived}`
-      ];
-      if (platform === 'TELEGRAM') {
-        await this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
-      } else {
-        await this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
-      }
-      return;
-    }
-
-    const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-    const accountLink = accountLinkDB.read(chatId);
     const uniqId = this.getUniqId(platform, chatId);
-    let service = this._service[uniqId];
 
-    if (!this._accountLanguage[uniqId]) {
-      if (accountLink?.language) {
-        this._accountLanguage[uniqId] = accountLink.language;
-      } else {
-        this._accountLanguage[uniqId] = language;
-      }
+    let updateSemaphore = this._updateSemaphore[uniqId];
+
+    if (!updateSemaphore) {
+      updateSemaphore = new Semaphore(`onUpdate for ${uniqId}`);
+      this._updateSemaphore[uniqId] = updateSemaphore;
     }
 
-    const createNewService = (forceMainMenu = true) => {
-      const res = this.createService(platform, chatId);
+    await updateSemaphore.acquire();
+    try {
+      //TODO: temporarily
+      await this._logger.info(chatId, undefined, `${type} -- ${body}`);
 
-      if (accountLink) {
-        const { customerId, employeeId, } = accountLink;
-        res.send({
-          type: 'MAIN_MENU',
-          platform,
-          chatId,
-          customerId,
-          employeeId,
-          forceMainMenu,
-          semaphore: new Semaphore()
-        });
-      } else {
-        res.send({
-          type: 'START',
-          platform,
-          chatId,
-          semaphore: new Semaphore()
-        });
-      }
-
-      return res;
-    }
-
-    if (body === '/start' || service?.state.done) {
-      createNewService(true);
-      return;
-    }
-
-    if (!service) {
-      service = createNewService(false);
-
-      if (!accountLink) {
+      if (body === 'diagnostics') {
+        this.finalize();
+        const data = [
+          `Server started: ${this._botStarted}`,
+          `Node version: ${process.versions.node}`,
+          'Memory usage:',
+          JSON.stringify(process.memoryUsage(), undefined, 2),
+          `Services are running: ${Object.values(this._service).length}`,
+          `Callbacks received: ${this._callbacksReceived}`
+        ];
+        if (platform === 'TELEGRAM') {
+          await this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
+        } else {
+          await this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
+        }
         return;
       }
-    }
 
-    let e: BotMachineEvent | undefined;
+      const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+      const accountLink = accountLinkDB.read(chatId);
+      let service = this._service[uniqId];
 
-    switch (type) {
-      case 'MESSAGE':
-        e = { type: 'ENTER_TEXT', text: body };
-        break;
-
-      case 'ACTION': {
-        if (body.slice(0, 1) === '{') {
-          e = { ...JSON.parse(body), update };
+      if (!this._accountLanguage[uniqId]) {
+        if (accountLink?.language) {
+          this._accountLanguage[uniqId] = accountLink.language;
         } else {
-          e = { type: 'MENU_COMMAND', command: body };
+          this._accountLanguage[uniqId] = language;
         }
-        break;
       }
 
-      default:
-        e = undefined;
-    }
+      const createNewService = (forceMainMenu = true) => {
+        const res = this.createService(platform, chatId);
 
-    if (e) {
-      service.send(e);
+        if (accountLink) {
+          const { customerId, employeeId, } = accountLink;
+          res.send({
+            type: 'MAIN_MENU',
+            platform,
+            chatId,
+            customerId,
+            employeeId,
+            forceMainMenu,
+            semaphore: new Semaphore(`chatId: ${chatId}`)
+          });
+        } else {
+          res.send({
+            type: 'START',
+            platform,
+            chatId,
+            semaphore: new Semaphore(`chatId: ${chatId}`)
+          });
+        }
 
-      let childrenStateChanged = false;
+        return res;
+      }
 
-      for (const [_key, ch] of service.children) {
-        if (ch.state.changed) {
-          childrenStateChanged = true;
+      /**
+       * При переходе из состояния в состояние могут сработать
+       * actions, которые внутри могут вызвать длительные асинхронные
+       * операции. Мы подождем пока такие операции не завершатся.
+       */
+      if (service) {
+        const { semaphore } = service.state.context;
+        if (semaphore && !semaphore.permits) {
+          await semaphore?.acquire();
+          semaphore?.release();
+        }
+      }
+
+      if (body === '/start' || service?.state.done) {
+        await this._logger.debug(chatId, undefined, '/start or done');
+        createNewService(true);
+        return;
+      }
+
+      if (!service) {
+        await this._logger.debug(chatId, undefined, 'no service');
+        service = createNewService(false);
+
+        if (!accountLink) {
+          return;
+        }
+      }
+
+      let e: BotMachineEvent | undefined;
+
+      switch (type) {
+        case 'MESSAGE':
+          e = { type: 'ENTER_TEXT', text: body };
+          break;
+
+        case 'ACTION': {
+          if (body.slice(0, 1) === '{') {
+            e = { ...JSON.parse(body), update };
+          } else {
+            e = { type: 'MENU_COMMAND', command: body };
+          }
           break;
         }
+
+        default:
+          e = undefined;
       }
 
-      if (!service.state.changed && !childrenStateChanged) {
-        // мы каким-то образом попали в ситуацию, когда текущее состояние не
-        // может принять вводимую информацию. например, пользователь
-        // очистил чат или произошел сбой на стороне мессенджера и
-        // то, что видит пользователь отличается от внутреннего состояния
-        // машины
+      if (e) {
+        service.send(e);
 
-        if (platform === 'TELEGRAM') {
-          await this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
-        } else {
-          await this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
+        let childrenStateChanged = false;
+
+        for (const [_key, ch] of service.children) {
+          if (ch.state.changed) {
+            childrenStateChanged = true;
+            break;
+          }
         }
 
-        createNewService(true);
+        if (!service.state.changed && !childrenStateChanged) {
+          // мы каким-то образом попали в ситуацию, когда текущее состояние не
+          // может принять вводимую информацию. например, пользователь
+          // очистил чат или произошел сбой на стороне мессенджера и
+          // то, что видит пользователь отличается от внутреннего состояния
+          // машины
+
+          const { semaphore } = service.state.context;
+
+          await semaphore?.acquire();
+          try {
+            if (platform === 'TELEGRAM') {
+              await this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
+            } else {
+              await this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
+            }
+          } finally {
+            semaphore?.release();
+          }
+
+          await this._logger.debug(chatId, undefined, 'we are lost');
+          createNewService(true);
+        }
       }
+    }
+    finally {
+      updateSemaphore.release();
     }
   }
 
@@ -1998,7 +2034,8 @@ export class Bot {
 
         const d: IDate = {year: lastPayslipDE.getFullYear(), month: lastPayslipDE.getMonth()};
         const text = await this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', platform, d, d);
-        await reply(text, keyboardMenu)({ chatId, semaphore: new Semaphore() });
+        //FIXME: лимит -- не более 30 сообщений в разные чаты в секунду!
+        await reply(text, keyboardMenu)({ chatId, semaphore: new Semaphore(`Temp for auto send payslip. employeeId: ${employeeId}`) });
       }
     }
 
