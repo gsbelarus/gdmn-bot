@@ -670,7 +670,6 @@ export class Bot {
         const keyboard = menu && this._menu2ViberMenu(menu, language);
 
         await semaphore.acquire();
-
         try {
           const t = await s;
           let text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
