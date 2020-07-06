@@ -11,7 +11,7 @@ import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { Logger, ILogger } from "./log";
-import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getDepartmentFN, getScheduleFN } from "./files";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getScheduleFN } from "./files";
 import { hashELF64 } from "./hashELF64";
 import { v4 as uuidv4 } from 'uuid';
 import { hourTypes } from "./constants";
@@ -364,6 +364,10 @@ export class Bot {
       }
     };
 
+    /**
+     * Вывести сообщение по нажатию на меню Курсы валют
+     * @param reply
+     */
     const getShowCurrencyRatesForMonthFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
       const { currencyDate, currencyId, semaphore, chatId } = ctx;
 
@@ -399,6 +403,10 @@ export class Bot {
       }
     };
 
+    /**
+     * Вывести сообщение по нажатию на меню Табель
+     * @param reply
+     */
     const getShowTableFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
       const { accountLink, platform, ...rest } = checkAccountLink(ctx);
       const { tableDate } = ctx;
@@ -415,64 +423,74 @@ export class Bot {
           )
         );
 
-      const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log, {}, timeSheetRestorer)
-        .read(employeeId);
+      try {
+        const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log, {}, timeSheetRestorer)
+          .read(employeeId);
 
-      if (!timeSheet) {
-        await reply(getLocString(stringResources.noData, lng))(rest);
-      } else {
-        const table = timeSheet.data.filter(
-          ({ d }) => d.getFullYear() === tableDate.year && d.getMonth() === tableDate.month
-        );
-
-        const formatList = table
-          .sort(
-            (a, b) => a.d.getTime() - b.d.getTime()
-          )
-          .map(
-            ({ d, h, t}) =>
-              `${d.getDate()}, ${d.toLocaleString(lng, {weekday: 'short'})}${t ? ' ' + getLocString(hourTypes[t], lng) : ''}${h ? ' ' + h : ''}${d.getDay() ? '': '\n   ***'}`
-          )
-          .join('\n');
-
-        if (formatList) {
-          await reply(`${getLocString(stringResources.tableTitle, lng, tableDate)}${formatList}`)(rest);
-        } else {
+        if (!timeSheet) {
           await reply(getLocString(stringResources.noData, lng))(rest);
+        } else {
+          const table = timeSheet.data.filter(
+            ({ d }) => d.getFullYear() === tableDate.year && d.getMonth() === tableDate.month
+          );
+
+          const formatList = table
+            .sort(
+              (a, b) => a.d.getTime() - b.d.getTime()
+            )
+            .map(
+              ({ d, h, t}) =>
+                `${d.getDate().toString().padStart(2, '0')}, ${d.toLocaleString(lng, {weekday: 'short'})},${t ? ' ' + getLocString(hourTypes[t], lng) : ''}${h ? ' ' + h : ''}${d.getDay() ? '': '\n   ***'}`
+            )
+            .join('\n');
+
+          const text = '^FIXED\n' + (formatList ? `${getLocString(stringResources.tableTitle, lng, tableDate)}${formatList}` : getLocString(stringResources.noData, lng));
+
+          await reply(text)(rest);
         }
+      } catch(e) {
+        await this._logger.error(ctx.chatId, undefined, e);
+        await reply(`${getLocString(stringResources.noData, lng)} Period: ${tableDate.month}.${tableDate.month}.`)(rest);
       }
     };
 
+    /**
+     * Вывести сообщение по нажатию на меню График
+     * @param reply
+     */
     const getShowScheduleFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
       const { accountLink, platform, ...rest } = checkAccountLink(ctx);
       const { scheduleDate } = ctx;
       const { customerId, employeeId, language } = accountLink;
       const lng = language ?? 'ru';
 
-      const schedule = this._getSchedule(customerId, employeeId, new Date(scheduleDate.year, scheduleDate.month + 1, 0));
+      try {
+        const schedule = this._getSchedule(customerId, employeeId, new Date(scheduleDate.year, scheduleDate.month + 1, 0));
 
-      if (!schedule) {
-        await reply(getLocString(stringResources.noData, lng))(rest);
-      } else {
-        const table = schedule.data.filter(
-          ({ d }) => d.getFullYear() === scheduleDate.year && d.getMonth() === scheduleDate.month
-        );
-
-        const formatList = table
-          .sort(
-            (a, b) => a.d.getTime() - b.d.getTime()
-          )
-          .map(
-            ({ d, h, t}) =>
-              `${d.getDate()}, ${d.toLocaleString(lng, {weekday: 'short'})}${t === 0 ? '' : ' ' + getLocString(hourTypes[t], lng)}${h === 0 ? '' : ' ' + h}${d.getDay() === 0 ? '\n   ***' : ''}`
-          )
-          .join('\n');
-
-        if (formatList) {
-          await reply(`${getLocString(stringResources.scheduleTitle, lng, scheduleDate)}${getLName(schedule.name, [lng])}\n${formatList}`)(rest);
-        } else {
+        if (!schedule) {
           await reply(getLocString(stringResources.noData, lng))(rest);
+        } else {
+          const sheduleData = schedule.data.filter(
+            ({ d }) => d.getFullYear() === scheduleDate.year && d.getMonth() === scheduleDate.month
+          );
+
+          const formatList = sheduleData
+            .sort(
+              (a, b) => a.d.getTime() - b.d.getTime()
+            )
+            .map(
+              ({ d, h, t}) =>
+                `${d.getDate().toString().padStart(2, '0')}, ${d.toLocaleString(lng, {weekday: 'short'})},${t === 0 ? '' : ' ' + getLocString(hourTypes[t], lng)}${h === 0 ? '' : ' ' + h}${d.getDay() === 0 ? '\n   ***' : ''}`
+            )
+            .join('\n');
+
+          const text = '^FIXED\n' + (formatList ? `${getLocString(stringResources.scheduleTitle, lng, scheduleDate)}${getLName(schedule.name, [lng])}\n${formatList}` : getLocString(stringResources.noData, lng));
+
+          await reply(text)(rest);
         }
+      } catch(e) {
+        await this._logger.error(ctx.chatId, undefined, e);
+        await reply(`${getLocString(stringResources.noData, lng)} Period: ${scheduleDate.month}.${scheduleDate.month}.`)(rest);
       }
     };
 
@@ -889,6 +907,12 @@ export class Bot {
     return schedules;
   }
 
+  /**
+   * Получить график рабочего времени по сотруднику за месяц
+   * @param customerId
+   * @param employeeId
+   * @param de
+   */
   private _getSchedule(customerId: string, employeeId: string, de: Date) {
     const schedules = this._getSchedules(customerId);
     const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
@@ -899,13 +923,12 @@ export class Bot {
     }
 
     // График получаем из массива графиков schedule,
-    // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
+    // как первый элемент с максимальной датой, но меньший даты окончания запрашиваемоего периода
 
     if (!payslip.schedule.length) {
       const msg = `Missing schedules arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
       this._log.error(msg);
       return undefined;
-      //throw new Error(msg);
     }
 
     let scheduleId = payslip.schedule[0].id;

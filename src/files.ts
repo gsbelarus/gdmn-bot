@@ -12,7 +12,6 @@ export const getPayslipFN = (customerId: string, employeeId: string) => path.res
 export const getAccDedFN = (customerId: string) => path.resolve(process.cwd(), `data/payslip/${customerId}/accdedref.json`);
 export const getEmployeeFN = (customerId: string) => path.resolve(process.cwd(), `data/payslip/${customerId}/employee.json`);
 export const getTimeSheetFN = (customerId: string, employeeId: string) => path.resolve(process.cwd(), `data/timesheet/${customerId}/${employeeId}.json`);
-export const getDepartmentFN = (customerId: string) => path.resolve(process.cwd(), `data/timesheet/${customerId}/departments.json`);
 export const getScheduleFN = (customerId: string) => path.resolve(process.cwd(), `data/timesheet/${customerId}/schedules.json`);
 
 /*
