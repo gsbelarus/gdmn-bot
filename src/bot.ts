@@ -100,6 +100,8 @@ export class Bot {
   private _replyTelegram: ReplyFunc;
   private _replyViber?: ReplyFunc;
   private _updateSemaphore: { [id: string]: Semaphore } = {};
+  private _viberSemaphore: Semaphore = new Semaphore('viber');
+  private _telegramSemaphore: Semaphore = new Semaphore('telegram');
 
   constructor(telegramToken: string, viberToken: string, logger: Logger) {
     this._logger = logger;
@@ -174,7 +176,12 @@ export class Bot {
         const accountLink = this._telegramAccountLink.read(chatId);
 
         if (!accountLink) {
-          await this._telegram.telegram.sendMessage(chatId, text ?? '<<Empty message>>', extra);
+          await this._telegramSemaphore.acquire();
+          try {
+            await this._telegram.telegram.sendMessage(chatId, text ?? '<<Empty message>>', extra);
+          } finally {
+            this._telegramSemaphore.release();
+          }
           return;
         }
 
@@ -192,34 +199,39 @@ export class Bot {
           }
         };
 
-        if (lastMenuId) {
-          if (text && keyboard) {
-            await editMessageReplyMarkup(true);
-            //await pause(1000);
-            const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
-            this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
+        await this._telegramSemaphore.acquire();
+        try {
+          if (lastMenuId) {
+            if (text && keyboard) {
+              await editMessageReplyMarkup(true);
+              //await pause(1000);
+              const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
+              this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
+            }
+            else if (text && !keyboard) {
+              await editMessageReplyMarkup(true);
+              //await pause(1000);
+              await this._telegram.telegram.sendMessage(chatId, text, extra);
+              this._telegramAccountLink.merge(chatId, {}, ['lastMenuId']);
+            }
+            else if (!text && keyboard) {
+              await editMessageReplyMarkup();
+            }
+          } else {
+            if (text && keyboard) {
+              const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
+              this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
+            }
+            else if (text && !keyboard) {
+              await this._telegram.telegram.sendMessage(chatId, text, extra);
+            }
+            else if (!text && keyboard) {
+              const message = await this._telegram.telegram.sendMessage(chatId, '<<<Empty message>>>', extra);
+              this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
+            }
           }
-          else if (text && !keyboard) {
-            await editMessageReplyMarkup(true);
-            //await pause(1000);
-            await this._telegram.telegram.sendMessage(chatId, text, extra);
-            this._telegramAccountLink.merge(chatId, {}, ['lastMenuId']);
-          }
-          else if (!text && keyboard) {
-            await editMessageReplyMarkup();
-          }
-        } else {
-          if (text && keyboard) {
-            const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
-            this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
-          }
-          else if (text && !keyboard) {
-            await this._telegram.telegram.sendMessage(chatId, text, extra);
-          }
-          else if (!text && keyboard) {
-            const message = await this._telegram.telegram.sendMessage(chatId, '<<<Empty message>>>', extra);
-            this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
-          }
+        } finally {
+          this._telegramSemaphore.release();
         }
       } catch (e) {
         // TODO: где-то здесь отловится ошибка, если чат был пользователем удален
@@ -678,13 +690,18 @@ export class Bot {
             text = text.slice(7);
           }
 
-          if (keyboard) {
-            const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
-            if (!Array.isArray(res)) {
-              this._logger.warn(chatId, undefined, JSON.stringify(res));
+          await this._viberSemaphore.acquire();
+          try {
+            if (keyboard) {
+              const res = await this._viber.sendMessage({ id: chatId }, [new TextMessage(text), new KeyboardMessage(keyboard)]);
+              if (!Array.isArray(res)) {
+                this._logger.warn(chatId, undefined, JSON.stringify(res));
+              }
+            } else {
+              await this._viber.sendMessage({ id: chatId }, [new TextMessage(text)]);
             }
-          } else {
-            await this._viber.sendMessage({ id: chatId }, [new TextMessage(text)]);
+          } finally {
+            this._viberSemaphore.release();
           }
         } catch (e) {
           this._logger.error(chatId, undefined, e);
@@ -1572,9 +1589,19 @@ export class Bot {
           `Callbacks received: ${this._callbacksReceived}`
         ];
         if (platform === 'TELEGRAM') {
-          await this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
+          await this._telegramSemaphore.acquire();
+          try {
+            await this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
+          } finally {
+            this._telegramSemaphore.release();
+          }
         } else {
-          await this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
+          await this._viberSemaphore.acquire();
+          try {
+            await this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
+          } finally {
+            this._viberSemaphore.release();
+          }
         }
         return;
       }
@@ -1689,9 +1716,19 @@ export class Bot {
           await semaphore?.acquire();
           try {
             if (platform === 'TELEGRAM') {
-              await this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
+              await this._telegramSemaphore.acquire();
+              try {
+                await this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
+              } finally {
+                this._telegramSemaphore.release();
+              }
             } else {
-              await this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
+              await this._viberSemaphore.acquire();
+              try {
+                await this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
+              } finally {
+                this._viberSemaphore.release();
+              }
             }
           } finally {
             semaphore?.release();
