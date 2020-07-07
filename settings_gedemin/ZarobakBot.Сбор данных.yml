@@ -5,10 +5,10 @@ Properties:
   RUID: 158513268_1444931844
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.32"
+  Version: "1.0.0.33"
   Optional: False
   Internal: True
-  MD5: E0A797032E1F233F1178D4ECF0E2FD65
+  MD5: 0CDA66996343935982217E0DE09361C4
 Objects: 
   - 
     Properties: 
@@ -1011,7 +1011,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-06T13:30:56+03:00
+      MODIFYDATE: 2020-07-06T19:54:50+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -1020,7 +1020,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-06T13:30:55+03:00
+      EDITIONDATE: 2020-07-06T19:54:49+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPARETIMESHEETS
         BOT_PREPARETIMESHEET_ROLLBACK
@@ -1267,10 +1267,10 @@ Objects:
             " " & _
             "          IF (WHOUR IS NULL) THEN WHOUR = 0; " & _
             " " & _
-            "          Str = " & _
-            "            '{""d"":""' || DJSON || '""' || " & _
-            "            ',""h"":'||:WHOUR || " & _
-            "            ',""t"":' || :ISWORKDAY || '}'; " & _
+            "          Str = '{""d"":""' || DJSON || '""'; " & _
+            "          IF (:WHOUR <> 0) THEN Str = Str || ',""h"":' || :WHOUR; " & _
+            "          IF (:ISWORKDAY <> 0) THEN Str = Str || ',""t"":' || :ISWORKDAY; " & _
+            "          Str = Str || '}'; " & _
             " " & _
             "          SUSPEND; " & _
             "      END " & _
@@ -1365,10 +1365,10 @@ Objects:
             " " & _
             "          IF (WHOUR IS NULL) THEN WHOUR = 0; " & _
             " " & _
-            "          Str = " & _
-            "            '{""d"":""' || DJSON || '""' || " & _
-            "            ',""h"":'||:WHOUR || " & _
-            "            ',""t"":' || :ISWORKDAY || '}'; " & _
+            "          Str = '{""d"":""' || DJSON || '""'; " & _
+            "          IF (:WHOUR <> 0) THEN Str = Str || ',""h"":' || :WHOUR; " & _
+            "          IF (:ISWORKDAY <> 0) THEN Str = Str || ',""t"":' || :ISWORKDAY; " & _
+            "          Str = Str || '}'; " & _
             " " & _
             "          SUSPEND; " & _
             "        END " & _
