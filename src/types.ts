@@ -79,8 +79,8 @@ export interface IScheduleData {
   name: LName;
   data: {
     d: Date;
-    t: number;
-    h: number;
+    t?: number;
+    h?: number;
   }[];
 };
 

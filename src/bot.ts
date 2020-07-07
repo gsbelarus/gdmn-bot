@@ -502,7 +502,7 @@ export class Bot {
             )
             .map(
               ({ d, h, t}) =>
-                `${d.getDate().toString().padStart(2, '0')}, ${d.toLocaleString(lng, {weekday: 'short'})},${t === 0 ? '' : ' ' + getLocString(hourTypes[t], lng)}${h === 0 ? '' : ' ' + h}${d.getDay() === 0 ? '\n   ***' : ''}`
+                `${d.getDate().toString().padStart(2, '0')}, ${d.toLocaleString(lng, {weekday: 'short'})},${t ? ' ' + getLocString(hourTypes[t], lng) : ''}${h ? ' ' + h : ''}${d.getDay() === 0 ? '\n   ***' : ''}`
             )
             .join('\n');
 
@@ -1921,7 +1921,7 @@ export class Bot {
       // что уже есть на диске
       const newTimeSheetData =  {
         ...prevTimeSheetData,
-        data: [...prevTimeSheetData.data]
+        data: prevTimeSheetData.data.map(ts => ({...ts, d: new Date(ts.d)}))
       };
 
       // объединяем табеля

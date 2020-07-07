@@ -5,10 +5,10 @@ Properties:
   RUID: 158513268_1444931844
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.34"
+  Version: "1.0.0.35"
   Optional: False
   Internal: True
-  MD5: 2AED26D04026D23F914235CD488C2C33
+  MD5: CFA2CDD72A8F01864CB2EDC9C4AB3C40
 Objects: 
   - 
     Properties: 
@@ -1444,7 +1444,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-07T12:04:28+03:00
+      MODIFYDATE: 2020-07-07T14:00:44+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -1453,7 +1453,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-07T12:04:27+03:00
+      EDITIONDATE: 2020-07-07T14:00:44+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPARESCHEDULES
         BOT_PREPARESCHEDULES_ROLLBACK
@@ -1484,7 +1484,7 @@ Objects:
             "SELECT c.NAME, " & _
             "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12))  AS ID, " & _
             "  '{""d"":""' || EXTRACT(YEAR FROM d.THEDAY) || '.' || RIGHT('0' || EXTRACT(MONTH FROM d.THEDAY), 2) || '.' || RIGHT('0' || EXTRACT(DAY FROM d.THEDAY), 2) " & _
-            "  || '"",""t"":' || IIF(d.WORKDAY = 1, 0, 3) || ',""h"":' || CAST(d.WDURATION AS NUMERIC(15, 4)) || '}' as str " & _
+            "  || '""' || IIF(d.WORKDAY <> 1, ',""t"":3', '') || IIF(d.WDURATION <> 0, ',""h"":' || CAST(d.WDURATION AS NUMERIC(15, 4)), '') || '}' as str " & _
             "FROM WG_TBLCAL c " & _
             "  LEFT JOIN WG_TBLCALDAY d ON d.TBLCALKEY = c.ID " & _
             "  LEFT JOIN GD_P_GETRUID(c.ID) r ON 1 = 1 " & _
