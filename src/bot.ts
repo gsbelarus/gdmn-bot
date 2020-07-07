@@ -1,5 +1,5 @@
 import { FileDB, IData } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, ITimeSheet } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, ITimeSheet, IScheduleData, ITimeSheetJSON } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
@@ -11,7 +11,7 @@ import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { Logger, ILogger } from "./log";
-import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN } from "./files";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getScheduleFN } from "./files";
 import { hashELF64 } from "./hashELF64";
 import { v4 as uuidv4 } from 'uuid';
 import { hourTypes } from "./constants";
@@ -73,6 +73,26 @@ const getItemTemplate = (dataItem: IPayslipItem[], lng: Language): Template => d
   .sort( (a, b) => a.n - b.n )
   .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) + ' ' : ''}: `, i.s]);
 
+const scheduleRestorer = (data: IData<Omit<IScheduleData, 'id'>>): IData<Omit<IScheduleData, 'id'>> =>
+  Object.fromEntries(
+    Object.entries(data)
+      .map(
+        ([key, schedule]) => [key, {
+        ...schedule,
+        data: schedule.data.map( i => ({...i, d: new Date(i.d)}) )}]
+    )
+  );
+
+  const timeSheetRestorer = (data: IData<ITimeSheet>): IData<ITimeSheet> =>
+    Object.fromEntries(
+      Object.entries(data)
+        .map(
+          ([key, timesheet]) => [key, {
+          ...timesheet,
+          data: timesheet.data.map( i => ({...i, d: new Date(i.d)}) )}]
+      )
+    );
+
 type ReplyFunc = (s: ILocString | string | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
 
 export class Bot {
@@ -84,10 +104,11 @@ export class Bot {
   private _telegramCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
   private _telegramMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
+  private _schedules: { [customerId: string]: FileDB<Omit<IScheduleData, 'id'>> } = {};
   private _announcements: FileDB<Omit<IAnnouncement, 'id'>>;
   private _botStarted = new Date();
   private _callbacksReceived = 0;
-  /**
+   /**
    * справочники начислений/удержаний для каждого клиента.
    * ключем объекта выступает РУИД записи из базы Гедымина.
   */
@@ -375,6 +396,10 @@ export class Bot {
       }
     };
 
+    /**
+     * Вывести сообщение по нажатию на меню Курсы валют
+     * @param reply
+     */
     const getShowCurrencyRatesForMonthFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
       const { currencyDate, currencyId, semaphore, chatId } = ctx;
 
@@ -410,47 +435,84 @@ export class Bot {
       }
     };
 
+    /**
+     * Вывести сообщение по нажатию на меню Табель
+     * @param reply
+     */
     const getShowTableFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
       const { accountLink, platform, ...rest } = checkAccountLink(ctx);
       const { tableDate } = ctx;
       const { customerId, employeeId, language } = accountLink;
       const lng = language ?? 'ru';
 
-      const timeSheetRestorer = (data: IData<ITimeSheet>): IData<ITimeSheet> =>
-        Object.fromEntries(
-          Object.entries(data)
-            .map(
-              ([key, timesheet]) => [key, {
-              ...timesheet,
-              data: timesheet.data.map( i => ({...i, d: new Date(i.d)}) )}]
-          )
-        );
+      try {
+        const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log, {}, timeSheetRestorer)
+          .read(employeeId);
 
-      const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log, {}, timeSheetRestorer)
-        .read(employeeId);
-
-      if (!timeSheet) {
-        await reply(getLocString(stringResources.noData, lng))(rest);
-      } else {
-        const table = timeSheet.data.filter(
-          ({ d }) => d.getFullYear() === tableDate.year && d.getMonth() === tableDate.month
-        );
-
-        const formatList = table
-          .sort(
-            (a, b) => a.d.getTime() - b.d.getTime()
-          )
-          .map(
-            ({ d, h, t}) =>
-              `${d.getDate()}, ${d.toLocaleString(lng, {weekday: 'short'})}${t ? ' ' + getLocString(hourTypes[t], lng) : ''}${h ? ' ' + h : ''}${d.getDay() ? '': '\n   ***'}`
-          )
-          .join('\n');
-
-        if (formatList) {
-          await reply(`${getLocString(stringResources.tableTitle, lng, tableDate)}${formatList}`)(rest);
-        } else {
+        if (!timeSheet) {
           await reply(getLocString(stringResources.noData, lng))(rest);
+        } else {
+          const table = timeSheet.data.filter(
+            ({ d }) => d.getFullYear() === tableDate.year && d.getMonth() === tableDate.month
+          );
+
+          const formatList = table
+            .sort(
+              (a, b) => a.d.getTime() - b.d.getTime()
+            )
+            .map(
+              ({ d, h, t}) =>
+                `${d.getDate().toString().padStart(2, '0')}, ${d.toLocaleString(lng, {weekday: 'short'})},${t ? ' ' + getLocString(hourTypes[t], lng) : ''}${h ? ' ' + h : ''}${d.getDay() ? '': '\n   ***'}`
+            )
+            .join('\n');
+
+          const text = '^FIXED\n' + (formatList ? `${getLocString(stringResources.tableTitle, lng, tableDate)}${formatList}` : getLocString(stringResources.noData, lng));
+
+          await reply(text)(rest);
         }
+      } catch(e) {
+        await this._logger.error(ctx.chatId, undefined, e);
+        await reply(`${getLocString(stringResources.noData, lng)} Period: ${tableDate.month}.${tableDate.month}.`)(rest);
+      }
+    };
+
+    /**
+     * Вывести сообщение по нажатию на меню График
+     * @param reply
+     */
+    const getShowScheduleFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+      const { accountLink, platform, ...rest } = checkAccountLink(ctx);
+      const { scheduleDate } = ctx;
+      const { customerId, employeeId, language } = accountLink;
+      const lng = language ?? 'ru';
+
+      try {
+        const schedule = this._getSchedule(customerId, employeeId, new Date(scheduleDate.year, scheduleDate.month + 1, 0));
+
+        if (!schedule) {
+          await reply(getLocString(stringResources.noData, lng))(rest);
+        } else {
+          const sheduleData = schedule.data.filter(
+            ({ d }) => d.getFullYear() === scheduleDate.year && d.getMonth() === scheduleDate.month
+          );
+
+          const formatList = sheduleData
+            .sort(
+              (a, b) => a.d.getTime() - b.d.getTime()
+            )
+            .map(
+              ({ d, h, t}) =>
+                `${d.getDate().toString().padStart(2, '0')}, ${d.toLocaleString(lng, {weekday: 'short'})},${t === 0 ? '' : ' ' + getLocString(hourTypes[t], lng)}${h === 0 ? '' : ' ' + h}${d.getDay() === 0 ? '\n   ***' : ''}`
+            )
+            .join('\n');
+
+          const text = '^FIXED\n' + (formatList ? `${getLocString(stringResources.scheduleTitle, lng, scheduleDate)}${getLName(schedule.name, [lng])}\n${formatList}` : getLocString(stringResources.noData, lng));
+
+          await reply(text)(rest);
+        }
+      } catch(e) {
+        await this._logger.error(ctx.chatId, undefined, e);
+        await reply(`${getLocString(stringResources.noData, lng)} Period: ${scheduleDate.month}.${scheduleDate.month}.`)(rest);
       }
     };
 
@@ -498,12 +560,13 @@ export class Bot {
             if (payslip?.dept.length) {
               const { dept } = payslip;
 
-              let lastDate = dept[0].d;
+              let lastDate = str2Date(dept[0].d);
               let lastId = dept[0].id;
 
               for (const { d, id } of dept) {
-                if (isGr(d, lastDate)) {
-                  lastDate = d;
+                const date = str2Date(d);
+                if (isGr(date, lastDate)) {
+                  lastDate = date;
                   lastId = id;
                 }
               }
@@ -528,6 +591,7 @@ export class Bot {
         showPayslipForPeriod: getShowPayslipFunc('DETAIL', reply),
         showComparePayslip: getShowPayslipFunc('COMPARE', reply),
         showTable: getShowTableFunc(reply),
+        showSchedule: getShowScheduleFunc(reply),
         showSettings: ctx => {
           const { accountLink, ...rest } = checkAccountLink(ctx);
           const { customerId, employeeId } = ctx;
@@ -846,6 +910,58 @@ export class Bot {
     return employees && employees.read(employeeId);
   }
 
+  private _getSchedules(customerId: string) {
+    let schedules = this._schedules[customerId];
+
+    if (!schedules) {
+      const db = new FileDB<Omit<IScheduleData, 'id'>>(getScheduleFN(customerId), this._log, {}, scheduleRestorer);
+      if (!db.isEmpty()) {
+        this._schedules[customerId] = db;
+        return db;
+      }
+    }
+
+    return schedules;
+  }
+
+  /**
+   * Получить график рабочего времени по сотруднику за месяц
+   * @param customerId
+   * @param employeeId
+   * @param de
+   */
+  private _getSchedule(customerId: string, employeeId: string, de: Date) {
+    const schedules = this._getSchedules(customerId);
+    const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
+      .read(employeeId);
+
+    if (!payslip) {
+      return undefined;
+    }
+
+    // График получаем из массива графиков schedule,
+    // как первый элемент с максимальной датой, но меньший даты окончания запрашиваемоего периода
+
+    if (!payslip.schedule.length) {
+      const msg = `Missing schedules arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
+      this._log.error(msg);
+      return undefined;
+    }
+
+    let scheduleId = payslip.schedule[0].id;
+    let maxDate = str2Date(payslip.schedule[0].d);
+
+    for (const schedule of payslip.schedule) {
+      const scheduleD = str2Date(schedule.d);
+      if (isGr(scheduleD, maxDate) && isLs(scheduleD, de)) {
+        scheduleId = schedule.id;
+        maxDate = scheduleD;
+      }
+    }
+
+    return schedules && schedules.read(scheduleId);
+  }
+
   private _findCompany = (_: any, event: BotMachineEvent) => {
     if (isEnterTextEvent(event)) {
       const customersDB = new FileDB<Omit<ICustomer, 'id'>>(getCustomersFN(), this._log);
@@ -926,16 +1042,16 @@ export class Bot {
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
     // Аналогично с должностью из массива pos
 
-    if (!payslip.dept.length || !payslip.pos.length || !payslip.payForm.length || !payslip.salary.length) {
+    if (!payslip.schedule.length || !payslip.pos.length || !payslip.payForm.length || !payslip.salary.length) {
       const msg = `Missing departments, positions, payforms or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
       this._log.error(msg);
       throw new Error(msg);
     }
 
-    let department = payslip.dept[0].name;
-    let maxDate = str2Date(payslip.dept[0].d);
+    let department = payslip.schedule[0].name;
+    let maxDate = str2Date(payslip.schedule[0].d);
 
-    for (const dept of payslip.dept) {
+    for (const dept of payslip.schedule) {
       const deptD = str2Date(dept.d);
       if (isGr(deptD, maxDate) && isLs(deptD, de)) {
         department = dept.name;
@@ -1491,6 +1607,10 @@ export class Bot {
     this._telegramAccountLink.flush();
     this._viberAccountLink.flush();
     this._announcements.flush();
+
+    for (const s of Object.values(this._schedules)) {
+      s.flush();
+    }
   }
 
   createService(inPlatform: Platform, inChatId: string) {
@@ -1782,7 +1902,7 @@ export class Bot {
     this._log.info(`Customer: ${customerId}. ${Object.keys(objData).length} employees have been uploaded.`);
   }
 
-  upload_timeSheets(customerId: string, objData: ITimeSheet, rewrite: boolean) {
+  upload_timeSheets(customerId: string, objData: ITimeSheetJSON, rewrite: boolean) {
     const employeeId = objData.emplId;
     const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log);
 
@@ -1795,7 +1915,7 @@ export class Bot {
     // если на диске не было файла или там было пусто, то
     // просто запишем данные, которые пришли из интернета
     if (!prevTimeSheetData) {
-      timeSheet.write(employeeId, objData);
+      timeSheet.write(employeeId, {...objData, data: objData.data.map( (i: any) => ({...i, d: new Date(i.d)}) )} );
     } else {
       // данные есть. надо объединить прибывшие данные с тем
       // что уже есть на диске
@@ -1804,19 +1924,39 @@ export class Bot {
         data: [...prevTimeSheetData.data]
       };
 
-      // объединяем начисления
-      for (const d of objData.data) {
-        const i = newTimeSheetData.data.findIndex( a => isEq(a.d, d.d) );
+      // объединяем табеля
+      for (const ts of objData.data) {
+        const date = new Date(ts.d);
+        const i = newTimeSheetData.data.findIndex( a => isEq(a.d, date) );
         if (i === -1) {
-          newTimeSheetData.data.push(d);
+          newTimeSheetData.data.push({...ts, d: date});
         } else {
-          newTimeSheetData.data[i] = d;
+          newTimeSheetData.data[i] = {...ts, d: date};
         }
       }
 
       timeSheet.write(employeeId, newTimeSheetData);
     }
     timeSheet.flush();
+  }
+
+  upload_schedules(customerId: string, objData: IScheduleData, rewrite: boolean) {
+   let schedule = this._schedules[customerId];
+
+    if (!schedule) {
+      schedule = new FileDB<Omit<IScheduleData, 'id'>>(getScheduleFN(customerId), this._log);
+      this._schedules[customerId] = schedule;
+    }
+
+    schedule.clear();
+
+    for (const [key, value] of Object.entries(objData)) {
+      schedule.write(key, {...value, data: value.data.map( (i: any) => ({...i, d: new Date(i.d)}) )} as any);
+    }
+
+    schedule.flush();
+
+    this._log.info(`Customer: ${customerId}. ${Object.keys(objData).length} schedules have been uploaded.`);
   }
 
   upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
@@ -1839,7 +1979,7 @@ export class Bot {
       const newPayslipData = {
         ...prevPayslipData,
         data: [...prevPayslipData.data],
-        dept: [...prevPayslipData.dept],
+        dept: [...prevPayslipData.schedule],
         pos: [...prevPayslipData.pos],
         salary: [...prevPayslipData.salary],
         payForm: [...prevPayslipData.payForm],
@@ -1857,7 +1997,7 @@ export class Bot {
       }
 
       // объединяем подразделения
-      for (const d of objData.dept) {
+      for (const d of objData.schedule) {
         const i = newPayslipData.dept.findIndex( a => a.id === d.id && isEq(a.d, d.d) );
         if (i === -1) {
           newPayslipData.dept.push(d);

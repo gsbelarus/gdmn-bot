@@ -128,7 +128,21 @@ router.post('/zarobak/v2/upload_timeSheets', (ctx, next) => {
   next();
 });
 
-app.on('error', (err, ctx) => log.error('koa server error', err, ctx) );
+router.post('/zarobak/v2/upload_schedules', (ctx, next) => {
+  try {
+    const { customerId, objData, rewrite } = ctx.request.body;
+    bot.upload_schedules(customerId, objData, rewrite);
+    ctx.status = 200;
+    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+  } catch(err) {
+    log.error(`Error in schedules uploading. ${err.message}`);
+    ctx.status = 500;
+    ctx.body = JSON.stringify({ status: 500, result: err.message });
+  }
+  return next();
+});
+
+app.on('error', (err, ctx) => log.error('koa server error', err, ctx));
 
 app
   .use(bodyParser({
