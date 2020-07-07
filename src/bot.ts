@@ -1921,7 +1921,7 @@ export class Bot {
       // что уже есть на диске
       const newTimeSheetData =  {
         ...prevTimeSheetData,
-        data: [...prevTimeSheetData.data]
+        data: prevTimeSheetData.data.map(ts => ({...toString, d: new Date(ts.d)}))
       };
 
       // объединяем табеля

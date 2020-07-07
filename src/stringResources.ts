@@ -338,7 +338,7 @@ export const stringResources = {
   tableTitle: {
     en: (date: IDate) => `Time sheet for ${new Date(date.year, date.month).toLocaleString('en-US', {month: 'long'})} ${date.year}:\n`,
     ru: (date: IDate) => `Табель рабочего времени за ${new Date(date.year, date.month).toLocaleString('ru', {month: 'long'})} ${date.year}:\n`,
-    be: (date: IDate) => `Табель рабочага часу за ${new Date(date.year, date.month).toLocaleString('be', {month: 'long'})} ${date.year}:\n`
+    be: (date: IDate) => `Табель працоўнага часу за ${new Date(date.year, date.month).toLocaleString('be', {month: 'long'})} ${date.year}:\n`
   } as ILocString,
   scheduleTitle: {
     en: (date: IDate) => `Work schedule for ${new Date(date.year, date.month).toLocaleString('en-US', {month: 'long'})} ${date.year}:\n`,
