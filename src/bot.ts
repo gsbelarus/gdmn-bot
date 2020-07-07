@@ -5,7 +5,7 @@ import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
-import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, pause } from "./util/utils";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, pause, validURL } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
@@ -1825,37 +1825,40 @@ export class Bot {
         }
 
         if (!service.state.changed && !childrenStateChanged) {
-          // мы каким-то образом попали в ситуацию, когда текущее состояние не
-          // может принять вводимую информацию. например, пользователь
-          // очистил чат или произошел сбой на стороне мессенджера и
-          // то, что видит пользователь отличается от внутреннего состояния
-          // машины
+          // в вайбере переход по ссылке приводит к посылке в чат самой ссылки
+          if (platform !== 'VIBER' || !validURL(body)) {
+            // мы каким-то образом попали в ситуацию, когда текущее состояние не
+            // может принять вводимую информацию. например, пользователь
+            // очистил чат или произошел сбой на стороне мессенджера и
+            // то, что видит пользователь отличается от внутреннего состояния
+            // машины
 
-          const { semaphore } = service.state.context;
+            const { semaphore } = service.state.context;
 
-          await semaphore?.acquire();
-          try {
-            if (platform === 'TELEGRAM') {
-              await this._telegramSemaphore.acquire();
-              try {
-                await this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
-              } finally {
-                this._telegramSemaphore.release();
+            await semaphore?.acquire();
+            try {
+              if (platform === 'TELEGRAM') {
+                await this._telegramSemaphore.acquire();
+                try {
+                  await this._telegram.telegram.sendMessage(chatId, getLocString(stringResources.weAreLost, language));
+                } finally {
+                  this._telegramSemaphore.release();
+                }
+              } else {
+                await this._viberSemaphore.acquire();
+                try {
+                  await this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
+                } finally {
+                  this._viberSemaphore.release();
+                }
               }
-            } else {
-              await this._viberSemaphore.acquire();
-              try {
-                await this._viber.sendMessage({ id: chatId }, [new TextMessage(getLocString(stringResources.weAreLost, language))]);
-              } finally {
-                this._viberSemaphore.release();
-              }
+            } finally {
+              semaphore?.release();
             }
-          } finally {
-            semaphore?.release();
-          }
 
-          await this._logger.debug(chatId, undefined, 'we are lost');
-          createNewService(true);
+            await this._logger.debug(chatId, undefined, 'we are lost');
+            createNewService(true);
+          }
         }
       }
     }
