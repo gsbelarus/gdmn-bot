@@ -1042,16 +1042,16 @@ export class Bot {
     // как первый элемент с максимальной датой, но меньший даты окончания расч. листка
     // Аналогично с должностью из массива pos
 
-    if (!payslip.schedule.length || !payslip.pos.length || !payslip.payForm.length || !payslip.salary.length) {
+    if (!payslip.dept.length || !payslip.pos.length || !payslip.payForm.length || !payslip.salary.length) {
       const msg = `Missing departments, positions, payforms or salary arrays in user data. cust: ${customerId}, empl: ${employeeId}`;
       this._log.error(msg);
       throw new Error(msg);
     }
 
-    let department = payslip.schedule[0].name;
-    let maxDate = str2Date(payslip.schedule[0].d);
+    let department = payslip.dept[0].name;
+    let maxDate = str2Date(payslip.dept[0].d);
 
-    for (const dept of payslip.schedule) {
+    for (const dept of payslip.dept) {
       const deptD = str2Date(dept.d);
       if (isGr(deptD, maxDate) && isLs(deptD, de)) {
         department = dept.name;
