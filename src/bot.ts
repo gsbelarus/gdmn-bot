@@ -1698,6 +1698,10 @@ export class Bot {
       //TODO: temporarily
       await this._logger.info(chatId, undefined, `${type} -- ${body}`);
 
+      const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
+      const accountLink = accountLinkDB.read(chatId);
+      let service = this._service[uniqId];
+
       if (body === 'diagnostics') {
         this.finalize();
         const data = [
@@ -1706,7 +1710,10 @@ export class Bot {
           'Memory usage:',
           JSON.stringify(process.memoryUsage(), undefined, 2),
           `Services are running: ${Object.values(this._service).length}`,
-          `Callbacks received: ${this._callbacksReceived}`
+          `Callbacks received: ${this._callbacksReceived}`,
+          `This chat id: ${chatId}`,
+          `Customer id: ${accountLink?.customerId}`,
+          `Employee id: ${accountLink?.employeeId}`
         ];
         if (platform === 'TELEGRAM') {
           await this._telegramSemaphore.acquire();
@@ -1725,10 +1732,6 @@ export class Bot {
         }
         return;
       }
-
-      const accountLinkDB = platform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
-      const accountLink = accountLinkDB.read(chatId);
-      let service = this._service[uniqId];
 
       if (!this._accountLanguage[uniqId]) {
         if (accountLink?.language) {
