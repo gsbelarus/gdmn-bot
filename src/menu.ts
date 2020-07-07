@@ -31,7 +31,7 @@ export const keyboardMenu: Menu = [
     { type: 'BUTTON', caption: stringResources.menuLogout, command: '.logout' }
   ],
   [
-    { type: 'LINK', caption: stringResources.menuHelp, url: 'http://gsbelarus.com' }
+    { type: 'LINK', caption: stringResources.menuHelp, url: 'http://gsbelarus.com/pw/front-page/solutions/android/chat-bot-moia-zarplata/' }
   ]
 ];
 
