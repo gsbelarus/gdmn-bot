@@ -1980,7 +1980,7 @@ export class Bot {
       const newPayslipData = {
         ...prevPayslipData,
         data: [...prevPayslipData.data],
-        dept: [...prevPayslipData.schedule],
+        dept: [...prevPayslipData.dept],
         pos: [...prevPayslipData.pos],
         salary: [...prevPayslipData.salary],
         payForm: [...prevPayslipData.payForm],
@@ -1998,7 +1998,7 @@ export class Bot {
       }
 
       // объединяем подразделения
-      for (const d of objData.schedule) {
+      for (const d of objData.dept) {
         const i = newPayslipData.dept.findIndex( a => a.id === d.id && isEq(a.d, d.d) );
         if (i === -1) {
           newPayslipData.dept.push(d);
