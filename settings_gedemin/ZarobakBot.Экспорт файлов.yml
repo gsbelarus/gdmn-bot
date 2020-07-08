@@ -5,10 +5,10 @@ Properties:
   RUID: 1193786287_1320926324
   Name: "ZarobakBot.Экспорт файлов"
   Caption: "ZarobakBot.Экспорт файлов"
-  Version: "1.0.0.40"
+  Version: "1.0.0.41"
   Optional: False
   Internal: True
-  MD5: FE42621F1E52B94D540F7B12A31B8946
+  MD5: B76D6C10D240F68366A74B49E9CEBEFF
 Uses: 
   - "148233742_349062642 Зарплата - исследователь"
   - "158513268_1444931844 ZarobakBot.Сбор данных"
@@ -318,7 +318,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-06T13:22:54+03:00
+      MODIFYDATE: 2020-07-08T13:47:49+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -327,7 +327,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-07-06T13:22:53+03:00
+      EDITIONDATE: 2020-07-08T13:47:48+03:00
       DISPLAYSCRIPT: | 
         BOT_EXPORTPAYSLIPS
         
@@ -341,7 +341,7 @@ Objects:
         '#include BOT_SENDFILE
         '#include BOT_PREPAREPAYSLIPS
         Function bot_exportPaySlips(Period, isRewrite)
-          dim customerArray, count
+          dim customerArray, count, URL
           'Получим параметры для отправки на сервер (ид базы и путь к серверу) из констант
           call bot_GetServerData(true, customerArray, URL)
           count = UBound(customerArray)
