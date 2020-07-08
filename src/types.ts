@@ -235,6 +235,7 @@ export interface IHourType {
   name: LName;
 };
 
+//TODO: используется?
 export type UserGroups = IUserGroup[];
 
 export interface IUsersByGroups {
