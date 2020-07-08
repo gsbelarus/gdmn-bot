@@ -1508,9 +1508,9 @@ export class Bot {
 
       return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
-          ? `${format2(t[0]).padStart(lCol)}${format2(t[1]).padStart(lCol)}${format2(t[2]).padStart(lCol)}`
+          ? type === 'COMPARE' ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}` : `${format2(t[0]).padStart(lCol)}${format2(t[1]).padStart(lCol)}${format2(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2
-          ? splitLong(`${translate(t[0])} ${format2(t[1]!)}`)
+          ? splitLong(`${translate(t[0])} ${type === 'COMPARE' ? format(t[1]!) : format2(t[1]!)}`)
           : t === '='
           ? '='.padEnd(fullWidth, '=')
           : translate(t!))
