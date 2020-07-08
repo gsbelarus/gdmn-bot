@@ -1330,7 +1330,8 @@ export class Bot {
       ? getLocString(s, lng)
       : s;
 
-    const format = new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format;
+    const format2 = new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format;
+    const format = new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format;
 
     const payslipView = (template: Template) => {
       /**
@@ -1425,9 +1426,9 @@ export class Bot {
 
       return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
-          ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}`
+          ? type === 'COMPARE' ?  `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}` : `${format2(t[0]).padStart(lCol)}${format2(t[1]).padStart(lCol)}${format2(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2
-          ? splitLong(`${translate(t[0]).padEnd(lLabel)}${format(t[1]!).padStart(lValue)}`)
+          ? splitLong(`${translate(t[0]).padEnd(lLabel)}${type === 'COMPARE' ? format(t[1]!).padStart(lValue) : format2(t[1]!).padStart(lValue)}`)
           : t === '='
           ? '='.padEnd(fullWidth, '=')
           : translate(t!))
@@ -1507,9 +1508,9 @@ export class Bot {
 
       return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
-          ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}`
+          ? `${format2(t[0]).padStart(lCol)}${format2(t[1]).padStart(lCol)}${format2(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2
-          ? splitLong(`${translate(t[0])} ${format(t[1]!)}`)
+          ? splitLong(`${translate(t[0])} ${format2(t[1]!)}`)
           : t === '='
           ? '='.padEnd(fullWidth, '=')
           : translate(t!))
@@ -1985,7 +1986,7 @@ export class Bot {
       const newPayslipData = {
         ...prevPayslipData,
         data: [...prevPayslipData.data],
-        dept: [...prevPayslipData.schedule],
+        dept: [...prevPayslipData.dept],
         pos: [...prevPayslipData.pos],
         salary: [...prevPayslipData.salary],
         payForm: [...prevPayslipData.payForm],
@@ -2003,7 +2004,7 @@ export class Bot {
       }
 
       // объединяем подразделения
-      for (const d of objData.schedule) {
+      for (const d of objData.dept) {
         const i = newPayslipData.dept.findIndex( a => a.id === d.id && isEq(a.d, d.d) );
         if (i === -1) {
           newPayslipData.dept.push(d);
