@@ -183,8 +183,7 @@ if (!ca) {
 const viberCallback = bot.viber?.middleware();
 
 https.createServer({ cert, ca, key },
-  viberCallback
-  /*
+  //viberCallback
   (req, res) => {
     if (req.headers['x-viber-content-signature']) {
       viberCallback?.(req, res);
@@ -192,7 +191,6 @@ https.createServer({ cert, ca, key },
       koaCallback(req, res);
     }
   }
-  */
 ).listen(config.httpsPort,
   async () => {
     if (config.viber.token && !config.viber.disabled) {
