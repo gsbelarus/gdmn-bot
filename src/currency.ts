@@ -43,15 +43,13 @@ export interface ICurrencyRates {
  * последующего использования.
  */
 export async function initCurrencies(log: ILogger) {
-  const fdb = new FileDB<ICurrency>(
-    getCurrenciesFN(),
-    log,
-    {},
-    undefined,
-    (data: IData<ICurrency>) => !Object.keys(data).length
+  const fdb = new FileDB<ICurrency>({
+    fn: getCurrenciesFN(),
+    logger: log,
+    check: (data: IData<ICurrency>) => !Object.keys(data).length
       || (typeof Object.values(data)[0].abbreviation === 'string' && typeof Object.values(data)[0].name === 'object'),
-    true
-  );
+    ignore: true
+  });
 
   if (fdb.isEmpty()) {
 
@@ -183,14 +181,12 @@ export const getCurrRate = async (forDate: IDate, currency: string, log: ILogger
 
   if (!ratesDB) {
     // загружаем курсы с диска
-    ratesDB = new FileDB<ICurrencyRates>(
-      getRatesFN(),
-      log,
-      {},
-      undefined,
-      (data: IData<ICurrencyRates>) => !Object.keys(data).length || typeof Object.values(data)[0] === 'object',
-      true
-    );
+    ratesDB = new FileDB<ICurrencyRates>({
+      fn: getRatesFN(),
+      logger: log,
+      check: (data: IData<ICurrencyRates>) => !Object.keys(data).length || typeof Object.values(data)[0] === 'object',
+      ignore: true
+    });
   }
 
   let date = new Date(forDate.year, forDate.month);
@@ -270,14 +266,12 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
 
   if (!ratesDB) {
     // загружаем курсы с диска
-    ratesDB = new FileDB<ICurrencyRates>(
-      getRatesFN(),
-      log,
-      {},
-      undefined,
-      (data: IData<ICurrencyRates>) => !Object.keys(data).length || typeof Object.values(data)[0] === 'object',
-      true
-    );
+    ratesDB = new FileDB<ICurrencyRates>({
+      fn: getRatesFN(),
+      logger: log,
+      check: (data: IData<ICurrencyRates>) => !Object.keys(data).length || typeof Object.values(data)[0] === 'object',
+      ignore: true
+    });
   }
 
   let rate: number | undefined = undefined;

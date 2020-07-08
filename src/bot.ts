@@ -5,16 +5,17 @@ import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
-import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, pause, validURL } from "./util/utils";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { Logger, ILogger } from "./log";
-import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getScheduleFN } from "./files";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getScheduleFN, getUserRightsFN } from "./files";
 import { hashELF64 } from "./hashELF64";
 import { v4 as uuidv4 } from 'uuid';
 import { hourTypes } from "./constants";
+import { UserRights } from "./security";
 
 const vb = require('viber-bot');
 const ViberBot = vb.Bot
@@ -73,6 +74,10 @@ const getItemTemplate = (dataItem: IPayslipItem[], lng: Language): Template => d
   .sort( (a, b) => a.n - b.n )
   .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) + ' ' : ''}${getLName(i.name, [lng]).substr(-1) === ')' ? ' ' : ''}: `, i.s]);
 
+//TODO: пробел (см выше) вставляется чтобы избежать грустного смайлика в вайбере
+// но, он может вылезти в любой другой строке
+// скорее всего надо переделать на анализ текста перед выводом в чат
+
 const scheduleRestorer = (data: IData<Omit<IScheduleData, 'id'>>): IData<Omit<IScheduleData, 'id'>> =>
   Object.fromEntries(
     Object.entries(data)
@@ -106,12 +111,20 @@ export class Bot {
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
   private _schedules: { [customerId: string]: FileDB<Omit<IScheduleData, 'id'>> } = {};
   private _announcements: FileDB<Omit<IAnnouncement, 'id'>>;
+  /**
+   * Все права доступа храним в одном файле, где ключ -- идентификатор
+   * предприятия. Права хранятся ввиде массива правил, задающих разрешения
+   * или запреты на уровне отдельных пользователей и/или групп пользователей.
+   *
+   * Специальный ключ '*' задает глобальные права, для всех предприятий.
+   */
+  private _userRights: FileDB<UserRights>;
   private _botStarted = new Date();
   private _callbacksReceived = 0;
-   /**
+  /**
    * справочники начислений/удержаний для каждого клиента.
    * ключем объекта выступает РУИД записи из базы Гедымина.
-  */
+   */
   private _customerAccDeds: { [customerID: string]: FileDB<IAccDed> } = {};
   private _viber: any = undefined;
   private _viberCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent> | undefined = undefined;
@@ -128,6 +141,8 @@ export class Bot {
     this._logger = logger;
     this._log = this._logger.getLogger();
 
+    this._userRights = new FileDB<UserRights>({ fn: getUserRightsFN(), logger: this._log, watch: true });
+
     const annRestorer = (data: IData<Omit<IAnnouncement, 'id'>>): IData<Omit<IAnnouncement, 'id'>> => Object.fromEntries(
       Object.entries(data).map(
         ([key, announcement]) => [key, {
@@ -137,7 +152,7 @@ export class Bot {
       )
     );
 
-    this._announcements = new FileDB<Omit<IAnnouncement, 'id'>>(getAnnouncementsFN(), this._log, {}, annRestorer);
+    this._announcements = new FileDB<Omit<IAnnouncement, 'id'>>({ fn: getAnnouncementsFN(), logger: this._log, restore: annRestorer });
 
     const ALRestorer = (data: IData<IAccountLink>): IData<IAccountLink> => Object.fromEntries(
       Object.entries(data).map(
@@ -149,8 +164,8 @@ export class Bot {
       )
     );
 
-    this._telegramAccountLink = new FileDB<IAccountLink>(getAccountLinkFN('TELEGRAM'), this._log, {}, ALRestorer);
-    this._viberAccountLink = new FileDB<IAccountLink>(getAccountLinkFN('VIBER'), this._log, {}, ALRestorer);
+    this._telegramAccountLink = new FileDB<IAccountLink>({ fn: getAccountLinkFN('TELEGRAM'), logger: this._log, restore: ALRestorer });
+    this._viberAccountLink = new FileDB<IAccountLink>({ fn: getAccountLinkFN('VIBER'), logger: this._log, restore: ALRestorer });
 
     /**************************************************************/
     /**************************************************************/
@@ -446,7 +461,7 @@ export class Bot {
       const lng = language ?? 'ru';
 
       try {
-        const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log, {}, timeSheetRestorer)
+        const timeSheet = new FileDB<ITimeSheet>({ fn: getTimeSheetFN(customerId, employeeId), logger: this._log, restore: timeSheetRestorer })
           .read(employeeId);
 
         if (!timeSheet) {
@@ -554,7 +569,7 @@ export class Bot {
           const { customerId, employeeId, announcement } = ctx;
 
           if (customerId && employeeId && announcement) {
-            const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
+            const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log })
               .read(employeeId);
 
             if (payslip?.dept.length) {
@@ -655,7 +670,7 @@ export class Bot {
           return false;
         },
         isProtected: ({ customerId }) => customerId
-          ? !!(new FileDB<Omit<ICustomer, 'id'>>(getCustomersFN(), this._log).read(customerId)?.protected)
+          ? !!(new FileDB<Omit<ICustomer, 'id'>>({ fn: getCustomersFN(), logger: this._log }).read(customerId)?.protected)
           : false
       }
     });
@@ -666,7 +681,7 @@ export class Bot {
     this._telegram = new Telegraf(telegramToken);
 
     this._telegram.start(
-      (ctx, next) => {
+      (ctx) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
         } else {
@@ -678,12 +693,11 @@ export class Bot {
             language: str2Language(ctx.from?.language_code)
           });
         }
-        return next();
       }
     );
 
     this._telegram.on('message',
-      (ctx, next) => {
+      (ctx) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
         }
@@ -698,12 +712,11 @@ export class Bot {
             language: str2Language(ctx.from?.language_code)
           });
         }
-        return next();
       }
     );
 
     this._telegram.on('callback_query',
-      (ctx, next) => {
+      (ctx) => {
         if (!ctx.chat) {
           this._log.error('Invalid chat context');
         }
@@ -718,7 +731,6 @@ export class Bot {
             language: str2Language(ctx.from?.language_code)
           });
         }
-        return next();
       }
     );
 
@@ -895,7 +907,7 @@ export class Bot {
     let employees = this._employees[customerId];
 
     if (!employees) {
-      const db = new FileDB<Omit<IEmployee, 'id'>>(getEmployeeFN(customerId), this._log);
+      const db = new FileDB<Omit<IEmployee, 'id'>>({ fn: getEmployeeFN(customerId), logger: this._log });
       if (!db.isEmpty()) {
         this._employees[customerId] = db;
         return db;
@@ -914,7 +926,7 @@ export class Bot {
     let schedules = this._schedules[customerId];
 
     if (!schedules) {
-      const db = new FileDB<Omit<IScheduleData, 'id'>>(getScheduleFN(customerId), this._log, {}, scheduleRestorer);
+      const db = new FileDB<Omit<IScheduleData, 'id'>>({ fn: getScheduleFN(customerId), logger: this._log, restore: scheduleRestorer });
       if (!db.isEmpty()) {
         this._schedules[customerId] = db;
         return db;
@@ -932,7 +944,7 @@ export class Bot {
    */
   private _getSchedule(customerId: string, employeeId: string, de: Date) {
     const schedules = this._getSchedules(customerId);
-    const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
+    const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log })
       .read(employeeId);
 
     if (!payslip) {
@@ -964,7 +976,7 @@ export class Bot {
 
   private _findCompany = (_: any, event: BotMachineEvent) => {
     if (isEnterTextEvent(event)) {
-      const customersDB = new FileDB<Omit<ICustomer, 'id'>>(getCustomersFN(), this._log);
+      const customersDB = new FileDB<Omit<ICustomer, 'id'>>({ fn: getCustomersFN(), logger: this._log });
       const customers = customersDB.getMutable(false);
       for (const [companyId, { aliases }] of Object.entries(customers)) {
         if (aliases.find( alias => testNormalizeStr(alias, event.text) )) {
@@ -999,7 +1011,7 @@ export class Bot {
     const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
 
     if (employee) {
-      const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
+      const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log })
         .read(employeeId);
 
       if (payslip?.data[0]?.de) {
@@ -1019,7 +1031,7 @@ export class Bot {
   }
 
   private _getPayslipData(customerId: string, employeeId: string, mb: IDate, me?: IDate): IPayslipData | undefined {
-    const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log)
+    const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log })
       .read(employeeId);
 
     if (!payslip) {
@@ -1029,7 +1041,7 @@ export class Bot {
     let accDed = this._customerAccDeds[customerId];
 
     if (!accDed) {
-      accDed = new FileDB<IAccDed>(getAccDedFN(customerId), this._log);
+      accDed = new FileDB<IAccDed>({ fn: getAccDedFN(customerId), logger: this._log });
       this._customerAccDeds[customerId] = accDed;
     };
 
@@ -1608,6 +1620,7 @@ export class Bot {
     this._telegramAccountLink.flush();
     this._viberAccountLink.flush();
     this._announcements.flush();
+    this._userRights.flush();
 
     for (const s of Object.values(this._schedules)) {
       s.flush();
@@ -1875,7 +1888,7 @@ export class Bot {
     let customerAccDed = this._customerAccDeds[customerId];
 
     if (!customerAccDed) {
-      customerAccDed = new FileDB<IAccDed>(getAccDedFN(customerId), this._log);
+      customerAccDed = new FileDB<IAccDed>({ fn: getAccDedFN(customerId), logger: this._log });
       this._customerAccDeds[customerId] = customerAccDed;
     }
 
@@ -1894,7 +1907,7 @@ export class Bot {
     let employee = this._employees[customerId];
 
     if (!employee) {
-      employee = new FileDB<Omit<IEmployee, 'id'>>(getEmployeeFN(customerId), this._log);
+      employee = new FileDB<Omit<IEmployee, 'id'>>({ fn: getEmployeeFN(customerId), logger: this._log });
       this._employees[customerId] = employee;
     }
 
@@ -1911,7 +1924,7 @@ export class Bot {
 
   upload_timeSheets(customerId: string, objData: ITimeSheetJSON, rewrite: boolean) {
     const employeeId = objData.emplId;
-    const timeSheet = new FileDB<ITimeSheet>(getTimeSheetFN(customerId, employeeId), this._log);
+    const timeSheet = new FileDB<ITimeSheet>({ fn: getTimeSheetFN(customerId, employeeId), logger: this._log });
 
     if (rewrite) {
       timeSheet.clear();
@@ -1951,7 +1964,7 @@ export class Bot {
    let schedule = this._schedules[customerId];
 
     if (!schedule) {
-      schedule = new FileDB<Omit<IScheduleData, 'id'>>(getScheduleFN(customerId), this._log);
+      schedule = new FileDB<Omit<IScheduleData, 'id'>>({ fn: getScheduleFN(customerId), logger: this._log });
       this._schedules[customerId] = schedule;
     }
 
@@ -1968,7 +1981,7 @@ export class Bot {
 
   upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
     const employeeId = objData.emplId;
-    const payslip = new FileDB<IPayslip>(getPayslipFN(customerId, employeeId), this._log);
+    const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log });
 
     if (rewrite) {
       payslip.clear();
