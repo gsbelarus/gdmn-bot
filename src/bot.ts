@@ -71,7 +71,7 @@ const getDetail = (valueDet: IDet, lng: Language) => {
  */
 const getItemTemplate = (dataItem: IPayslipItem[], lng: Language): Template => dataItem
   .sort( (a, b) => a.n - b.n )
-  .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) + ' ' : ''}: `, i.s]);
+  .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) + ' ' : ''}${getLName(i.name, [lng]).substr(-1) === ')' ? ' ' : ''}: `, i.s]);
 
 const scheduleRestorer = (data: IData<Omit<IScheduleData, 'id'>>): IData<Omit<IScheduleData, 'id'>> =>
   Object.fromEntries(
