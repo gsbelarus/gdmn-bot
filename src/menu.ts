@@ -1,17 +1,22 @@
 import { ILocString, stringResources } from "./stringResources";
+import { UserRightId } from "./security";
 
-export interface IMenuButton {
+interface IWithUserRight {
+  needRight?: UserRightId | { any: UserRightId[] };
+};
+
+export interface IMenuButton extends IWithUserRight {
   type: 'BUTTON';
   caption: ILocString;
   command: string;
 };
 
-export interface IMenuStatic {
+export interface IMenuStatic extends IWithUserRight {
   type: 'STATIC';
   label: string;
 };
 
-export interface IMenuLink {
+export interface IMenuLink extends IWithUserRight {
   type: 'LINK';
   caption: ILocString;
   url: string;
@@ -20,6 +25,33 @@ export interface IMenuLink {
 export type MenuItem = IMenuButton | IMenuLink | IMenuStatic;
 
 export type Menu = MenuItem[][];
+
+export type TestUserRightFunc = (ur: UserRightId) => boolean;
+
+/**
+ * Убираем из меню пункты, на которые у пользователя нет прав.
+ * @param menu Исходное меню
+ * @param fn Функция возвращает true, если у пользователя есть указанное право.
+ */
+export const mapUserRights = (menu: Menu, fn?: TestUserRightFunc) => menu
+  .map( r => r.filter( i => {
+    if (!i.needRight || !fn) {
+      return true;
+    }
+
+    if (i.needRight instanceof Object) {
+      for (const ur of i.needRight.any) {
+        if (fn(ur)) {
+          return true;
+        }
+      }
+
+      return false;
+    } else {
+      return fn(i.needRight);
+    }
+  } ) )
+  .filter( r => r.length );
 
 export const keyboardMenu: Menu = [
   [
@@ -56,29 +88,24 @@ export const keyboardEnterAnnouncement: Menu = [
 ];
 
 export const keyboardSendAnnouncement: Menu = [
-  [{ type: 'BUTTON', caption: stringResources.btnSendToDepartment, command: '.sendToDepartment' }],
-  [{ type: 'BUTTON', caption: stringResources.btnSendToEnterprise, command: '.sendToEnterprise' }],
-  [{ type: 'BUTTON', caption: stringResources.btnSendToAll, command: '.sendToAll' }],
+  [{ type: 'BUTTON', caption: stringResources.btnSendToDepartment, command: '.sendToDepartment', needRight: 'ANN_DEPT' }],
+  [{ type: 'BUTTON', caption: stringResources.btnSendToEnterprise, command: '.sendToEnterprise', needRight: 'ANN_ENT' }],
+  [{ type: 'BUTTON', caption: stringResources.btnSendToAll, command: '.sendToAll', needRight: 'ANN_GLOBAL' }],
   [{ type: 'BUTTON', caption: stringResources.btnCancelSendAnnouncement, command: '.cancelSendAnnouncement' }],
 ];
 
 export const keyboardOther: Menu = [
-  //TODO: temporarily
-  /*
   [
-    { type: 'BUTTON', caption: stringResources.menuSchedule, command: '.schedule' },
-    { type: 'BUTTON', caption: stringResources.menuTable, command: '.table' }
+    { type: 'BUTTON', caption: stringResources.menuSchedule, command: '.schedule', needRight: 'SCHEDULE' },
+    { type: 'BUTTON', caption: stringResources.menuTable, command: '.table', needRight: 'TABLE' }
   ],
-  */
   [
-    { type: 'BUTTON', caption: stringResources.menuBirthdays, command: '.birthdays' },
+    { type: 'BUTTON', caption: stringResources.menuBirthdays, command: '.birthdays', needRight: 'BIRTHDAYS' },
     { type: 'BUTTON', caption: stringResources.menuRates, command: '.rates' }
   ],
-  /*
   [
-    { type: 'BUTTON', caption: stringResources.menuBillboard, command: '.billboard' },
+    { type: 'BUTTON', caption: stringResources.menuBillboard, command: '.billboard', needRight: { any: ['ANN_GLOBAL', 'ANN_ENT', 'ANN_DEPT'] } },
   ],
-  */
   [
     { type: 'BUTTON', caption: stringResources.btnBackToMenu, command: '.cancelOther' },
   ]
