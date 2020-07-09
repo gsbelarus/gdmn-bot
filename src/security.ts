@@ -19,7 +19,7 @@ export const userRightIds = [
 export type UserRightId = typeof userRightIds[number];
 
 export interface IUserRightRule {
-  right: UserRightId;
+  rights: UserRightId[];
   allow?: boolean;
   eneryone?: boolean;
   users?: string[];
