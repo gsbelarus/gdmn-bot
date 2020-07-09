@@ -63,17 +63,22 @@ export const keyboardSendAnnouncement: Menu = [
 ];
 
 export const keyboardOther: Menu = [
+  //TODO: temporarily
+  /*
   [
     { type: 'BUTTON', caption: stringResources.menuSchedule, command: '.schedule' },
     { type: 'BUTTON', caption: stringResources.menuTable, command: '.table' }
   ],
+  */
   [
-    { type: 'BUTTON', caption: stringResources.menuBirthdays, command: '.birthdays' },
+    //{ type: 'BUTTON', caption: stringResources.menuBirthdays, command: '.birthdays' },
     { type: 'BUTTON', caption: stringResources.menuRates, command: '.rates' }
   ],
+  /*
   [
     { type: 'BUTTON', caption: stringResources.menuBillboard, command: '.billboard' },
   ],
+  */
   [
     { type: 'BUTTON', caption: stringResources.btnBackToMenu, command: '.cancelOther' },
   ]
