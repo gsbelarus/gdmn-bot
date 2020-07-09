@@ -1716,6 +1716,11 @@ export class Bot {
       const accountLink = accountLinkDB.read(chatId);
       let service = this._service[uniqId];
 
+      const accLinkTelegram = Object.values(this._telegramAccountLink.getMutable(false));
+      const accLinkViber = Object.values(this._viberAccountLink.getMutable(false));
+      const date = new Date();
+      date.setDate(date.getDate() - 30);
+
       if (body === 'diagnostics') {
         this.finalize();
         const data = [
@@ -1725,6 +1730,8 @@ export class Bot {
           JSON.stringify(process.memoryUsage(), undefined, 2),
           `Services are running: ${Object.values(this._service).length}`,
           `Callbacks received: ${this._callbacksReceived}`,
+          `Telegram employees: ${accLinkTelegram.length}/${accLinkTelegram.filter(acc => acc.lastUpdated && isGrOrEq(acc.lastUpdated, date)).length}`,
+          `Viber employees: ${Object.values(this._viberAccountLink.getMutable(false)).length}/${accLinkViber.filter(acc => acc.lastUpdated && isGrOrEq(acc.lastUpdated, date)).length}`,
           `This chat id: ${chatId}`,
           `Customer id: ${accountLink?.customerId}`,
           `Employee id: ${accountLink?.employeeId}`
