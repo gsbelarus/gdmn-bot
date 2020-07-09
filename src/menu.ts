@@ -71,7 +71,7 @@ export const keyboardOther: Menu = [
   ],
   */
   [
-    //{ type: 'BUTTON', caption: stringResources.menuBirthdays, command: '.birthdays' },
+    { type: 'BUTTON', caption: stringResources.menuBirthdays, command: '.birthdays' },
     { type: 'BUTTON', caption: stringResources.menuRates, command: '.rates' }
   ],
   /*
