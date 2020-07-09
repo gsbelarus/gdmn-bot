@@ -1723,19 +1723,43 @@ export class Bot {
       if (body === 'diagnostics') {
         this.finalize();
 
-        const accLinkTelegram = Object.values(this._telegramAccountLink.getMutable(false));
-        const accLinkViber = Object.values(this._viberAccountLink.getMutable(false));
+        /**
+         * Собираем статистику "все/активные последние 30 дней" в разрезе клиентов.
+         */
+        const gatherStats = (al: IData<IAccountLink>) => {
+          const thirtyDaysAgo = new Date().getTime() - 30 * 24 * 60 * 60 * 1000;
+          const res: { [customerId: string]: [number, number] } = {};
 
-        const date = new Date();
-        date.setDate(date.getDate() - 30);
+          for (const l of Object.values(al)) {
+            if (!res[l.customerId]) {
+              res[l.customerId] = [0, 0];
+            }
+            res[l.customerId][0]++;
+            if (l.lastUpdated && l.lastUpdated.getTime() > thirtyDaysAgo) {
+              res[l.customerId][1]++;
+            }
+          }
 
-        const customers = Object.entries(this._getCustomers().getMutable(false));
-        const customersTelegram = customers.filter(([key, value]) => (accLinkTelegram.filter(acc => acc.customerId === key).length > 0)).map(([key, value]) => (
-            `${key}: ${accLinkTelegram.filter(acc => acc.customerId === key).length}/${accLinkTelegram.filter(acc => acc.customerId === key && acc.lastUpdated && isGrOrEq(acc.lastUpdated, date)).length}`
-           )).join('\n  ');
-        const customersViber = customers.filter(([key, value]) => (accLinkViber.filter(acc => acc.customerId === key).length > 0)).map(([key, value]) => (
-            `${key}: ${accLinkViber.filter(acc => acc.customerId === key).length}/${accLinkViber.filter(acc => acc.customerId === key && acc.lastUpdated && isGrOrEq(acc.lastUpdated, date)).length}`
-           )).join('\n  ');
+          return res;
+        };
+
+        /**
+         * Форматируем статистику в текст. Одна строка -- один клиент.
+         */
+        const formatStats = (stat: ReturnType<typeof gatherStats>) => Object.entries(stat)
+          .map( ([customerId, [total, active]]) => `  ${customerId}: ${total}/${active}` )
+          .join('\n');
+
+        /**
+         * Подсчитываем и форматируем суммарные значения по платформе.
+         */
+        const formatTotals = (stat: ReturnType<typeof gatherStats>) => {
+          const v = Object.values(stat).reduce( (p, s) => [p[0] + s[0], p[1] + s[1]], [0, 0] );
+          return `${v[0]}/${v[1]}`;
+        };
+
+        const telegramStats = gatherStats(this._telegramAccountLink.getMutable(false));
+        const viberStats = gatherStats(this._viberAccountLink.getMutable(false));
 
         const data = [
           `Server started: ${this._botStarted}`,
@@ -1744,8 +1768,10 @@ export class Bot {
           JSON.stringify(process.memoryUsage(), undefined, 2),
           `Services are running: ${Object.values(this._service).length}`,
           `Callbacks received: ${this._callbacksReceived}`,
-          `Telegram employees: ${accLinkTelegram.length}/${accLinkTelegram.filter(acc => acc.lastUpdated && isGrOrEq(acc.lastUpdated, date)).length}\n  ${customersTelegram}`,
-          `Viber employees: ${accLinkViber.length}/${accLinkViber.filter(acc => acc.lastUpdated && isGrOrEq(acc.lastUpdated, date)).length}\n  ${customersViber}`,
+          `Telegram accounts ${formatTotals(telegramStats)}:`,
+          `  ${formatStats(telegramStats)}`,
+          `Viber accounts ${formatTotals(viberStats)}:`,
+          `  ${formatStats(viberStats)}`,
           `This chat id: ${chatId}`,
           `Customer id: ${accountLink?.customerId}`,
           `Employee id: ${accountLink?.employeeId}`
