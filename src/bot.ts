@@ -62,7 +62,7 @@ const getDetail = (valueDet: IDet, lng: Language) => {
   if (valueDet.incMonth || valueDet.incYear) {
     det = `${det}${det ?  ', ' : ''}${valueDet.incMonth}.${valueDet.incYear}`;
   }
-  return `(${det})`;
+  return `[${det}]`;
 }
 
 /**
@@ -72,7 +72,8 @@ const getDetail = (valueDet: IDet, lng: Language) => {
  */
 const getItemTemplate = (dataItem: IPayslipItem[], lng: Language): Template => dataItem
   .sort( (a, b) => a.n - b.n )
-  .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) + ' ' : ''}${getLName(i.name, [lng]).substr(-1) === ')' ? ' ' : ''}: `, i.s]);
+  .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) : ''}: `.replace('(', '[').replace(')', ']'), i.s]
+  );
 
 //TODO: пробел (см выше) вставляется чтобы избежать грустного смайлика в вайбере
 // но, он может вылезти в любой другой строке
