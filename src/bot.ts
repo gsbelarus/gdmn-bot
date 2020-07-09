@@ -6,7 +6,7 @@ import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions }
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
 import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL } from "./util/utils";
-import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement } from "./menu";
+import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement, mapUserRights, TestUserRightFunc } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
@@ -189,16 +189,31 @@ export class Bot {
       }
 
       const language = this._accountLanguage[this.getUniqId('TELEGRAM', chatId)] ?? 'ru';
+      const accountLink = this._telegramAccountLink.read(chatId);
 
-      const keyboard = menu && Markup.inlineKeyboard(
-        menu.map(r => r.map(
-          c => c.type === 'BUTTON'
-            ? Markup.callbackButton(getLocString(c.caption, language), c.command) as any
-            : c.type === 'LINK'
-            ? Markup.urlButton(getLocString(c.caption, language), c.url)
-            : Markup.callbackButton(c.label, 'noop') as any
-        ))
-      );
+      let keyboard: ReturnType<typeof Markup.inlineKeyboard> | undefined;
+
+      if (menu) {
+        let fn: TestUserRightFunc | undefined;
+
+        if (accountLink?.customerId && accountLink.employeeId) {
+          fn = (ur: UserRightId) => this._canView(ur, accountLink.customerId, accountLink.employeeId);
+        } else {
+          fn = undefined;
+        }
+
+        keyboard = Markup.inlineKeyboard(
+          mapUserRights(menu, fn).map(r => r.map(
+            c => c.type === 'BUTTON'
+              ? Markup.callbackButton(getLocString(c.caption, language), c.command) as any
+              : c.type === 'LINK'
+              ? Markup.urlButton(getLocString(c.caption, language), c.url)
+              : Markup.callbackButton(c.label, 'noop') as any
+          ))
+        );
+      } else {
+        keyboard = undefined;
+      }
 
       await semaphore.acquire();
       try {
@@ -211,7 +226,6 @@ export class Bot {
           extra.parse_mode = 'MarkdownV2';
         }
 
-        const accountLink = this._telegramAccountLink.read(chatId);
 
         if (!accountLink) {
           await this._telegramSemaphore.acquire();
@@ -757,7 +771,31 @@ export class Bot {
         }
 
         const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
-        const keyboard = menu && this._menu2ViberMenu(menu, language);
+        const accountLink = this._telegramAccountLink.read(chatId);
+
+        let keyboard: any;
+
+        if (menu) {
+          let fn: TestUserRightFunc | undefined;
+
+          if (accountLink?.customerId && accountLink.employeeId) {
+            fn = (ur: UserRightId) => this._canView(ur, accountLink.customerId, accountLink.employeeId);
+          } else {
+            fn = undefined;
+          }
+
+          keyboard = this._menu2ViberMenu(
+            mapUserRights(menu, fn).map(r => r.map(
+              c => c.type === 'BUTTON'
+                ? Markup.callbackButton(getLocString(c.caption, language), c.command) as any
+                : c.type === 'LINK'
+                ? Markup.urlButton(getLocString(c.caption, language), c.url)
+                : Markup.callbackButton(c.label, 'noop') as any
+            )), language
+          );
+        } else {
+          keyboard = undefined;
+        }
 
         await semaphore.acquire();
         try {
@@ -868,6 +906,43 @@ export class Bot {
   }
 
   private _canView(userRight: UserRightId, customerId: string, employeeId: string) {
+
+    const check = (rules?: UserRights) => {
+      if (rules) {
+        const filtered = rules.filter( r => r.rights.includes(userRight) );
+
+        for (const r of filtered) {
+          if (r.users?.includes(employeeId)) {
+            if (r.read !== undefined) {
+              return r.read;
+            }
+          }
+        }
+
+        for (const r of filtered) {
+          if (r.eneryone) {
+            if (r.read !== undefined) {
+              return r.read;
+            }
+          }
+        }
+      }
+
+      return undefined;
+    };
+
+    const custPermission = check(this._userRights.read(customerId));
+
+    if (custPermission !== undefined) {
+      return custPermission;
+    }
+
+    const globalPermission = check(this._userRights.read('*'));
+
+    if (globalPermission !== undefined) {
+      return globalPermission;
+    }
+
     return true;
   }
 

@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "data": {
+    "*": [
+      {
+        "rights": ["ANN_GLOBAL", "ANN_DEPT", "ANN_ENT"],
+        "read": false,
+        "eneryone": true
+      },
+      {
+        "rights": ["BIRTHDAYS"],
+        "read": false,
+        "eneryone": true
+      }
+    ],
+    "bmkk": [
+      {
+        "rights": ["BIRTHDAYS"],
+        "read": true,
+        "eneryone": true
+      },
+      {
+        "rights": ["ANN_GLOBAL", "ANN_DEPT", "ANN_ENT"],
+        "read": true,
+        "eneryone": true
+      }
+    ]
+  }
+}

@@ -9,7 +9,7 @@ export const userRightIds = [
   'ANN_ENT',
   /**
    */
-  'ANT_GLOBAL',
+  'ANN_GLOBAL',
   /**
    * Право на просмотр д/р.
    */
@@ -32,7 +32,6 @@ export type UserRightId = typeof userRightIds[number];
 
 export interface IUserRightRule {
   rights: UserRightId[];
-  full?: boolean;
   read?: boolean;
   write?: boolean;
   eneryone?: boolean;
