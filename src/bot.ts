@@ -119,6 +119,7 @@ export class Bot {
    * Специальный ключ '*' задает глобальные права, для всех предприятий.
    */
   private _userRights: FileDB<UserRights>;
+  private _customers: FileDB<Omit<ICustomer, 'id'>>;
   private _botStarted = new Date();
   private _callbacksReceived = 0;
   /**
@@ -141,6 +142,7 @@ export class Bot {
     this._logger = logger;
     this._log = this._logger.getLogger();
 
+    this._customers = new FileDB<Omit<ICustomer, 'id'>>({ fn: getCustomersFN(), logger: this._log, watch: true });
     this._userRights = new FileDB<UserRights>({ fn: getUserRightsFN(), logger: this._log, watch: true });
 
     const annRestorer = (data: IData<Omit<IAnnouncement, 'id'>>): IData<Omit<IAnnouncement, 'id'>> => Object.fromEntries(
@@ -670,7 +672,7 @@ export class Bot {
           return false;
         },
         isProtected: ({ customerId }) => customerId
-          ? !!(this._getCustomers().read(customerId)?.protected)
+          ? !!(this._customers.read(customerId)?.protected)
           : false
       }
     });
@@ -903,10 +905,6 @@ export class Bot {
     };
   }
 
-  private _getCustomers() {
-    return new FileDB<Omit<ICustomer, 'id'>>({ fn: getCustomersFN(), logger: this._log });
-  }
-
   private _getEmployees(customerId: string) {
     let employees = this._employees[customerId];
 
@@ -980,9 +978,7 @@ export class Bot {
 
   private _findCompany = (_: any, event: BotMachineEvent) => {
     if (isEnterTextEvent(event)) {
-      const customersDB = this._getCustomers();
-      const customers = customersDB.getMutable(false);
-      for (const [companyId, { aliases }] of Object.entries(customers)) {
+      for (const [companyId, { aliases }] of Object.entries(this._customers.getMutable(false))) {
         if (aliases.find( alias => testNormalizeStr(alias, event.text) )) {
           return companyId;
         }
@@ -1769,9 +1765,9 @@ export class Bot {
           `Services are running: ${Object.values(this._service).length}`,
           `Callbacks received: ${this._callbacksReceived}`,
           `Telegram accounts ${formatTotals(telegramStats)}:`,
-          `  ${formatStats(telegramStats)}`,
+          `${formatStats(telegramStats)}`,
           `Viber accounts ${formatTotals(viberStats)}:`,
-          `  ${formatStats(viberStats)}`,
+          `yarn start${formatStats(viberStats)}`,
           `This chat id: ${chatId}`,
           `Customer id: ${accountLink?.customerId}`,
           `Employee id: ${accountLink?.employeeId}`
