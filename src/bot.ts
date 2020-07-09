@@ -1836,7 +1836,7 @@ export class Bot {
           `Telegram accounts ${formatTotals(telegramStats)}:`,
           `${formatStats(telegramStats)}`,
           `Viber accounts ${formatTotals(viberStats)}:`,
-          `yarn start${formatStats(viberStats)}`,
+          `${formatStats(viberStats)}`,
           `This chat id: ${chatId}`,
           `Customer id: ${accountLink?.customerId}`,
           `Employee id: ${accountLink?.employeeId}`
