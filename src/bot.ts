@@ -784,15 +784,7 @@ export class Bot {
             fn = undefined;
           }
 
-          keyboard = this._menu2ViberMenu(
-            mapUserRights(menu, fn).map(r => r.map(
-              c => c.type === 'BUTTON'
-                ? Markup.callbackButton(getLocString(c.caption, language), c.command) as any
-                : c.type === 'LINK'
-                ? Markup.urlButton(getLocString(c.caption, language), c.url)
-                : Markup.callbackButton(c.label, 'noop') as any
-            )), language
-          );
+          keyboard = this._menu2ViberMenu(mapUserRights(menu, fn), language);
         } else {
           keyboard = undefined;
         }
