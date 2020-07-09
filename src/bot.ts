@@ -15,7 +15,7 @@ import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDe
 import { hashELF64 } from "./hashELF64";
 import { v4 as uuidv4 } from 'uuid';
 import { hourTypes } from "./constants";
-import { UserRights } from "./security";
+import { UserRights, UserRightId } from "./security";
 
 const vb = require('viber-bot');
 const ViberBot = vb.Bot
@@ -867,6 +867,10 @@ export class Bot {
     return this._viber;
   }
 
+  private _canView(userRight: UserRightId, customerId: string, employeeId: string) {
+    return true;
+  }
+
   private _menu2ViberMenu(menu: Menu, lng: Language) {
     const Buttons: any[] = [];
 
@@ -881,8 +885,7 @@ export class Bot {
             ActionBody: col.type === 'BUTTON' ? col.command : 'noop',
             Text: `<font color=\"#ffffff\">${col.type === 'BUTTON' ? getLocString(col.caption, lng) : col.label}</font>`,
             BgColor: '#7360f2',
-            Silent: true,
-
+            Silent: true
           });
         } else {
           Buttons.push({
