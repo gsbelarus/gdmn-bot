@@ -670,7 +670,7 @@ export class Bot {
           return false;
         },
         isProtected: ({ customerId }) => customerId
-          ? !!(new FileDB<Omit<ICustomer, 'id'>>({ fn: getCustomersFN(), logger: this._log }).read(customerId)?.protected)
+          ? !!(this._getCustomers().read(customerId)?.protected)
           : false
       }
     });
@@ -903,6 +903,10 @@ export class Bot {
     };
   }
 
+  private _getCustomers() {
+    return new FileDB<Omit<ICustomer, 'id'>>({ fn: getCustomersFN(), logger: this._log });
+  }
+
   private _getEmployees(customerId: string) {
     let employees = this._employees[customerId];
 
@@ -976,7 +980,7 @@ export class Bot {
 
   private _findCompany = (_: any, event: BotMachineEvent) => {
     if (isEnterTextEvent(event)) {
-      const customersDB = new FileDB<Omit<ICustomer, 'id'>>({ fn: getCustomersFN(), logger: this._log });
+      const customersDB = this._getCustomers();
       const customers = customersDB.getMutable(false);
       for (const [companyId, { aliases }] of Object.entries(customers)) {
         if (aliases.find( alias => testNormalizeStr(alias, event.text) )) {
@@ -1716,13 +1720,23 @@ export class Bot {
       const accountLink = accountLinkDB.read(chatId);
       let service = this._service[uniqId];
 
-      const accLinkTelegram = Object.values(this._telegramAccountLink.getMutable(false));
-      const accLinkViber = Object.values(this._viberAccountLink.getMutable(false));
-      const date = new Date();
-      date.setDate(date.getDate() - 30);
-
       if (body === 'diagnostics') {
         this.finalize();
+
+        const accLinkTelegram = Object.values(this._telegramAccountLink.getMutable(false));
+        const accLinkViber = Object.values(this._viberAccountLink.getMutable(false));
+
+        const date = new Date();
+        date.setDate(date.getDate() - 30);
+
+        const customers = Object.entries(this._getCustomers().getMutable(false));
+        const customersTelegram = customers.map(([key, value]) => (
+            `${key}: ${accLinkTelegram.filter(acc => acc.customerId === key).length}/${accLinkTelegram.filter(acc => acc.customerId === key && acc.lastUpdated && isGrOrEq(acc.lastUpdated, date)).length}`
+           )).join(', ');
+        const customersViber = customers.map(([key, value]) => (
+            `${key}: ${accLinkViber.filter(acc => acc.customerId === key).length}/${accLinkViber.filter(acc => acc.customerId === key && acc.lastUpdated && isGrOrEq(acc.lastUpdated, date)).length}`
+           )).join(', ');
+
         const data = [
           `Server started: ${this._botStarted}`,
           `Node version: ${process.versions.node}`,
@@ -1730,8 +1744,8 @@ export class Bot {
           JSON.stringify(process.memoryUsage(), undefined, 2),
           `Services are running: ${Object.values(this._service).length}`,
           `Callbacks received: ${this._callbacksReceived}`,
-          `Telegram employees: ${accLinkTelegram.length}/${accLinkTelegram.filter(acc => acc.lastUpdated && isGrOrEq(acc.lastUpdated, date)).length}`,
-          `Viber employees: ${Object.values(this._viberAccountLink.getMutable(false)).length}/${accLinkViber.filter(acc => acc.lastUpdated && isGrOrEq(acc.lastUpdated, date)).length}`,
+          `Telegram employees: ${customersTelegram}`,
+          `Viber employees: ${customersViber}`,
           `This chat id: ${chatId}`,
           `Customer id: ${accountLink?.customerId}`,
           `Employee id: ${accountLink?.employeeId}`
