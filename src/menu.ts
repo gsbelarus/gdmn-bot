@@ -1,20 +1,24 @@
 import { ILocString, stringResources } from "./stringResources";
+import { UserRightId } from "./security";
 
 export interface IMenuButton {
   type: 'BUTTON';
   caption: ILocString;
   command: string;
+  needRight?: UserRightId;
 };
 
 export interface IMenuStatic {
   type: 'STATIC';
   label: string;
+  needRight?: UserRightId;
 };
 
 export interface IMenuLink {
   type: 'LINK';
   caption: ILocString;
   url: string;
+  needRight?: UserRightId;
 };
 
 export type MenuItem = IMenuButton | IMenuLink | IMenuStatic;
@@ -71,7 +75,7 @@ export const keyboardOther: Menu = [
   ],
   */
   [
-    { type: 'BUTTON', caption: stringResources.menuBirthdays, command: '.birthdays' },
+    { type: 'BUTTON', caption: stringResources.menuBirthdays, command: '.birthdays', needRight: 'BIRTHDAYS' },
     { type: 'BUTTON', caption: stringResources.menuRates, command: '.rates' }
   ],
   /*

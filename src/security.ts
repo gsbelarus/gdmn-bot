@@ -11,6 +11,18 @@ export const userRightIds = [
    */
   'ANT_GLOBAL',
   /**
+   * Право на просмотр д/р.
+   */
+  'BIRTHDAYS',
+  /**
+   * Право на график р/вр.
+   */
+  'SCHEDULE',
+  /**
+   * Право на табель.
+   */
+  'TABLE',
+  /**
    * Право на доступ к системе, включая регистрацию.
    */
   'ACCESS'
@@ -20,7 +32,9 @@ export type UserRightId = typeof userRightIds[number];
 
 export interface IUserRightRule {
   rights: UserRightId[];
-  allow?: boolean;
+  full?: boolean;
+  read?: boolean;
+  write?: boolean;
   eneryone?: boolean;
   users?: string[];
   groups?: string[];
