@@ -1490,6 +1490,8 @@ export class Bot {
 
           // оставлять просто одну сумму в последней строке нельзя
           if (res[last].length === 1 && res.length > 1) {
+            // если в предпоследней строке более одного слова, то последнее
+            // перенесем в последнюю строку
             if (res[last - 1].length > 1) {
               res[last] = [res[last - 1][res[last - 1].length - 1], ...res[last]];
               res[last - 1].length = res[last - 1].length - 1;
