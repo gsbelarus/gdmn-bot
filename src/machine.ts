@@ -528,8 +528,28 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
         },
       },
       logout: {
-        type: 'final',
-        entry: 'logout'
+        initial: 'showLogoutMessage',
+        on: {
+          MENU_COMMAND: [
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.cancelLogout',
+              target: '#botMachine.mainMenu'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.confirmLogout',
+              target: '.confirmedLogout'
+            }
+          ]
+        },
+        states: {
+          showLogoutMessage: {
+            entry: 'showLogoutMessage'
+          },
+          confirmedLogout: {
+            type: 'final',
+            entry: 'logout'
+          }
+        }
       },
       latestPayslip: {
         on: {
