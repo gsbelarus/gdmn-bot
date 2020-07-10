@@ -1515,8 +1515,7 @@ export class Bot {
         }
       }
 
-      return template.map((t, xid) => t === '=' && template[xid + 1] === '=' ? undefined : t)
-        .filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
+      return template.filter( (t, xid) => t && !(t === '=' && template[xid + 1] === '=') && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
           ? type === 'COMPARE' ?  `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}` : `${format2(t[0]).padStart(lCol)}${format2(t[1]).padStart(lCol)}${format2(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2
@@ -1598,8 +1597,7 @@ export class Bot {
         return res.map( l => l.join(' ') ).join('\n');
       }
 
-      return template.map((t, xid) => t === '=' && template[xid + 1] === '=' ? undefined : t)
-        .filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
+      return template.filter( (t, xid) => t && !(t === '=' && template[xid + 1] === '=') && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
           ? type === 'COMPARE' ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}` : `${format2(t[0]).padStart(lCol)}${format2(t[1]).padStart(lCol)}${format2(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2
