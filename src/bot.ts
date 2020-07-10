@@ -773,7 +773,7 @@ export class Bot {
           //TODO: кусок кода ниже повторяется в телеграме
           const t = await s;
           const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
-          const accountLink = this._telegramAccountLink.read(chatId);
+          const accountLink = this._viberAccountLink.read(chatId);
 
           let keyboard: any;
 
