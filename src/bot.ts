@@ -1486,12 +1486,18 @@ export class Bot {
         }
 
         if (withSum) {
-          const last = res.length - 1;
+          let last = res.length - 1;
 
           // оставлять просто одну сумму в последней строке нельзя
           if (res[last].length === 1 && res.length > 1) {
-            res[last] = [res[last - 1][res[last - 1].length - 1], ...res[last]];
-            res[last - 1].length = res[last - 1].length - 1;
+            if (res[last - 1].length > 1) {
+              res[last] = [res[last - 1][res[last - 1].length - 1], ...res[last]];
+              res[last - 1].length = res[last - 1].length - 1;
+            } else {
+              res[last - 1] = [...res[last - 1], ...res[last]];
+              res.length = res.length - 1;
+              last--;
+            }
           }
 
           return res.map( (l, idx) => {
