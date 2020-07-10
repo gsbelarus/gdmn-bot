@@ -1052,6 +1052,8 @@ export class Bot {
           return companyId;
         }
       }
+
+      this._log.warn(`Unknown enterprise: ${event.text}`);
     }
     return undefined;
   }
