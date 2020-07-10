@@ -189,36 +189,37 @@ export class Bot {
         return;
       }
 
-      const language = this._accountLanguage[this.getUniqId('TELEGRAM', chatId)] ?? 'ru';
-      const accountLink = this._telegramAccountLink.read(chatId);
-
-      let keyboard: ReturnType<typeof Markup.inlineKeyboard> | undefined;
-
-      if (menu) {
-        let fn: TestUserRightFunc | undefined;
-
-        if (accountLink?.customerId && accountLink.employeeId) {
-          fn = (ur: UserRightId) => this._canView(ur, accountLink.customerId, accountLink.employeeId);
-        } else {
-          fn = undefined;
-        }
-
-        keyboard = Markup.inlineKeyboard(
-          mapUserRights(menu, fn).map(r => r.map(
-            c => c.type === 'BUTTON'
-              ? Markup.callbackButton(getLocString(c.caption, language), c.command) as any
-              : c.type === 'LINK'
-              ? Markup.urlButton(getLocString(c.caption, language), c.url)
-              : Markup.callbackButton(c.label, 'noop') as any
-          ))
-        );
-      } else {
-        keyboard = undefined;
-      }
-
       await semaphore.acquire();
       try {
         const t = await s;
+        const language = this._accountLanguage[this.getUniqId('TELEGRAM', chatId)] ?? 'ru';
+        const accountLink = this._telegramAccountLink.read(chatId);
+
+        let keyboard: ReturnType<typeof Markup.inlineKeyboard> | undefined;
+
+        if (menu) {
+          let fn: TestUserRightFunc | undefined;
+
+          //FIXME: пока мы не зарегистрируемся права не будут проверяться?
+          if (accountLink?.customerId && accountLink.employeeId) {
+            fn = (ur: UserRightId) => this._canView(ur, accountLink.customerId, accountLink.employeeId);
+          } else {
+            fn = undefined;
+          }
+
+          keyboard = Markup.inlineKeyboard(mapUserRights(menu, fn)
+            .map(r => r.map(
+              c => c.type === 'BUTTON'
+                ? Markup.callbackButton(getLocString(c.caption, language), c.command) as any
+                : c.type === 'LINK'
+                ? Markup.urlButton(getLocString(c.caption, language), c.url)
+                : Markup.callbackButton(c.label, 'noop') as any
+            ))
+          );
+        } else {
+          keyboard = undefined;
+        }
+
         let text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
         const extra: ExtraEditMessage = keyboard ? Extra.markup(keyboard) : {};
 
@@ -226,7 +227,6 @@ export class Bot {
           text = '```ini\n' + text.slice(7) + '\n```';
           extra.parse_mode = 'MarkdownV2';
         }
-
 
         if (!accountLink) {
           await this._telegramSemaphore.acquire();
@@ -257,13 +257,11 @@ export class Bot {
           if (lastMenuId) {
             if (text && keyboard) {
               await editMessageReplyMarkup(true);
-              //await pause(1000);
               const message = await this._telegram.telegram.sendMessage(chatId, text, extra);
               this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
             }
             else if (text && !keyboard) {
               await editMessageReplyMarkup(true);
-              //await pause(1000);
               await this._telegram.telegram.sendMessage(chatId, text, extra);
               this._telegramAccountLink.merge(chatId, {}, ['lastMenuId']);
             }
@@ -771,36 +769,29 @@ export class Bot {
           return;
         }
 
-        const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
-        const accountLink = this._telegramAccountLink.read(chatId);
-
-        let keyboard: any;
-
-        if (menu) {
-          let fn: TestUserRightFunc | undefined;
-
-          if (accountLink?.customerId && accountLink.employeeId) {
-            fn = (ur: UserRightId) => this._canView(ur, accountLink.customerId, accountLink.employeeId);
-          } else {
-            fn = undefined;
-          }
-
-          keyboard = this._menu2ViberMenu(
-            mapUserRights(menu, fn).map(r => r.map(
-              c => c.type === 'BUTTON'
-                ? Markup.callbackButton(getLocString(c.caption, language), c.command) as any
-                : c.type === 'LINK'
-                ? Markup.urlButton(getLocString(c.caption, language), c.url)
-                : Markup.callbackButton(c.label, 'noop') as any
-            )), language
-          );
-        } else {
-          keyboard = undefined;
-        }
-
         await semaphore.acquire();
         try {
+          //TODO: кусок кода ниже повторяется в телеграме
           const t = await s;
+          const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
+          const accountLink = this._telegramAccountLink.read(chatId);
+
+          let keyboard: any;
+
+          if (menu) {
+            let fn: TestUserRightFunc | undefined;
+
+            if (accountLink?.customerId && accountLink.employeeId) {
+              fn = (ur: UserRightId) => this._canView(ur, accountLink.customerId, accountLink.employeeId);
+            } else {
+              fn = undefined;
+            }
+
+            keyboard = this._menu2ViberMenu(mapUserRights(menu, fn), language);
+          } else {
+            keyboard = undefined;
+          }
+
           let text = typeof t === 'string' ? t : t && getLocString(t, language, ...args);
 
           if (text && text.slice(0, 7) === '^FIXED\n') {
@@ -1846,7 +1837,7 @@ export class Bot {
           `Telegram accounts ${formatTotals(telegramStats)}:`,
           `${formatStats(telegramStats)}`,
           `Viber accounts ${formatTotals(viberStats)}:`,
-          `yarn start${formatStats(viberStats)}`,
+          `${formatStats(viberStats)}`,
           `This chat id: ${chatId}`,
           `Customer id: ${accountLink?.customerId}`,
           `Employee id: ${accountLink?.employeeId}`
