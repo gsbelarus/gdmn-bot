@@ -774,7 +774,7 @@ export class Bot {
           //TODO: кусок кода ниже повторяется в телеграме
           const t = await s;
           const language = this._accountLanguage[this.getUniqId('VIBER', chatId)] ?? 'ru';
-          const accountLink = this._telegramAccountLink.read(chatId);
+          const accountLink = this._viberAccountLink.read(chatId);
 
           let keyboard: any;
 
@@ -1053,6 +1053,8 @@ export class Bot {
           return companyId;
         }
       }
+
+      this._log.warn(`Unknown enterprise: ${event.text}`);
     }
     return undefined;
   }
@@ -1789,6 +1791,22 @@ export class Bot {
       if (body === 'diagnostics') {
         this.finalize();
 
+        const serviceStat: { [signature: string]: number } = {};
+
+        for (const s of Object.values(this._service)) {
+          const signature = JSON.stringify(s.state.value);
+
+          if (!serviceStat[signature]) {
+            serviceStat[signature] = 0;
+          }
+
+          serviceStat[signature]++;
+        }
+
+        const formattedServiceStat = Object.entries(serviceStat)
+          .map( ([signature, cnt]) => `  ${signature}: ${cnt}` )
+          .join('\n');
+
         /**
          * Собираем статистику "все/активные последние 30 дней" в разрезе клиентов.
          */
@@ -1814,18 +1832,14 @@ export class Bot {
          */
         const formatStats = (stat: ReturnType<typeof gatherStats>) => Object.entries(stat)
           .map( ([customerId, [total, active]]) => `  ${customerId}: ${total}/${active}` )
+          .sort( (a, b) => a.localeCompare(b) )
           .join('\n');
-
-        /**
-         * Подсчитываем и форматируем суммарные значения по платформе.
-         */
-        const formatTotals = (stat: ReturnType<typeof gatherStats>) => {
-          const v = Object.values(stat).reduce( (p, s) => [p[0] + s[0], p[1] + s[1]], [0, 0] );
-          return `${v[0]}/${v[1]}`;
-        };
 
         const telegramStats = gatherStats(this._telegramAccountLink.getMutable(false));
         const viberStats = gatherStats(this._viberAccountLink.getMutable(false));
+
+        const telegramTotals = Object.values(telegramStats).reduce( (p, s) => [p[0] + s[0], p[1] + s[1]], [0, 0] );
+        const viberTotals = Object.values(viberStats).reduce( (p, s) => [p[0] + s[0], p[1] + s[1]], [0, 0] );
 
         const data = [
           `Server started: ${this._botStarted}`,
@@ -1833,11 +1847,13 @@ export class Bot {
           'Memory usage:',
           JSON.stringify(process.memoryUsage(), undefined, 2),
           `Services are running: ${Object.values(this._service).length}`,
+          `${formattedServiceStat}`,
           `Callbacks received: ${this._callbacksReceived}`,
-          `Telegram accounts ${formatTotals(telegramStats)}:`,
+          `Telegram accounts ${telegramTotals[0]}/${telegramTotals[1]}:`,
           `${formatStats(telegramStats)}`,
-          `Viber accounts ${formatTotals(viberStats)}:`,
+          `Viber accounts ${viberTotals[0]}/${viberTotals[1]}:`,
           `${formatStats(viberStats)}`,
+          `Both platforms accounts: ${telegramTotals[0] + viberTotals[0]}/${telegramTotals[1] + viberTotals[1]}`,
           `This chat id: ${chatId}`,
           `Customer id: ${accountLink?.customerId}`,
           `Employee id: ${accountLink?.employeeId}`
