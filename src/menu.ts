@@ -87,6 +87,13 @@ export const keyboardEnterAnnouncement: Menu = [
   ]
 ];
 
+export const keyboardLogout: Menu = [
+  [
+    { type: 'BUTTON', caption: stringResources.btnConfirmLogout, command: '.confirmLogout' },
+    { type: 'BUTTON', caption: stringResources.btnCancelLogout, command: '.cancelLogout' }
+  ]
+];
+
 export const keyboardSendAnnouncement: Menu = [
   [{ type: 'BUTTON', caption: stringResources.btnSendToDepartment, command: '.sendToDepartment', needRight: 'ANN_DEPT' }],
   [{ type: 'BUTTON', caption: stringResources.btnSendToEnterprise, command: '.sendToEnterprise', needRight: 'ANN_ENT' }],
