@@ -62,7 +62,7 @@ const getDetail = (valueDet: IDet, lng: Language) => {
   if (valueDet.incMonth || valueDet.incYear) {
     det = `${det}${det ?  ', ' : ''}${valueDet.incMonth}.${valueDet.incYear}`;
   }
-  return `(${det})`;
+  return `[${det}]`;
 }
 
 /**
@@ -72,7 +72,8 @@ const getDetail = (valueDet: IDet, lng: Language) => {
  */
 const getItemTemplate = (dataItem: IPayslipItem[], lng: Language): Template => dataItem
   .sort( (a, b) => a.n - b.n )
-  .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) + ' ' : ''}${getLName(i.name, [lng]).substr(-1) === ')' ? ' ' : ''}: `, i.s]);
+  .map( i => [`${getLName(i.name, [lng])}${i.det ? ' ' + getDetail(i.det, lng) : ''}: `.replace('(', '[').replace(')', ']'), i.s]
+  );
 
 //TODO: пробел (см выше) вставляется чтобы избежать грустного смайлика в вайбере
 // но, он может вылезти в любой другой строке
@@ -1514,7 +1515,7 @@ export class Bot {
         }
       }
 
-      return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
+      return template.filter( (t, xid) => t && !(t === '=' && template[xid + 1] === '=') && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
           ? type === 'COMPARE' ?  `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}` : `${format2(t[0]).padStart(lCol)}${format2(t[1]).padStart(lCol)}${format2(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2
@@ -1596,7 +1597,7 @@ export class Bot {
         return res.map( l => l.join(' ') ).join('\n');
       }
 
-      return template.filter( t => t && (!Array.isArray(t) || t[1] !== undefined) )
+      return template.filter( (t, xid) => t && !(t === '=' && template[xid + 1] === '=') && (!Array.isArray(t) || t[1] !== undefined) )
         .map(t => Array.isArray(t) && t.length === 3
           ? type === 'COMPARE' ? `${format(t[0]).padStart(lCol)}${format(t[1]).padStart(lCol)}${format(t[2]).padStart(lCol)}` : `${format2(t[0]).padStart(lCol)}${format2(t[1]).padStart(lCol)}${format2(t[2]).padStart(lCol)}`
           : Array.isArray(t) && t.length === 2

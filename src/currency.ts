@@ -163,91 +163,22 @@ let ratesDB: FileDB<ICurrencyRates> | undefined = undefined;
  * @param currency Код валюты. Например, USD.
  */
 export const getCurrRate = async (forDate: IDate, currency: string, log: ILogger) => {
-  if (!currenciesDB) {
-    throw new Error('No currency db');
-  }
-
-  let currId = '';
-
-  for (const s of Object.entries(currenciesDB?.getMutable(false))) {
-    if (s[1].abbreviation === currency) {
-      currId = s[0];
-    }
-  }
-
-  if (!currId) {
-    throw new Error(`Invalid currency abbreviation ${currency}`);
-  }
-
-  if (!ratesDB) {
-    // загружаем курсы с диска
-    ratesDB = new FileDB<ICurrencyRates>({
-      fn: getRatesFN(),
-      logger: log,
-      check: (data: IData<ICurrencyRates>) => !Object.keys(data).length || typeof Object.values(data)[0] === 'object',
-      ignore: true
-    });
-  }
-
   let date = new Date(forDate.year, forDate.month);
   let rate: number | undefined = undefined;
 
   while (date.getTime() > MINDATE.getTime()) {
-    const strDate = date2str(date, 'YYYY.MM.DD');
-    const ratesForDate = ratesDB.read(strDate);
-    rate = ratesForDate?.[currId];
-
+    rate = await getCurrRateForDate(date, currency, log);
     if (rate !== undefined) {
       break;
     }
-
-    // курса на дату нет
-    // попробуем загрузить из интернета
-
-    interface INBRBRate {
-      Cur_ID: number;
-      Date: Date;
-      Cur_Abbreviation: string;
-      Cur_Scale: number;
-      Cur_Name: string;
-      Cur_OfficialRate: number;
-    };
-
-    try {
-      const fetched = await fetch(`${URLNBRBRATES}?Periodicity=0&onDate=${strDate}`, {});
-      const parsed: INBRBRate[] = await fetched.json();
-
-      if (Array.isArray(parsed)) {
-        const c = parsed.find( p => p['Cur_ID'].toString() === currId );
-        const scale = c?.['Cur_Scale'];
-        const officialRate = c?.['Cur_OfficialRate'];
-
-        if (scale && scale > 0 && officialRate && officialRate > 0) {
-          rate = officialRate / scale;
-
-          if (ratesForDate) {
-            ratesDB.write(strDate, { ...ratesForDate, [currId]: rate });
-          } else {
-            ratesDB.write(strDate, { [currId]: rate });
-          }
-
-          ratesDB.flush();
-          break;
-        }
-      }
-    }
-    catch (e) {
-      console.error(`Error fetching currencyRate list: ${e}`);
-    }
-
     date.setDate(date.getDate() - 1);
   }
 
   return rate ? { date, rate } : undefined;
 };
 
-
 export const getCurrRateForDate = async (date: Date, currency: string, log: ILogger) => {
+
   if (!currenciesDB) {
     throw new Error('No currency db');
   }
@@ -274,11 +205,9 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
     });
   }
 
-  let rate: number | undefined = undefined;
-
   const strDate = date2str(date, 'YYYY.MM.DD');
   const ratesForDate = ratesDB.read(strDate);
-  rate = ratesForDate?.[currId];
+  let rate = ratesForDate?.[currId];
 
   if (rate !== undefined) {
     return rate;
@@ -286,7 +215,6 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
 
   // курса на дату нет
   // попробуем загрузить из интернета
-
 
   interface INBRBRate {
     Cur_ID: number;
@@ -321,7 +249,7 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
   }
   catch (e) {
     console.error(`Error fetching currencyRate list: ${e}`);
+    return undefined;
   }
-
   return rate;
-};
+}
