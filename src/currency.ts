@@ -168,6 +168,9 @@ export const getCurrRate = async (forDate: IDate, currency: string, log: ILogger
 
   while (date.getTime() > MINDATE.getTime()) {
     rate = await getCurrRateForDate(date, currency, log);
+    if (rate !== undefined) {
+      break;
+    }
     date.setDate(date.getDate() - 1);
   }
 
@@ -182,9 +185,9 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
 
   let currId = '';
 
-  for (const s of Object.entries(currenciesDB?.getMutable(false))) {
-    if (s[1].abbreviation === currency) {
-      currId = s[0];
+  for (const [id, data] of Object.entries(currenciesDB?.getMutable(false))) {
+    if (data.abbreviation === currency) {
+      currId = id;
     }
   }
 
@@ -232,7 +235,7 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
       const officialRate = c?.['Cur_OfficialRate'];
 
       if (scale && scale > 0 && officialRate && officialRate > 0) {
-        rate = officialRate / scale;
+        rate = parseFloat((officialRate / scale).toFixed(4));
 
         if (ratesForDate) {
           ratesDB.write(strDate, { ...ratesForDate, [currId]: rate });
