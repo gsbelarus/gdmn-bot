@@ -1800,72 +1800,78 @@ export class Bot {
       if (body === 'diagnostics') {
         this.finalize();
 
-        const serviceStat: { [signature: string]: number } = {};
+        let serviceStat: { [signature: string]: number } = {};
 
         for (const s of Object.values(this._service)) {
           const signature = JSON.stringify(s.state.value);
-
           if (!serviceStat[signature]) {
-            serviceStat[signature] = 0;
+            serviceStat[signature] = 1;
+          } else {
+            serviceStat[signature]++;
           }
-
-          serviceStat[signature]++;
         }
 
         const formattedServiceStat = Object.entries(serviceStat)
-          .map( ([signature, cnt]) => `  ${signature}: ${cnt}` )
+          .sort( (a, b) => a[1] - b[1] )
+          .map( ([signature, cnt]) => `  ${signature.split('"').join('').replace('{', '').replace('}', '').replace(':', '-')}: ${cnt}` )
           .join('\n');
 
         /**
-         * Собираем статистику "все/активные последние 30 дней" в разрезе клиентов.
+         * viber, viber inactive, telegram, telegram inactive
          */
-        const gatherStats = (al: IData<IAccountLink>) => {
-          const thirtyDaysAgo = new Date().getTime() - 30 * 24 * 60 * 60 * 1000;
-          const res: { [customerId: string]: [number, number] } = {};
+        const stat: { [customerId: string]: [number, number, number, number] } = {};
 
-          for (const l of Object.values(al)) {
-            if (!res[l.customerId]) {
-              res[l.customerId] = [0, 0];
-            }
-            res[l.customerId][0]++;
-            if (l.lastUpdated && l.lastUpdated.getTime() > thirtyDaysAgo) {
-              res[l.customerId][1]++;
-            }
+        /**
+         * Собираем статистику "все/активные последние 31 дней" в разрезе клиентов.
+         */
+        const thirtyDaysAgo = new Date().getTime() - 31 * 24 * 60 * 60 * 1000;
+
+        for (const l of Object.values(this._viberAccountLink.getMutable(false))) {
+          if (!stat[l.customerId]) {
+            stat[l.customerId] = [0, 0, 0, 0];
           }
+          stat[l.customerId][0]++;
+          if (l.lastUpdated && l.lastUpdated.getTime() > thirtyDaysAgo) {
+            stat[l.customerId][1]++;
+          }
+        }
 
-          return res;
-        };
+        for (const l of Object.values(this._telegramAccountLink.getMutable(false))) {
+          if (!stat[l.customerId]) {
+            stat[l.customerId] = [0, 0, 0, 0];
+          }
+          stat[l.customerId][2]++;
+          if (l.lastUpdated && l.lastUpdated.getTime() < thirtyDaysAgo) {
+            stat[l.customerId][3]++;
+          }
+        }
 
         /**
          * Форматируем статистику в текст. Одна строка -- один клиент.
          */
-        const formatStats = (stat: ReturnType<typeof gatherStats>) => Object.entries(stat)
-          .map( ([customerId, [total, active]]) => `  ${customerId}: ${total}/${active}` )
+        const formatStats = () => Object.entries(stat)
+          .map(
+            ([customerId, [totalViber, inactiveViber, totalTelegram, inactiveTelegram]]) =>
+              `  ${customerId}: ${totalViber + totalTelegram}/${totalViber}${inactiveViber ? '(' + inactiveViber + ')' : ''}/${totalTelegram}${inactiveTelegram ? '(' + inactiveTelegram + ')' : ''}`
+            )
           .sort( (a, b) => a.localeCompare(b) )
           .join('\n');
 
-        const telegramStats = gatherStats(this._telegramAccountLink.getMutable(false));
-        const viberStats = gatherStats(this._viberAccountLink.getMutable(false));
-
-        const telegramTotals = Object.values(telegramStats).reduce( (p, s) => [p[0] + s[0], p[1] + s[1]], [0, 0] );
-        const viberTotals = Object.values(viberStats).reduce( (p, s) => [p[0] + s[0], p[1] + s[1]], [0, 0] );
+        const [totalViber, inactiveViber, totalTelegram, inactiveTelegram] = Object.values(stat).reduce( (p, s) => [p[0] + s[0], p[1] + s[1], p[2] + s[2], p[3] + s[3]], [0, 0, 0, 0] );
+        const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
 
         const data = [
-          `Server started: ${this._botStarted}`,
+          `Server started: ${new Intl.DateTimeFormat("be", dateOptions).format(this._botStarted)}`,
           `Node version: ${process.versions.node}`,
-          'Memory usage:',
-          JSON.stringify(process.memoryUsage(), undefined, 2),
-          `Services are running: ${Object.values(this._service).length}`,
-          `${formattedServiceStat}`,
-          `Callbacks received: ${this._callbacksReceived}`,
-          `Telegram accounts ${telegramTotals[0]}/${telegramTotals[1]}:`,
-          `${formatStats(telegramStats)}`,
-          `Viber accounts ${viberTotals[0]}/${viberTotals[1]}:`,
-          `${formatStats(viberStats)}`,
-          `Both platforms accounts: ${telegramTotals[0] + viberTotals[0]}/${telegramTotals[1] + viberTotals[1]}`,
+          `RSS memory: ${new Intl.NumberFormat().format(process.memoryUsage().rss)} bytes`,
           `This chat id: ${chatId}`,
           `Customer id: ${accountLink?.customerId}`,
-          `Employee id: ${accountLink?.employeeId}`
+          `Employee id: ${accountLink?.employeeId}`,
+          `Callbacks processed: ${this._callbacksReceived}`,
+          `Machines are running: ${Object.values(this._service).length}`,
+          `${formattedServiceStat}`,
+          `Users All/V/T (inact): ${totalViber + totalTelegram}/${totalViber}${inactiveViber ? '(' + inactiveViber + ')' : ''}/${totalTelegram}${inactiveTelegram ? '(' + inactiveTelegram + ')' : ''}`,
+          `${formatStats()}`
         ];
         if (platform === 'TELEGRAM') {
           await this._telegramSemaphore.acquire();

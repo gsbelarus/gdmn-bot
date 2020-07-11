@@ -163,7 +163,7 @@ let ratesDB: FileDB<ICurrencyRates> | undefined = undefined;
  * @param currency Код валюты. Например, USD.
  */
 export const getCurrRate = async (forDate: IDate, currency: string, log: ILogger) => {
-  let date = new Date(forDate.year, forDate.month);
+  const date = new Date(forDate.year, forDate.month);
   let rate: number | undefined = undefined;
 
   while (date.getTime() > MINDATE.getTime()) {
