@@ -1889,10 +1889,10 @@ export class Bot {
          * Форматируем статистику в текст. Одна строка -- один клиент.
          */
         const formatStats = () => Object.entries(stat)
-          .sort( ([, [AV, , AT]], [, [BV, , BT]]) => (AV + AT) - (BV + BT) )
+          .sort( ([, [AV, , AT]], [, [BV, , BT]]) => (BV + BT) - (AV + AT) )
           .map(
             ([custId, [custV, custIV, custT, custIT]], idx) =>
-              `  ${(idx + 1).toString().padEnd(3, ' ')}${custId}: ${custV + custT}/${((custV + custT) * 100/(totalV + totalT)).toFixed(0)}%/${custV}${custIV ? '(' + custIV + ')' : ''}/${custT}${custIT ? '(' + custIT + ')' : ''}`
+              `${(idx + 1).toString().padEnd(4, '.')}${custId}: ${custV + custT}/${((custV + custT) * 100/(totalV + totalT)).toFixed(0)}%/${custV}${custIV ? '(' + custIV + ')' : ''}/${custT}${custIT ? '(' + custIT + ')' : ''}`
             )
           .join('\n');
 
