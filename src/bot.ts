@@ -1867,7 +1867,7 @@ export class Bot {
             stat[l.customerId] = [0, 0, 0, 0];
           }
           stat[l.customerId][0]++;
-          if (l.lastUpdated && l.lastUpdated.getTime() > thirtyDaysAgo) {
+          if (l.lastUpdated && l.lastUpdated.getTime() < thirtyDaysAgo) {
             stat[l.customerId][1]++;
           }
         }
