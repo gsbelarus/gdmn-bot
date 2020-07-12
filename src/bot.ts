@@ -5,7 +5,7 @@ import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName, getLName2 } from "./stringResources";
-import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL } from "./util/utils";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL, pause } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement, mapUserRights, TestUserRightFunc, keyboardLogout } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
@@ -99,7 +99,7 @@ const scheduleRestorer = (data: IData<Omit<IScheduleData, 'id'>>): IData<Omit<IS
       )
     );
 
-type ReplyFunc = (s: ILocString | string | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
+type ReplyFunc = (s: ILocString | string | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'chatId' | 'semaphore'>) => Promise<void>;
 
 export class Bot {
   private _telegramAccountLink: FileDB<IAccountLink>;
@@ -304,8 +304,8 @@ export class Bot {
     const calendarMachineOptions = (reply: ReplyFunc): Partial<MachineOptions<ICalendarMachineContext, CalendarMachineEvent>> => ({
       actions: {
         showSelectedDate: ctx => reply(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
-        showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
-          ? reply(stringResources.selectYear, keyboardCalendar(selectedDate.year), selectedDate.year)({ platform, chatId, semaphore })
+        showCalendar: ({ chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
+          ? reply(stringResources.selectYear, keyboardCalendar(selectedDate.year), selectedDate.year)({ chatId, semaphore })
           : reply(dateKind === 'PERIOD_1_DB'
               ? stringResources.selectDB
               : dateKind === 'PERIOD_1_DE'
@@ -313,7 +313,7 @@ export class Bot {
               : dateKind === 'PERIOD_MONTH'
               ? stringResources.selectMonth
               : stringResources.selectDB2, keyboardCalendar(selectedDate.year)
-            )({ platform, chatId, semaphore })
+            )({ chatId, semaphore })
       }
     });
 
@@ -579,27 +579,46 @@ export class Bot {
         showOther: reply(stringResources.mainMenuCaption, keyboardOther),
         enterAnnouncementInvitation: reply(stringResources.enterAnnouncementInvitation, keyboardEnterAnnouncement),
         sendAnnouncementMenu: reply(stringResources.sendAnnouncementMenuCaption, keyboardSendAnnouncement),
-        sendToDepartment: ctx => {
-          const { customerId, employeeId, announcement, chatId } = ctx;
+        sendToDepartment: async ctx => {
+          const { customerId, employeeId, announcement, chatId, semaphore } = ctx;
 
           if (customerId && employeeId && announcement) {
+            await semaphore?.acquire();
+            try {
+              if (!this._hasPermission('ANN_DEPT', customerId, employeeId, false)) {
+                this._logger.error(chatId, undefined, 'Access denied for sending announcement to department.')
+                return;
+              }
 
-            if (!this._hasPermission('ANN_DEPT', customerId, employeeId, false)) {
-              this._logger.error(chatId, undefined, 'Access denied for sending announcement to department.')
-              return;
+              const department = this._getDepartment(customerId, employeeId);
+
+              if (department) {
+                this._announcements.write(uuidv4(), {
+                  date: new Date(),
+                  fromCustomerId: customerId,
+                  fromEmployeeId: employeeId,
+                  toCustomerId: customerId,
+                  toDepartmentId: department.id,
+                  body: announcement
+                });
+
+                await reply(stringResources.startSendingAnnouncements)({ chatId, semaphore: new Semaphore('start sending announcement') });
+
+                let cnt = 0;
+
+                for (const [linkChatId, link] of Object.entries(this._telegramAccountLink.getMutable(false))) {
+                  if (link.customerId === customerId && linkChatId !== chatId && this._getDepartment(customerId, link.employeeId)?.id === department.id ) {
+                    //await this._replyTelegram(announcement)({ chatId, semaphore: new Semaphore('announcement') });
+                    await pause(50);
+                    cnt++;
+                  }
+                }
+
+                await reply(stringResources.endSendingAnnouncements, undefined, cnt)({ chatId, semaphore: new Semaphore('end sending announcement') });
+              }
             }
-
-            const department = this._getDepartment(customerId, employeeId);
-
-            if (department) {
-              this._announcements.write(uuidv4(), {
-                date: new Date(),
-                fromCustomerId: customerId,
-                fromEmployeeId: employeeId,
-                toCustomerId: customerId,
-                toDepartmentId: department.id,
-                body: announcement
-              });
+            finally {
+              semaphore?.release();
             }
           }
         },

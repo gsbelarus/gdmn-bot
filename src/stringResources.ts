@@ -560,6 +560,16 @@ export const stringResources = {
     ru: 'Период: ',
     be: 'Перыяд: '
   },
+  startSendingAnnouncements: {
+    en: '📧 Sending of announcements has just began. We will inform when it is finished. Wait, please...',
+    ru: '📧 Начата рассылка объявлений. Мы сообщим, когда она будет окончена. Пожалуйста, подождите...',
+    be: '📧 Распачалася рассылка аб\'яў. Мы паведамім, калі яна будзе скончана. Калі ласка, пачакайце...'
+  },
+  endSendingAnnouncements: {
+    en: (sent: number) => `🏁 Sending is finished. ${sent} announcements were sent.`,
+    ru: (sent: number) => `🏁 Рассылка закончилась. Было разослано ${sent} объявлений.`,
+    be: (sent: number) => `🏁 Рассылка скончылася. Было разослана ${sent} аб\'яў.`
+  },
   payslipCurrency: {
     en: (currency: string, currencyRate?: ICurrencyRate) => 'Currency: ' + (
       currencyRate
