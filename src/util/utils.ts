@@ -1,19 +1,32 @@
-const toIgnore = 'ооо,оао,зао,таа,зат,аат,ип,іп,уп,куп,упп,г'.split(',');
+/**
+ * эти слова просто выкидываем из текста.
+ */
+const wordsToIgnore = 'ооо,оао,зао,таа,зат,аат,ип,іп,уп,куп,упп,г'.split(',');
+
+/**
+ * эти символы заменяем на пробелы
+ */
+const charsToIgnore = '.,"\'`:\n\t«»#'.split('');
 
 /**
  * Удаляет из строки кавычки, двойные пробелы и т.п.
  * Приводит к нижнему регистру.
  * @param s Входящая строка
  */
-const normalizeStr = (s?: string) => s && s.trim()
+export const normalizeStr = (s?: string) => s && s.trim()
   .toLowerCase()
   .split('')
-  .filter( c => c !== '.' && c !== ',' && c !== '"' && c !== "'" && c !== '`' && c !== '-' && c !== '\n' && c !== '\t' )
-  .map( c => c === 'ё' ? 'е' : c )
+  .filter( c => c !== '-' )
+  .map( c => charsToIgnore.includes(c)
+    ? ' '
+    : c === 'ё'
+    ? 'е'
+    : c
+  )
   .join('')
   .split(' ')
   .map( ss => ss.trim() )
-  .filter( ss => ss && !toIgnore.find( ig => ig === ss ) )
+  .filter( ss => ss && !wordsToIgnore.includes(ss) )
   .join(' ');
 
 export const testNormalizeStr = (a: string, b: string) => normalizeStr(a) === normalizeStr(b);
