@@ -4,7 +4,7 @@ import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
-import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
+import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName, getLName2 } from "./stringResources";
 import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement, mapUserRights, TestUserRightFunc, keyboardLogout } from "./menu";
 import { Semaphore } from "./semaphore";
@@ -178,7 +178,7 @@ export class Bot {
     /**************************************************************/
     /**************************************************************/
 
-    this._replyTelegram = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+    this._replyTelegram = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
         this._logger.error(chatId, undefined, 'No semaphore');
         return;
@@ -202,7 +202,7 @@ export class Bot {
 
           //FIXME: пока мы не зарегистрируемся права не будут проверяться?
           if (accountLink?.customerId && accountLink.employeeId) {
-            fn = (ur: UserRightId) => this._canView(ur, accountLink.customerId, accountLink.employeeId);
+            fn = (ur: UserRightId) => this._hasPermission(ur, accountLink.customerId, accountLink.employeeId);
           } else {
             fn = undefined;
           }
@@ -580,33 +580,24 @@ export class Bot {
         enterAnnouncementInvitation: reply(stringResources.enterAnnouncementInvitation, keyboardEnterAnnouncement),
         sendAnnouncementMenu: reply(stringResources.sendAnnouncementMenuCaption, keyboardSendAnnouncement),
         sendToDepartment: ctx => {
-          //TODO: проверить на права
-          const { customerId, employeeId, announcement } = ctx;
+          const { customerId, employeeId, announcement, chatId } = ctx;
 
           if (customerId && employeeId && announcement) {
-            const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log })
-              .read(employeeId);
 
-            if (payslip?.dept.length) {
-              const { dept } = payslip;
+            if (!this._hasPermission('ANN_DEPT', customerId, employeeId, false)) {
+              this._logger.error(chatId, undefined, 'Access denied for sending announcement to department.')
+              return;
+            }
 
-              let lastDate = str2Date(dept[0].d);
-              let lastId = dept[0].id;
+            const department = this._getDepartment(customerId, employeeId);
 
-              for (const { d, id } of dept) {
-                const date = str2Date(d);
-                if (isGr(date, lastDate)) {
-                  lastDate = date;
-                  lastId = id;
-                }
-              }
-
+            if (department) {
               this._announcements.write(uuidv4(), {
                 date: new Date(),
                 fromCustomerId: customerId,
                 fromEmployeeId: employeeId,
                 toCustomerId: customerId,
-                toDepartmentId: lastId,
+                toDepartmentId: department.id,
                 body: announcement
               });
             }
@@ -627,9 +618,10 @@ export class Bot {
           const { customerId, employeeId } = ctx;
           const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
           const employeeName = employee
-           ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
-           : 'Bond, James Bond';
-          reply(stringResources.showSettings, keyboardSettings, employeeName, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
+            ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
+            : 'Bond, James Bond';
+          const departmentName = (customerId && employeeId && getLName2(this._getDepartment(customerId, employeeId)?.name)) ?? 'MI6';
+          reply(stringResources.showSettings, keyboardSettings, employeeName, departmentName, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
         },
         logout: async (ctx) => {
           const { platform, chatId } = ctx;
@@ -718,7 +710,7 @@ export class Bot {
           this._log.error('Invalid chat context');
         }
         else if (ctx.message?.text === undefined) {
-          this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat message');
+          this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Message text is undefined');
         } else {
           this.onUpdate({
             platform: 'TELEGRAM',
@@ -783,7 +775,7 @@ export class Bot {
             let fn: TestUserRightFunc | undefined;
 
             if (accountLink?.customerId && accountLink.employeeId) {
-              fn = (ur: UserRightId) => this._canView(ur, accountLink.customerId, accountLink.employeeId);
+              fn = (ur: UserRightId) => this._hasPermission(ur, accountLink.customerId, accountLink.employeeId);
             } else {
               fn = undefined;
             }
@@ -898,7 +890,7 @@ export class Bot {
     return this._viber;
   }
 
-  private _canView(userRight: UserRightId, customerId: string, employeeId: string) {
+  private _hasPermission(userRight: UserRightId, customerId: string, employeeId: string, forReading = true, def = true) {
 
     const check = (rules?: UserRights) => {
       if (rules) {
@@ -906,22 +898,34 @@ export class Bot {
 
         for (const r of filtered) {
           if (r.users?.includes(employeeId)) {
-            if (r.read !== undefined) {
-              return r.read;
+            if (forReading) {
+              if (r.read !== undefined) {
+                return r.read;
+              }
+            } else {
+              if (r.write !== undefined) {
+                return r.write;
+              }
             }
           }
         }
 
         for (const r of filtered) {
           if (r.eneryone) {
-            if (r.read !== undefined) {
-              return r.read;
+            if (forReading) {
+              if (r.read !== undefined) {
+                return r.read;
+              }
+            } else {
+              if (r.write !== undefined) {
+                return r.write;
+              }
             }
           }
         }
       }
 
-      return undefined;
+      return def;
     };
 
     const custPermission = check(this._userRights.read(customerId));
@@ -993,6 +997,26 @@ export class Bot {
   private _getEmployee(customerId: string, employeeId: string) {
     const employees = this._getEmployees(customerId);
     return employees && employees.read(employeeId);
+  }
+
+  private _getDepartment(customerId: string, employeeId: string) {
+    const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log })
+      .read(employeeId);
+
+    if (payslip?.dept.length) {
+      const history = payslip.dept;
+      let department = history[0];
+
+      for (const curr of history) {
+        if (isGr(str2Date(curr.d), str2Date(department.d))) {
+          department = curr;
+        }
+      }
+
+      return department;
+    }
+
+    return undefined;
   }
 
   private _getSchedules(customerId: string) {
@@ -1726,14 +1750,7 @@ export class Bot {
         const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
 
         //TODO: temporarily
-        this._logger.debug(inChatId, undefined, `State: ${state.toStrings().join('->')}, Event: ${event.type}`);
-        /*
-        this._logger.debug(inChatId, undefined, `State value: ${JSON.stringify(state.value)}`);
-        this._logger.debug(inChatId, undefined, `State context: ${JSON.stringify(state.context)}`);
-        if (Object.keys(state.children).length) {
-          this._logger.debug(inChatId, undefined, `State children: ${JSON.stringify(Object.values(state.children)[0].state.value)}`);
-        }
-        */
+        this._logger.debug(inChatId, undefined, `${state.toStrings().join('->')}, ${JSON.stringify(event)}`);
 
         if (state.done) {
           return;
@@ -1846,19 +1863,19 @@ export class Bot {
           }
         }
 
+        const [totalV, totalIV, totalT, totalIT] = Object.values(stat).reduce( (p, s) => [p[0] + s[0], p[1] + s[1], p[2] + s[2], p[3] + s[3]], [0, 0, 0, 0] );
+        const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+
         /**
          * Форматируем статистику в текст. Одна строка -- один клиент.
          */
         const formatStats = () => Object.entries(stat)
           .map(
-            ([customerId, [totalViber, inactiveViber, totalTelegram, inactiveTelegram]]) =>
-              `  ${customerId}: ${totalViber + totalTelegram}/${totalViber}${inactiveViber ? '(' + inactiveViber + ')' : ''}/${totalTelegram}${inactiveTelegram ? '(' + inactiveTelegram + ')' : ''}`
+            ([custId, [custV, custIV, custT, custIT]]) =>
+              `  ${custId}: ${custV + custT}/${((custV + custT) * 100/(totalV + totalT)).toFixed(0)}%/${custV}${custIV ? '(' + custIV + ')' : ''}/${custT}${custIT ? '(' + custIT + ')' : ''}`
             )
           .sort( (a, b) => a.localeCompare(b) )
           .join('\n');
-
-        const [totalViber, inactiveViber, totalTelegram, inactiveTelegram] = Object.values(stat).reduce( (p, s) => [p[0] + s[0], p[1] + s[1], p[2] + s[2], p[3] + s[3]], [0, 0, 0, 0] );
-        const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
 
         const data = [
           `Server started: ${new Intl.DateTimeFormat("be", dateOptions).format(this._botStarted)}`,
@@ -1870,7 +1887,7 @@ export class Bot {
           `Callbacks processed: ${this._callbacksReceived}`,
           `Machines are running: ${Object.values(this._service).length}`,
           `${formattedServiceStat}`,
-          `Users All/V/T (inact): ${totalViber + totalTelegram}/${totalViber}${inactiveViber ? '(' + inactiveViber + ')' : ''}/${totalTelegram}${inactiveTelegram ? '(' + inactiveTelegram + ')' : ''}`,
+          `Users All/%/V/T (inact): ${totalV + totalT}/100%/${totalV}${totalIV ? '(' + totalIV + ')' : ''}/${totalT}${totalIT ? '(' + totalIT + ')' : ''}`,
           `${formatStats()}`
         ];
         if (platform === 'TELEGRAM') {
