@@ -5,10 +5,10 @@ Properties:
   RUID: 1173065484_1450749196
   Name: "ZarobakBot.Экспорт данных по признакам"
   Caption: "ZarobakBot.Экспорт данных по признакам"
-  Version: "1.0.0.2"
+  Version: "1.0.0.3"
   Optional: False
   Internal: True
-  MD5: 3298FDD43C5A21A86FB8604DC69FCD5A
+  MD5: AD6EF6028BF876D9211E0DBB22E898A2
 Uses: 
   - "1193786287_1320926324 ZarobakBot.Экспорт файлов"
   - "158513268_1444931844 ZarobakBot.Сбор данных"
@@ -145,7 +145,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODIFYDATE: 2020-07-13T18:25:24+03:00
       MODULE: "METHOD"
       MODULECODE: "147047545_890572900 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147047033_888596433"
       OBJECTNAME: "TgdcUserDocument147047033_888596433"
@@ -154,7 +154,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-09T17:41:35+03:00
+      EDITIONDATE: 2020-07-13T18:25:23+03:00
       DISPLAYSCRIPT: | 
         TGDCUSERDOCUMENT147047033_888596433DOAFTERPOST
         
@@ -170,7 +170,7 @@ Objects:
         '***               Конец кода поддержки gdc-класса.                  ***
           if Self.VariableExists("isBlocked") then
             if Self.Variables("isBlocked") = 0 and Self.FieldByName("USR$CLOSEPERIOD").AsInteger = 1 then
-              call Application.MessageBox("Сейчас будет выполнен экспорт данных для бота. Подождите несколько минут...", "Внимание!", vbOkOnly + vbSystemModal + vbInformation)
+              call Application.MessageBox("Формируется закрытие месяца. Подождите несколько минут...", "Внимание!", vbOkOnly + vbSystemModal + vbInformation)
               call bot_exportAfterBlocked(Array(Self.FieldByName("USR$DATEBEGIN").AsDateTime, Self.FieldByName("USR$DATEEND").AsDateTime), _
                 Self.FieldByName("COMPANYKEY").AsInteger)
             end if
@@ -197,7 +197,7 @@ Objects:
       OBJECTKEY: "147047545_890572900 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147047033_888596433"
       OBJECTNAME: "TgdcUserDocument147047033_888596433"
       PARENTNAME: "TgdcUserDocument"
-      EDITIONDATE: 2020-07-09T17:41:35+03:00
+      EDITIONDATE: 2020-07-13T18:25:23+03:00
   - 
     Properties: 
       Class: "TgdcFunction"
@@ -469,7 +469,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-13T11:39:51+03:00
+      MODIFYDATE: 2020-07-13T18:25:50+03:00
       MODULE: "METHOD"
       MODULECODE: "147572216_119619099 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147567052_119619099"
       OBJECTNAME: "TgdcUserDocument147567052_119619099"
@@ -478,7 +478,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-13T11:39:50+03:00
+      EDITIONDATE: 2020-07-13T18:25:49+03:00
       DISPLAYSCRIPT: | 
         TGDCUSERDOCUMENT147567052_119619099DOAFTERTRANSACTIONEND
         
@@ -498,7 +498,7 @@ Objects:
             isReady = bot_isReadyForExport(Self)
             'Если установили признак Закрыто или Можно печатать, то выполняем экспорт
             if Self.Variables("isBlocked") = 0 and isReady = 1 then
-              call Application.MessageBox("Сейчас будет выполнен экспорт данных для бота. Подождите несколько минут...", "Внимание!", vbOkOnly + vbSystemModal + vbInformation)
+              call Application.MessageBox("Формируется закрытие месяца. Подождите несколько минут...", "Внимание!", vbOkOnly + vbSystemModal + vbInformation)
               call bot_exportAfterBlocked(Array(Self.FieldByName("USR$DATEBEGIN").AsDateTime, Self.FieldByName("USR$DATEEND").AsDateTime), _
                 Self.FieldByName("COMPANYKEY").AsInteger)
             end if
@@ -525,4 +525,4 @@ Objects:
       OBJECTKEY: "147572216_119619099 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147567052_119619099"
       OBJECTNAME: "TgdcUserDocument147567052_119619099"
       PARENTNAME: "TgdcUserDocument"
-      EDITIONDATE: 2020-07-13T11:39:51+03:00
+      EDITIONDATE: 2020-07-13T18:25:49+03:00
