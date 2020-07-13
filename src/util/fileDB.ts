@@ -60,7 +60,7 @@ export class FileDB<T extends Object> {
           * Но, если данные были изменены в памяти, то не будем перечитывать и предупредим
           * пользователя, что он потеряет свои изменения, сделанные на диске.
           */
-        if (event === 'change' && this._data) {
+        if (!this._needReload && event === 'change' && this._data) {
           if (this._modified) {
             this._logger.warn(`Changes on the disk for file ${this._fn} will be overwritten.`);
           } else {
