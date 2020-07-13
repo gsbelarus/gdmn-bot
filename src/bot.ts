@@ -1848,14 +1848,14 @@ export class Bot {
         }
 
         const formattedServiceStat = Object.entries(serviceStat)
-          .sort( (a, b) => a[1] - b[1] )
+          .sort( ([,a], [,b]) => b - a )
           .map( ([signature, cnt]) => `  ${signature.split('"').join('').replace('{', '').replace('}', '').replace(':', '-')}: ${cnt}` )
           .join('\n');
 
         /**
-         * viber, viber inactive, telegram, telegram inactive
+         * viber, viber inactive, telegram, telegram inactive, employees
          */
-        const stat: { [customerId: string]: [number, number, number, number] } = {};
+        const stat: { [customerId: string]: [number, number, number, number, number] } = {};
 
         /**
          * Собираем статистику "все/активные последние 31 дней" в разрезе клиентов.
@@ -1864,7 +1864,7 @@ export class Bot {
 
         for (const l of Object.values(this._viberAccountLink.getMutable(false))) {
           if (!stat[l.customerId]) {
-            stat[l.customerId] = [0, 0, 0, 0];
+            stat[l.customerId] = [0, 0, 0, 0, 0];
           }
           stat[l.customerId][0]++;
           if (l.lastUpdated && l.lastUpdated.getTime() < thirtyDaysAgo) {
@@ -1874,7 +1874,7 @@ export class Bot {
 
         for (const l of Object.values(this._telegramAccountLink.getMutable(false))) {
           if (!stat[l.customerId]) {
-            stat[l.customerId] = [0, 0, 0, 0];
+            stat[l.customerId] = [0, 0, 0, 0, 0];
           }
           stat[l.customerId][2]++;
           if (l.lastUpdated && l.lastUpdated.getTime() < thirtyDaysAgo) {
@@ -1882,7 +1882,11 @@ export class Bot {
           }
         }
 
-        const [totalV, totalIV, totalT, totalIT] = Object.values(stat).reduce( (p, s) => [p[0] + s[0], p[1] + s[1], p[2] + s[2], p[3] + s[3]], [0, 0, 0, 0] );
+        for (const customerId of Object.keys(stat)) {
+          stat[customerId][4] = Object.keys(this._getEmployees(customerId).getMutable(false)).length;
+        }
+
+        const [totalV, totalIV, totalT, totalIT, totalE] = Object.values(stat).reduce( (p, s) => [p[0] + s[0], p[1] + s[1], p[2] + s[2], p[3] + s[3], p[4] + s[4]], [0, 0, 0, 0, 0] );
         const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
 
         /**
@@ -1891,8 +1895,8 @@ export class Bot {
         const formatStats = () => Object.entries(stat)
           .sort( ([, [AV, , AT]], [, [BV, , BT]]) => (BV + BT) - (AV + AT) )
           .map(
-            ([custId, [custV, custIV, custT, custIT]], idx) =>
-              `${(idx + 1).toString().padEnd(4, '.')}${custId}: ${custV + custT}/${((custV + custT) * 100/(totalV + totalT)).toFixed(0)}%/${custV}${custIV ? '(' + custIV + ')' : ''}/${custT}${custIT ? '(' + custIT + ')' : ''}`
+            ([custId, [custV, custIV, custT, custIT, custE]], idx) =>
+              `${(idx + 1).toString().padEnd(4, '.')}${custId}: ${custV + custT}/${custE}/${((custV + custT) * 100 / custE).toFixed(0)}%/${custV}${custIV ? '(' + custIV + ')' : ''}/${custT}${custIT ? '(' + custIT + ')' : ''}`
             )
           .join('\n');
 
@@ -1906,7 +1910,7 @@ export class Bot {
           `Callbacks processed: ${this._callbacksReceived}`,
           `Machines are running: ${Object.values(this._service).length}`,
           `${formattedServiceStat}`,
-          `Users All/%/V/T (inact): ${totalV + totalT}/100%/${totalV}${totalIV ? '(' + totalIV + ')' : ''}/${totalT}${totalIT ? '(' + totalIT + ')' : ''}`,
+          `Users/Empl/%/V/T (inact): ${totalV + totalT}/${totalE}/${((totalV + totalT) * 100 / totalE).toFixed(0)}%/${totalV}${totalIV ? '(' + totalIV + ')' : ''}/${totalT}${totalIT ? '(' + totalIT + ')' : ''}`,
           `${formatStats()}`
         ];
         if (platform === 'TELEGRAM') {
