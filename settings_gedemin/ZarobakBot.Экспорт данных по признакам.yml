@@ -1,0 +1,528 @@
+%YAML 1.1
+--- 
+StructureVersion: "1.0"
+Properties: 
+  RUID: 1173065484_1450749196
+  Name: "ZarobakBot.Экспорт данных по признакам"
+  Caption: "ZarobakBot.Экспорт данных по признакам"
+  Version: "1.0.0.2"
+  Optional: False
+  Internal: True
+  MD5: 3298FDD43C5A21A86FB8604DC69FCD5A
+Uses: 
+  - "1193786287_1320926324 ZarobakBot.Экспорт файлов"
+  - "158513268_1444931844 ZarobakBot.Сбор данных"
+  - "147769863_84733194 Зарплата - Evt_Object"
+Objects: 
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173054272_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1173050678_1450749196
+    Fields: 
+      NAME: "bot_exportAfterBlocked"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-09T14:07:44+03:00
+      DISPLAYSCRIPT: | 
+        BOT_EXPORTAFTERBLOCKED
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAFBFUklPRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
+        UFJTVAoAAABDT01QQU5ZS0VZCgAAAENPTVBBTllLRVkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        Rk5TVEZMUFI=
+      SCRIPT: | 
+        '#include BOT_EXPORTSCHEDULESU
+        '#include BOT_EXPORTPAYSLIPSU
+        '#include BOT_EXPORTEMPLOYEESU
+        '#include BOT_EXPORTACCDEDSU
+        '#include BOT_GETSERVERDATA
+        Option Explicit
+        Function bot_exportAfterBlocked(Period, companyKey)
+          const upload_employees = "/zarobak/v1/upload_employees"
+          const upload_accDedRefs = "/zarobak/v1/upload_accDedRefs"
+          const upload_paySlips = "/zarobak/v1/upload_paySlips"
+          const upload_schedules = "/zarobak/v2/upload_schedules"
+        
+          dim customerArray, URL, count
+          'Из констант получим параметры для отправки на сервер
+          'customerArray - массив данных по клиенту (ид и RUID организации, пример: ("id1,123_456", "id2,789_123"))
+          'URL - путь к серверу
+          call bot_GetServerData(false, customerArray, URL)
+        
+          count = UBound(customerArray)
+          if count < 0 or URL = "" then
+            exit function
+          end if
+        
+          dim Creator, i, customer, customerId, companyId
+          set Creator = new TCreator
+          dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
+          P.StartWork "ZarobakBot", "Экспорт данных", 3*(count+1), True, True
+        
+          for i = 0 to count
+            customer = Split(customerArray(i), ",")
+            customerId = customer(0)
+            companyId = gdcBaseManager.GetIDByRUIDString(customer(1))
+            
+            if companyId = companyKey then
+        
+              P.StartStep "Виды начислений " & customerId, 1
+              if not bot_exportAccDedsU(customerId, URL & upload_accDedRefs, false) then
+                P.EndWork "Экспорт остановлен!", False
+                exit function
+              end if
+        
+              P.StartStep "Сотрудники " & customerId, 1
+              if not bot_exportEmployeesU(customerId, companyId, URL & upload_employees, false) then
+                P.EndWork "Экспорт остановлен!", False
+                exit function
+              end if
+        
+              P.StartStep "Расчетные листки " & customerId, 1
+              if not bot_exportPaySlipsU(Period, customerId, companyId, URL & upload_paySlips, false, false) then
+                P.EndWork "Экспорт остановлен!", False
+                exit function
+              end if
+              
+              P.StartStep "Графики рабочего времени " & customerId, 1
+              if not bot_exportSchedulesU(customerId, companyId, URL & upload_schedules) then
+                P.EndWork "Экспорт остановлен!", False
+                exit function
+              end if
+              
+            end if
+          next
+        
+          P.EndWork "Экспорт выполнен!", False
+        End Function
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1173044927_1450749196 bot_exportSchedulesU"
+          - 
+            ADDFUNCTIONKEY: "158513035_1444931844 bot_exportPaySlipsU"
+          - 
+            ADDFUNCTIONKEY: "158513034_1444931844 bot_exportEmployeesU"
+          - 
+            ADDFUNCTIONKEY: "158513032_1444931844 bot_exportAccDedsU"
+          - 
+            ADDFUNCTIONKEY: "158512755_1444931844 bot_getServerData"
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173050680_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1173050678_1450749196
+    Fields: 
+      NAME: "TgdcUserDocument147047033_888596433DoAfterPost"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODULE: "METHOD"
+      MODULECODE: "147047545_890572900 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147047033_888596433"
+      OBJECTNAME: "TgdcUserDocument147047033_888596433"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-09T17:41:35+03:00
+      DISPLAYSCRIPT: | 
+        TGDCUSERDOCUMENT147047033_888596433DOAFTERPOST
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QEAAAAU0VMRgQAAABTRUxGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RGTFBS
+      SCRIPT: | 
+        '#include BOT_EXPORTAFTERBLOCKED
+        Option Explicit
+        Sub TgdcUserDocument147047033_888596433DoAfterPost(Self)
+        '*** Данный код необходим для вызова кода определенного в gdc-классе.***
+        '*** При его удаления  возможно нарушение  правильной работы системы.***
+          Call Inherited(Self, "DoAfterPost", Array(Self))
+        '***               Конец кода поддержки gdc-класса.                  ***
+          if Self.VariableExists("isBlocked") then
+            if Self.Variables("isBlocked") = 0 and Self.FieldByName("USR$CLOSEPERIOD").AsInteger = 1 then
+              call Application.MessageBox("Сейчас будет выполнен экспорт данных для бота. Подождите несколько минут...", "Внимание!", vbOkOnly + vbSystemModal + vbInformation)
+              call bot_exportAfterBlocked(Array(Self.FieldByName("USR$DATEBEGIN").AsDateTime, Self.FieldByName("USR$DATEEND").AsDateTime), _
+                Self.FieldByName("COMPANYKEY").AsInteger)
+            end if
+          end if
+        End Sub
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1173054272_1450749196 bot_exportAfterBlocked"
+  - 
+    Properties: 
+      Class: "TgdcEvent"
+      RUID: 1173050678_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      DISABLE: ~
+      EVENTNAME: "DOAFTERPOST"
+      FUNCTIONKEY: "1173050680_1450749196 TgdcUserDocument147047033_888596433DoAfterPost"
+      OBJECTKEY: "147047545_890572900 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147047033_888596433"
+      OBJECTNAME: "TgdcUserDocument147047033_888596433"
+      PARENTNAME: "TgdcUserDocument"
+      EDITIONDATE: 2020-07-09T17:41:35+03:00
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173050677_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1173050675_1450749196
+    Fields: 
+      NAME: "TgdcUserDocument147047033_888596433DoBeforeEdit"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODULE: "METHOD"
+      MODULECODE: "147047545_890572900 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147047033_888596433"
+      OBJECTNAME: "TgdcUserDocument147047033_888596433"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-09T12:52:14+03:00
+      DISPLAYSCRIPT: | 
+        TGDCUSERDOCUMENT147047033_888596433DOBEFOREEDIT
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QEAAAAU0VMRgQAAABTRUxGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RGTFBS
+      SCRIPT: | 
+        Option Explicit
+        Sub TgdcUserDocument147047033_888596433DoBeforeEdit(Self)
+        '*** Данный код необходим для вызова кода определенного в gdc-классе.***
+        '*** При его удаления  возможно нарушение  правильной работы системы.***
+          Call Inherited(Self, "DoBeforeEdit", Array(Self))
+        '***               Конец кода поддержки gdc-класса.                  ***
+          if not Self.VariableExists("isBlocked") then
+            Self.AddVariableItem("isBlocked")
+          end if
+          Self.Variables("isBlocked") = Self.FieldByName("USR$CLOSEPERIOD").AsInteger
+        End Sub
+        
+  - 
+    Properties: 
+      Class: "TgdcEvent"
+      RUID: 1173050675_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      DISABLE: ~
+      EVENTNAME: "DOBEFOREEDIT"
+      FUNCTIONKEY: "1173050677_1450749196 TgdcUserDocument147047033_888596433DoBeforeEdit"
+      OBJECTKEY: "147047545_890572900 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147047033_888596433"
+      OBJECTNAME: "TgdcUserDocument147047033_888596433"
+      PARENTNAME: "TgdcUserDocument"
+      EDITIONDATE: 2020-07-09T12:52:14+03:00
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173054271_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1173054269_1450749196
+    Fields: 
+      NAME: "TgdcUserDocument147047033_888596433DoBeforeInsert"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODULE: "METHOD"
+      MODULECODE: "147047545_890572900 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147047033_888596433"
+      OBJECTNAME: "TgdcUserDocument147047033_888596433"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-09T13:07:51+03:00
+      DISPLAYSCRIPT: | 
+        TGDCUSERDOCUMENT147047033_888596433DOBEFOREINSERT
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QEAAAAU0VMRgQAAABTRUxGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RGTFBS
+      SCRIPT: | 
+        Option Explicit
+        Sub TgdcUserDocument147047033_888596433DoBeforeInsert(Self)
+        '*** Данный код необходим для вызова кода определенного в gdc-классе.***
+        '*** При его удаления  возможно нарушение  правильной работы системы.***
+          Call Inherited(Self, "DoBeforeInsert", Array(Self))
+        '***               Конец кода поддержки gdc-класса.                  ***
+          if not Self.VariableExists("isBlocked") then
+            Self.AddVariableItem("isBlocked")
+          end if
+          Self.Variables("isBlocked") = Self.FieldByName("USR$CLOSEPERIOD").AsInteger
+        End Sub
+        
+  - 
+    Properties: 
+      Class: "TgdcEvent"
+      RUID: 1173054269_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      DISABLE: ~
+      EVENTNAME: "DOBEFOREINSERT"
+      FUNCTIONKEY: "1173054271_1450749196 TgdcUserDocument147047033_888596433DoBeforeInsert"
+      OBJECTKEY: "147047545_890572900 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147047033_888596433"
+      OBJECTNAME: "TgdcUserDocument147047033_888596433"
+      PARENTNAME: "TgdcUserDocument"
+      EDITIONDATE: 2020-07-09T13:07:51+03:00
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173045344_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1173045342_1450749196
+    Fields: 
+      NAME: "TgdcUserDocument147567052_119619099DoBeforeEdit"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODULE: "METHOD"
+      MODULECODE: "147572216_119619099 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147567052_119619099"
+      OBJECTNAME: "TgdcUserDocument147567052_119619099"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-09T14:18:47+03:00
+      DISPLAYSCRIPT: | 
+        TGDCUSERDOCUMENT147567052_119619099DOBEFOREEDIT
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QEAAAAU0VMRgQAAABTRUxGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RGTFBS
+      SCRIPT: | 
+        '#include BOT_ISREADYFOREXPORT
+        Option Explicit
+        Sub TgdcUserDocument147567052_119619099DoBeforeEdit(Self)
+        '*** Данный код необходим для вызова кода определенного в gdc-классе.***
+        '*** При его удаления  возможно нарушение  правильной работы системы.***
+          Call Inherited(Self, "DoBeforeEdit", Array(Self))
+        '***               Конец кода поддержки gdc-класса.                  ***
+          if not Self.VariableExists("isBlocked") then
+            Self.AddVariableItem("isBlocked")
+          end if
+          Self.Variables("isBlocked") = bot_isReadyForExport(Self)
+        End Sub
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1173059124_1450749196 bot_isReadyForExport"
+  - 
+    Properties: 
+      Class: "TgdcEvent"
+      RUID: 1173045342_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      DISABLE: ~
+      EVENTNAME: "DOBEFOREEDIT"
+      FUNCTIONKEY: "1173045344_1450749196 TgdcUserDocument147567052_119619099DoBeforeEdit"
+      OBJECTKEY: "147572216_119619099 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147567052_119619099"
+      OBJECTNAME: "TgdcUserDocument147567052_119619099"
+      PARENTNAME: "TgdcUserDocument"
+      EDITIONDATE: 2020-07-09T14:18:47+03:00
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173054268_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1173054266_1450749196
+    Fields: 
+      NAME: "TgdcUserDocument147567052_119619099DoBeforeInsert"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODULE: "METHOD"
+      MODULECODE: "147572216_119619099 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147567052_119619099"
+      OBJECTNAME: "TgdcUserDocument147567052_119619099"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-09T14:18:42+03:00
+      DISPLAYSCRIPT: | 
+        TGDCUSERDOCUMENT147567052_119619099DOBEFOREINSERT
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QEAAAAU0VMRgQAAABTRUxGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RGTFBS
+      SCRIPT: | 
+        '#include BOT_ISREADYFOREXPORT
+        Option Explicit
+        Sub TgdcUserDocument147567052_119619099DoBeforeInsert(Self)
+        '*** Данный код необходим для вызова кода определенного в gdc-классе.***
+        '*** При его удаления  возможно нарушение  правильной работы системы.***
+          Call Inherited(Self, "DoBeforeInsert", Array(Self))
+        '***               Конец кода поддержки gdc-класса.                  ***
+          if not Self.VariableExists("isBlocked") then
+            Self.AddVariableItem("isBlocked")
+          end if
+          Self.Variables("isBlocked") = bot_isReadyForExport(Self)
+        End Sub
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1173059124_1450749196 bot_isReadyForExport"
+  - 
+    Properties: 
+      Class: "TgdcEvent"
+      RUID: 1173054266_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      DISABLE: ~
+      EVENTNAME: "DOBEFOREINSERT"
+      FUNCTIONKEY: "1173054268_1450749196 TgdcUserDocument147567052_119619099DoBeforeInsert"
+      OBJECTKEY: "147572216_119619099 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147567052_119619099"
+      OBJECTNAME: "TgdcUserDocument147567052_119619099"
+      PARENTNAME: "TgdcUserDocument"
+      EDITIONDATE: 2020-07-09T14:18:42+03:00
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173071185_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1173071183_1450749196
+    Fields: 
+      NAME: "TgdcUserDocument147567052_119619099DoAfterTransactionEnd"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-13T11:39:51+03:00
+      MODULE: "METHOD"
+      MODULECODE: "147572216_119619099 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147567052_119619099"
+      OBJECTNAME: "TgdcUserDocument147567052_119619099"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-13T11:39:50+03:00
+      DISPLAYSCRIPT: | 
+        TGDCUSERDOCUMENT147567052_119619099DOAFTERTRANSACTIONEND
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QEAAAAU0VMRgQAAABTRUxGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RQUlNU
+        BQAAAEZJRUxEBQAAAEZJRUxEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RGTFBS
+      SCRIPT: | 
+        '#include BOT_EXPORTAFTERBLOCKED
+        Option Explicit
+        Sub TgdcUserDocument147567052_119619099DoAfterTransactionEnd(Self, Field)
+        '*** Данный код необходим для вызова кода определенного в gdc-классе.***
+        '*** При его удаления  возможно нарушение  правильной работы системы.***
+          Call Inherited(Self, "DoAfterTransactionEnd", Array(Self, Field))
+        '***               Конец кода поддержки gdc-класса.                  ***
+          if Self.VariableExists("isBlocked") then
+            dim isReady
+            isReady = bot_isReadyForExport(Self)
+            'Если установили признак Закрыто или Можно печатать, то выполняем экспорт
+            if Self.Variables("isBlocked") = 0 and isReady = 1 then
+              call Application.MessageBox("Сейчас будет выполнен экспорт данных для бота. Подождите несколько минут...", "Внимание!", vbOkOnly + vbSystemModal + vbInformation)
+              call bot_exportAfterBlocked(Array(Self.FieldByName("USR$DATEBEGIN").AsDateTime, Self.FieldByName("USR$DATEEND").AsDateTime), _
+                Self.FieldByName("COMPANYKEY").AsInteger)
+            end if
+          end if
+        End Sub
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1173054272_1450749196 bot_exportAfterBlocked"
+  - 
+    Properties: 
+      Class: "TgdcEvent"
+      RUID: 1173071183_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      DISABLE: ~
+      EVENTNAME: "DOAFTERTRANSACTIONEND"
+      FUNCTIONKEY: "1173071185_1450749196 TgdcUserDocument147567052_119619099DoAfterTransactionEnd"
+      OBJECTKEY: "147572216_119619099 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147567052_119619099"
+      OBJECTNAME: "TgdcUserDocument147567052_119619099"
+      PARENTNAME: "TgdcUserDocument"
+      EDITIONDATE: 2020-07-13T11:39:51+03:00

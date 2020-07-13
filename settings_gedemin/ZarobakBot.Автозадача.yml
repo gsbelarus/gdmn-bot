@@ -5,13 +5,14 @@ Properties:
   RUID: 1173045327_1450749196
   Name: "ZarobakBot.Автозадача"
   Caption: "ZarobakBot.Автозадача"
-  Version: "1.0.0.4"
+  Version: "1.0.0.5"
   Optional: False
   Internal: True
-  MD5: EADBD441FBFC4C00FDE836BD41F31655
+  MD5: 877786831F929B8F914510DD9C5A05EE
 Uses: 
   - "1193786287_1320926324 ZarobakBot.Экспорт файлов"
   - "158513268_1444931844 ZarobakBot.Сбор данных"
+  - "1173065484_1450749196 ZarobakBot.Экспорт данных по признакам"
 Objects: 
   - 
     Properties: 
@@ -30,7 +31,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-08T14:57:30+03:00
+      MODIFYDATE: 2020-07-10T13:04:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
