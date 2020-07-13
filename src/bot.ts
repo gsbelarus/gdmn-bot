@@ -4,8 +4,8 @@ import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
-import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName } from "./stringResources";
-import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL } from "./util/utils";
+import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName, getLName2 } from "./stringResources";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL, pause } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement, mapUserRights, TestUserRightFunc, keyboardLogout } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
@@ -99,7 +99,7 @@ const scheduleRestorer = (data: IData<Omit<IScheduleData, 'id'>>): IData<Omit<IS
       )
     );
 
-type ReplyFunc = (s: ILocString | string | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => Promise<void>;
+type ReplyFunc = (s: ILocString | string | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'chatId' | 'semaphore'>) => Promise<void>;
 
 export class Bot {
   private _telegramAccountLink: FileDB<IAccountLink>;
@@ -178,7 +178,7 @@ export class Bot {
     /**************************************************************/
     /**************************************************************/
 
-    this._replyTelegram = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+    this._replyTelegram = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
         this._logger.error(chatId, undefined, 'No semaphore');
         return;
@@ -202,7 +202,7 @@ export class Bot {
 
           //FIXME: пока мы не зарегистрируемся права не будут проверяться?
           if (accountLink?.customerId && accountLink.employeeId) {
-            fn = (ur: UserRightId) => this._canView(ur, accountLink.customerId, accountLink.employeeId);
+            fn = (ur: UserRightId) => this._hasPermission(ur, accountLink.customerId, accountLink.employeeId);
           } else {
             fn = undefined;
           }
@@ -304,8 +304,8 @@ export class Bot {
     const calendarMachineOptions = (reply: ReplyFunc): Partial<MachineOptions<ICalendarMachineContext, CalendarMachineEvent>> => ({
       actions: {
         showSelectedDate: ctx => reply(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
-        showCalendar: ({ platform, chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
-          ? reply(stringResources.selectYear, keyboardCalendar(selectedDate.year), selectedDate.year)({ platform, chatId, semaphore })
+        showCalendar: ({ chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
+          ? reply(stringResources.selectYear, keyboardCalendar(selectedDate.year), selectedDate.year)({ chatId, semaphore })
           : reply(dateKind === 'PERIOD_1_DB'
               ? stringResources.selectDB
               : dateKind === 'PERIOD_1_DE'
@@ -313,7 +313,7 @@ export class Bot {
               : dateKind === 'PERIOD_MONTH'
               ? stringResources.selectMonth
               : stringResources.selectDB2, keyboardCalendar(selectedDate.year)
-            )({ platform, chatId, semaphore })
+            )({ chatId, semaphore })
       }
     });
 
@@ -579,36 +579,46 @@ export class Bot {
         showOther: reply(stringResources.mainMenuCaption, keyboardOther),
         enterAnnouncementInvitation: reply(stringResources.enterAnnouncementInvitation, keyboardEnterAnnouncement),
         sendAnnouncementMenu: reply(stringResources.sendAnnouncementMenuCaption, keyboardSendAnnouncement),
-        sendToDepartment: ctx => {
-          //TODO: проверить на права
-          const { customerId, employeeId, announcement } = ctx;
+        sendToDepartment: async ctx => {
+          const { customerId, employeeId, announcement, chatId, semaphore } = ctx;
 
           if (customerId && employeeId && announcement) {
-            const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log })
-              .read(employeeId);
-
-            if (payslip?.dept.length) {
-              const { dept } = payslip;
-
-              let lastDate = str2Date(dept[0].d);
-              let lastId = dept[0].id;
-
-              for (const { d, id } of dept) {
-                const date = str2Date(d);
-                if (isGr(date, lastDate)) {
-                  lastDate = date;
-                  lastId = id;
-                }
+            await semaphore?.acquire();
+            try {
+              if (!this._hasPermission('ANN_DEPT', customerId, employeeId, false)) {
+                this._logger.error(chatId, undefined, 'Access denied for sending announcement to department.')
+                return;
               }
 
-              this._announcements.write(uuidv4(), {
-                date: new Date(),
-                fromCustomerId: customerId,
-                fromEmployeeId: employeeId,
-                toCustomerId: customerId,
-                toDepartmentId: lastId,
-                body: announcement
-              });
+              const department = this._getDepartment(customerId, employeeId);
+
+              if (department) {
+                this._announcements.write(uuidv4(), {
+                  date: new Date(),
+                  fromCustomerId: customerId,
+                  fromEmployeeId: employeeId,
+                  toCustomerId: customerId,
+                  toDepartmentId: department.id,
+                  body: announcement
+                });
+
+                await reply(stringResources.startSendingAnnouncements)({ chatId, semaphore: new Semaphore('start sending announcement') });
+
+                let cnt = 0;
+
+                for (const [linkChatId, link] of Object.entries(this._telegramAccountLink.getMutable(false))) {
+                  if (link.customerId === customerId && linkChatId !== chatId && this._getDepartment(customerId, link.employeeId)?.id === department.id ) {
+                    //await this._replyTelegram(announcement)({ chatId, semaphore: new Semaphore('announcement') });
+                    await pause(50);
+                    cnt++;
+                  }
+                }
+
+                await reply(stringResources.endSendingAnnouncements, undefined, cnt)({ chatId, semaphore: new Semaphore('end sending announcement') });
+              }
+            }
+            finally {
+              semaphore?.release();
             }
           }
         },
@@ -627,9 +637,10 @@ export class Bot {
           const { customerId, employeeId } = ctx;
           const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
           const employeeName = employee
-           ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
-           : 'Bond, James Bond';
-          reply(stringResources.showSettings, keyboardSettings, employeeName, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
+            ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
+            : 'Bond, James Bond';
+          const departmentName = (customerId && employeeId && getLName2(this._getDepartment(customerId, employeeId)?.name)) ?? 'MI6';
+          reply(stringResources.showSettings, keyboardSettings, employeeName, departmentName, accountLink.language ?? 'ru', accountLink.currency ?? 'BYN')(rest);
         },
         logout: async (ctx) => {
           const { platform, chatId } = ctx;
@@ -718,7 +729,7 @@ export class Bot {
           this._log.error('Invalid chat context');
         }
         else if (ctx.message?.text === undefined) {
-          this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Invalid chat message');
+          this._logger.error(ctx.chat.id.toString(), ctx.from?.id.toString(), 'Message text is undefined');
         } else {
           this.onUpdate({
             platform: 'TELEGRAM',
@@ -783,7 +794,7 @@ export class Bot {
             let fn: TestUserRightFunc | undefined;
 
             if (accountLink?.customerId && accountLink.employeeId) {
-              fn = (ur: UserRightId) => this._canView(ur, accountLink.customerId, accountLink.employeeId);
+              fn = (ur: UserRightId) => this._hasPermission(ur, accountLink.customerId, accountLink.employeeId);
             } else {
               fn = undefined;
             }
@@ -898,7 +909,7 @@ export class Bot {
     return this._viber;
   }
 
-  private _canView(userRight: UserRightId, customerId: string, employeeId: string) {
+  private _hasPermission(userRight: UserRightId, customerId: string, employeeId: string, forReading = true, def = true) {
 
     const check = (rules?: UserRights) => {
       if (rules) {
@@ -906,22 +917,34 @@ export class Bot {
 
         for (const r of filtered) {
           if (r.users?.includes(employeeId)) {
-            if (r.read !== undefined) {
-              return r.read;
+            if (forReading) {
+              if (r.read !== undefined) {
+                return r.read;
+              }
+            } else {
+              if (r.write !== undefined) {
+                return r.write;
+              }
             }
           }
         }
 
         for (const r of filtered) {
           if (r.eneryone) {
-            if (r.read !== undefined) {
-              return r.read;
+            if (forReading) {
+              if (r.read !== undefined) {
+                return r.read;
+              }
+            } else {
+              if (r.write !== undefined) {
+                return r.write;
+              }
             }
           }
         }
       }
 
-      return undefined;
+      return def;
     };
 
     const custPermission = check(this._userRights.read(customerId));
@@ -993,6 +1016,26 @@ export class Bot {
   private _getEmployee(customerId: string, employeeId: string) {
     const employees = this._getEmployees(customerId);
     return employees && employees.read(employeeId);
+  }
+
+  private _getDepartment(customerId: string, employeeId: string) {
+    const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log })
+      .read(employeeId);
+
+    if (payslip?.dept.length) {
+      const history = payslip.dept;
+      let department = history[0];
+
+      for (const curr of history) {
+        if (isGr(str2Date(curr.d), str2Date(department.d))) {
+          department = curr;
+        }
+      }
+
+      return department;
+    }
+
+    return undefined;
   }
 
   private _getSchedules(customerId: string) {
@@ -1490,6 +1533,8 @@ export class Bot {
 
           // оставлять просто одну сумму в последней строке нельзя
           if (res[last].length === 1 && res.length > 1) {
+            // если в предпоследней строке более одного слова, то последнее
+            // перенесем в последнюю строку
             if (res[last - 1].length > 1) {
               res[last] = [res[last - 1][res[last - 1].length - 1], ...res[last]];
               res[last - 1].length = res[last - 1].length - 1;
@@ -1724,14 +1769,7 @@ export class Bot {
         const accountLinkDB = inPlatform === 'TELEGRAM' ? this._telegramAccountLink : this._viberAccountLink;
 
         //TODO: temporarily
-        this._logger.debug(inChatId, undefined, `State: ${state.toStrings().join('->')}, Event: ${event.type}`);
-        /*
-        this._logger.debug(inChatId, undefined, `State value: ${JSON.stringify(state.value)}`);
-        this._logger.debug(inChatId, undefined, `State context: ${JSON.stringify(state.context)}`);
-        if (Object.keys(state.children).length) {
-          this._logger.debug(inChatId, undefined, `State children: ${JSON.stringify(Object.values(state.children)[0].state.value)}`);
-        }
-        */
+        this._logger.debug(inChatId, undefined, `${state.toStrings().join('->')}, ${JSON.stringify(event)}`);
 
         if (state.done) {
           return;
@@ -1798,72 +1836,78 @@ export class Bot {
       if (body === 'diagnostics') {
         this.finalize();
 
-        const serviceStat: { [signature: string]: number } = {};
+        let serviceStat: { [signature: string]: number } = {};
 
         for (const s of Object.values(this._service)) {
           const signature = JSON.stringify(s.state.value);
-
           if (!serviceStat[signature]) {
-            serviceStat[signature] = 0;
+            serviceStat[signature] = 1;
+          } else {
+            serviceStat[signature]++;
           }
-
-          serviceStat[signature]++;
         }
 
         const formattedServiceStat = Object.entries(serviceStat)
-          .map( ([signature, cnt]) => `  ${signature}: ${cnt}` )
+          .sort( (a, b) => a[1] - b[1] )
+          .map( ([signature, cnt]) => `  ${signature.split('"').join('').replace('{', '').replace('}', '').replace(':', '-')}: ${cnt}` )
           .join('\n');
 
         /**
-         * Собираем статистику "все/активные последние 30 дней" в разрезе клиентов.
+         * viber, viber inactive, telegram, telegram inactive
          */
-        const gatherStats = (al: IData<IAccountLink>) => {
-          const thirtyDaysAgo = new Date().getTime() - 30 * 24 * 60 * 60 * 1000;
-          const res: { [customerId: string]: [number, number] } = {};
+        const stat: { [customerId: string]: [number, number, number, number] } = {};
 
-          for (const l of Object.values(al)) {
-            if (!res[l.customerId]) {
-              res[l.customerId] = [0, 0];
-            }
-            res[l.customerId][0]++;
-            if (l.lastUpdated && l.lastUpdated.getTime() > thirtyDaysAgo) {
-              res[l.customerId][1]++;
-            }
+        /**
+         * Собираем статистику "все/активные последние 31 дней" в разрезе клиентов.
+         */
+        const thirtyDaysAgo = new Date().getTime() - 31 * 24 * 60 * 60 * 1000;
+
+        for (const l of Object.values(this._viberAccountLink.getMutable(false))) {
+          if (!stat[l.customerId]) {
+            stat[l.customerId] = [0, 0, 0, 0];
           }
+          stat[l.customerId][0]++;
+          if (l.lastUpdated && l.lastUpdated.getTime() < thirtyDaysAgo) {
+            stat[l.customerId][1]++;
+          }
+        }
 
-          return res;
-        };
+        for (const l of Object.values(this._telegramAccountLink.getMutable(false))) {
+          if (!stat[l.customerId]) {
+            stat[l.customerId] = [0, 0, 0, 0];
+          }
+          stat[l.customerId][2]++;
+          if (l.lastUpdated && l.lastUpdated.getTime() < thirtyDaysAgo) {
+            stat[l.customerId][3]++;
+          }
+        }
+
+        const [totalV, totalIV, totalT, totalIT] = Object.values(stat).reduce( (p, s) => [p[0] + s[0], p[1] + s[1], p[2] + s[2], p[3] + s[3]], [0, 0, 0, 0] );
+        const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
 
         /**
          * Форматируем статистику в текст. Одна строка -- один клиент.
          */
-        const formatStats = (stat: ReturnType<typeof gatherStats>) => Object.entries(stat)
-          .map( ([customerId, [total, active]]) => `  ${customerId}: ${total}/${active}` )
-          .sort( (a, b) => a.localeCompare(b) )
+        const formatStats = () => Object.entries(stat)
+          .sort( ([, [AV, , AT]], [, [BV, , BT]]) => (BV + BT) - (AV + AT) )
+          .map(
+            ([custId, [custV, custIV, custT, custIT]], idx) =>
+              `${(idx + 1).toString().padEnd(4, '.')}${custId}: ${custV + custT}/${((custV + custT) * 100/(totalV + totalT)).toFixed(0)}%/${custV}${custIV ? '(' + custIV + ')' : ''}/${custT}${custIT ? '(' + custIT + ')' : ''}`
+            )
           .join('\n');
 
-        const telegramStats = gatherStats(this._telegramAccountLink.getMutable(false));
-        const viberStats = gatherStats(this._viberAccountLink.getMutable(false));
-
-        const telegramTotals = Object.values(telegramStats).reduce( (p, s) => [p[0] + s[0], p[1] + s[1]], [0, 0] );
-        const viberTotals = Object.values(viberStats).reduce( (p, s) => [p[0] + s[0], p[1] + s[1]], [0, 0] );
-
         const data = [
-          `Server started: ${this._botStarted}`,
+          `Server started: ${new Intl.DateTimeFormat("be", dateOptions).format(this._botStarted)}`,
           `Node version: ${process.versions.node}`,
-          'Memory usage:',
-          JSON.stringify(process.memoryUsage(), undefined, 2),
-          `Services are running: ${Object.values(this._service).length}`,
-          `${formattedServiceStat}`,
-          `Callbacks received: ${this._callbacksReceived}`,
-          `Telegram accounts ${telegramTotals[0]}/${telegramTotals[1]}:`,
-          `${formatStats(telegramStats)}`,
-          `Viber accounts ${viberTotals[0]}/${viberTotals[1]}:`,
-          `${formatStats(viberStats)}`,
-          `Both platforms accounts: ${telegramTotals[0] + viberTotals[0]}/${telegramTotals[1] + viberTotals[1]}`,
+          `RSS memory: ${new Intl.NumberFormat().format(process.memoryUsage().rss)} bytes`,
           `This chat id: ${chatId}`,
           `Customer id: ${accountLink?.customerId}`,
-          `Employee id: ${accountLink?.employeeId}`
+          `Employee id: ${accountLink?.employeeId}`,
+          `Callbacks processed: ${this._callbacksReceived}`,
+          `Machines are running: ${Object.values(this._service).length}`,
+          `${formattedServiceStat}`,
+          `Users All/%/V/T (inact): ${totalV + totalT}/100%/${totalV}${totalIV ? '(' + totalIV + ')' : ''}/${totalT}${totalIT ? '(' + totalIT + ')' : ''}`,
+          `${formatStats()}`
         ];
         if (platform === 'TELEGRAM') {
           await this._telegramSemaphore.acquire();

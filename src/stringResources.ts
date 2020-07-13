@@ -91,9 +91,9 @@ export const stringResources = {
     be: (year: number) => `Быў выбраны ${year} год...`,
   } as ILocString,
   showSettings: {
-    en: (employee: string, lang: Language, curr: string) => `Current settings:\n\tEmployee: ${employee}\n\tLanguage: ${lang}\n\tCurrency: ${curr}`,
-    ru: (employee: string, lang: Language, curr: string) => `Текущие настройки:\n\tСотрудник: ${employee}\n\tЯзык: ${lang}\n\tВалюта: ${curr}`,
-    be: (employee: string, lang: Language, curr: string) => `Бягучыя настройкі:\n\tСупрацоўнік: ${employee}\n\tМова: ${lang}\n\tВалюта: ${curr}`
+    en: (employee: string, department: string, lang: Language, curr: string) => `Current settings:\n\tEmployee: ${employee}\n\tDepartment: ${department}\n\tLanguage: ${lang}\n\tCurrency: ${curr}`,
+    ru: (employee: string, department: string, lang: Language, curr: string) => `Текущие настройки:\n\tСотрудник: ${employee}\n\tПодразделение: ${department}\n\tЯзык: ${lang}\n\tВалюта: ${curr}`,
+    be: (employee: string, department: string, lang: Language, curr: string) => `Бягучыя настройкі:\n\tСупрацоўнік: ${employee}\n\tДэпартамент: ${department}\n\tМова: ${lang}\n\tВалюта: ${curr}`
   } as ILocString,
   showSelectedDate: {
     en: (d: IDate) => `Selected month ${(d.month + 1).toString().padStart(2, '0')}.${d.year}`,
@@ -560,6 +560,16 @@ export const stringResources = {
     ru: 'Период: ',
     be: 'Перыяд: '
   },
+  startSendingAnnouncements: {
+    en: '📧 Sending of announcements has just began. We will inform when it is finished. Wait, please...',
+    ru: '📧 Начата рассылка объявлений. Мы сообщим, когда она будет окончена. Пожалуйста, подождите...',
+    be: '📧 Распачалася рассылка аб\'яў. Мы паведамім, калі яна будзе скончана. Калі ласка, пачакайце...'
+  },
+  endSendingAnnouncements: {
+    en: (sent: number) => `🏁 Sending is finished. ${sent} announcements were sent.`,
+    ru: (sent: number) => `🏁 Рассылка закончилась. Было разослано ${sent} объявлений.`,
+    be: (sent: number) => `🏁 Рассылка скончылася. Было разослана ${sent} аб\'яў.`
+  },
   payslipCurrency: {
     en: (currency: string, currencyRate?: ICurrencyRate) => 'Currency: ' + (
       currencyRate
@@ -664,4 +674,8 @@ export function getLName(n: LName, langPref: Language[] = [], getFullName: boole
     (getFullName ? n.en?.fullName : undefined) ?? n.en?.name ??
     ''
   );
+};
+
+export function getLName2(n?: LName, langPref: Language[] = [], getFullName: boolean = false): string | undefined {
+  return n && getLName(n, langPref, getFullName);
 };

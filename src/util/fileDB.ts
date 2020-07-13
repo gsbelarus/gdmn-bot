@@ -32,13 +32,14 @@ export class FileDB<T extends Object> {
   private _logger: ILogger;
   private _watcher: fs.FSWatcher | undefined;
   private _watch?: boolean;
+  private _needReload?: boolean;
 
   /**
    * Конструктор.
    * @param fn Имя файла с данными.
    * @param initData Начальные данные, если файла нет или в нем данные неверного формата.
    * @param check Функция для проверки считанных из файла данных на корректность.
-   * @param ignore Если true, то при наличии в файле некорректных данных не будет выдаваться сообщение об ошибке.
+   * @param ignore Если true, то при наличии в файле некорректных данных не будет выдаваться исключение.
    */
   constructor ({ fn, initData, check, ignore, logger, restore, watch }: IFileDBParams<T>)
   {
@@ -61,10 +62,10 @@ export class FileDB<T extends Object> {
           */
         if (event === 'change' && this._data) {
           if (this._modified) {
-            this._logger.warn(`Changes on the disk for file ${this._fn} will be overwriten.`);
+            this._logger.warn(`Changes on the disk for file ${this._fn} will be overwritten.`);
           } else {
-            this._data = undefined;
-            this._logger.info(`File ${this._fn} has been changed on disk. Data will be read on next access.`);
+            this._needReload = true;
+            this._logger.info(`File ${this._fn} has been changed on disk. Data will be re-read on next access.`);
           }
         }
       });
@@ -72,7 +73,9 @@ export class FileDB<T extends Object> {
   }
 
   private _load(): IData<T> {
-    if (!this._data) {
+    if (!this._data || this._needReload) {
+      this._needReload = false;
+
       if (fs.existsSync(this._fn)) {
         let parsed;
 
@@ -89,7 +92,13 @@ export class FileDB<T extends Object> {
           }
         }
         catch (e) {
-          if (!this._ignore) {
+          // ошибки парсинга JSON, мы просто выводим в лог
+          // потому что может быть ситуация, когда пользователь
+          // выполнил частичное редактирование JSON и сохранил
+          // промежуточную версию
+          if (this._watch || this._ignore) {
+            this._logger.error(e);
+          } else {
             throw e;
           }
         }

@@ -90,7 +90,7 @@ export interface IAccountLink {
   currency?: string;
   language?: Language;
   state?: StateValue;
-  context?: Pick<IBotMachineContext, 'dateBegin' | 'dateEnd' | 'dateBegin2'>;
+  context?: Exclude<IBotMachineContext, 'platform' | 'chatId' | 'semaphore' | 'customerId' | 'employeeId'>;
   /**
    * надо для телеграма, чтобы подменять инлайн меню
    */
