@@ -62,6 +62,9 @@ export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, 
   }
 };
 
+type AnnouncementType = 'DEPARTMENT' | 'ENTERPRISE' | 'GLOBAL' | undefined;
+type Announcement = string | undefined;
+
 export interface IBotMachineContext extends IMachineContextBase {
   customerId?: string;
   employeeId?: string;
@@ -84,7 +87,8 @@ export interface IBotMachineContext extends IMachineContextBase {
   /**
    * Текст объявления.
    */
-  announcement?: string;
+  announcement?: Announcement;
+  announcementType?: AnnouncementType;
 };
 
 export type StartEvent           = { type: 'START' } & Required<IMachineContextBase>;
@@ -318,18 +322,26 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             },
             {
               cond: (_, { command }: MenuCommandEvent) => command === '.sendToDepartment',
-              target: '#botMachine.mainMenu',
-              actions: 'sendToDepartment'
+              target: '.confirmationMenu',
+              actions: assign({ announcementType: (_) => 'DEPARTMENT' })
             },
             {
               cond: (_, { command }: MenuCommandEvent) => command === '.sendToEnterprise',
-              target: '#botMachine.mainMenu',
-              actions: 'sendToEnterprise'
+              target: '.confirmationMenu',
+              actions: assign({ announcementType: (_) => 'ENTERPRISE' })
             },
             {
               cond: (_, { command }: MenuCommandEvent) => command === '.sendToAll',
-              target: '#botMachine.mainMenu',
-              actions: 'sendToAll'
+              target: '.confirmationMenu',
+              actions: assign({ announcementType: (_) => 'GLOBAL' })
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.confirmSending',
+              target: '.sending'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.cancelSending',
+              target: '#botMachine.mainMenu'
             },
           ],
           ENTER_TEXT: {
@@ -343,6 +355,15 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           },
           sendAnnouncementMenu: {
             entry: 'sendAnnouncementMenu'
+          },
+          confirmationMenu: {
+            entry: 'sendConfirmation'
+          },
+          sending: {
+            on: {
+              '': '#botMachine.mainMenu'
+            },
+            entry: 'sendAnnouncement'
           }
         }
       },

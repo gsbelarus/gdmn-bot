@@ -1,8 +1,14 @@
 import { ILocString, stringResources } from "./stringResources";
 import { UserRightId } from "./security";
 
+export interface IUserRightDescr {
+  userRightId: UserRightId;
+  forReading: boolean;
+  defRight: boolean;
+};
+
 interface IWithUserRight {
-  needRight?: UserRightId | { any: UserRightId[] };
+  needRight?: UserRightId | IUserRightDescr | { any: IUserRightDescr[] };
 };
 
 export interface IMenuButton extends IWithUserRight {
@@ -26,7 +32,7 @@ export type MenuItem = IMenuButton | IMenuLink | IMenuStatic;
 
 export type Menu = MenuItem[][];
 
-export type TestUserRightFunc = (ur: UserRightId) => boolean;
+export type TestUserRightFunc = (ur: IUserRightDescr) => boolean;
 
 /**
  * Убираем из меню пункты, на которые у пользователя нет прав.
@@ -39,7 +45,7 @@ export const mapUserRights = (menu: Menu, fn?: TestUserRightFunc) => menu
       return true;
     }
 
-    if (i.needRight instanceof Object) {
+    if (i.needRight instanceof Object && 'any' in i.needRight) {
       for (const ur of i.needRight.any) {
         if (fn(ur)) {
           return true;
@@ -47,7 +53,11 @@ export const mapUserRights = (menu: Menu, fn?: TestUserRightFunc) => menu
       }
 
       return false;
-    } else {
+    }
+    else if (typeof i.needRight === 'string') {
+      return fn({ userRightId: i.needRight, forReading: true, defRight: true });
+    }
+    else {
       return fn(i.needRight);
     }
   } ) )
@@ -94,10 +104,17 @@ export const keyboardLogout: Menu = [
   ]
 ];
 
+export const keyboardSendAnnouncementConfirmation: Menu = [
+  [
+    { type: 'BUTTON', caption: stringResources.btnConfirmSending, command: '.confirmSending' },
+    { type: 'BUTTON', caption: stringResources.btnCancelSending, command: '.cancelSending' }
+  ]
+];
+
 export const keyboardSendAnnouncement: Menu = [
-  [{ type: 'BUTTON', caption: stringResources.btnSendToDepartment, command: '.sendToDepartment', needRight: 'ANN_DEPT' }],
-  [{ type: 'BUTTON', caption: stringResources.btnSendToEnterprise, command: '.sendToEnterprise', needRight: 'ANN_ENT' }],
-  [{ type: 'BUTTON', caption: stringResources.btnSendToAll, command: '.sendToAll', needRight: 'ANN_GLOBAL' }],
+  [{ type: 'BUTTON', caption: stringResources.btnSendToDepartment, command: '.sendToDepartment', needRight: { userRightId: 'ANN_DEPT', forReading: false, defRight: true }}],
+  [{ type: 'BUTTON', caption: stringResources.btnSendToEnterprise, command: '.sendToEnterprise', needRight: { userRightId: 'ANN_ENT', forReading: false, defRight: false }}],
+  [{ type: 'BUTTON', caption: stringResources.btnSendToAll, command: '.sendToAll', needRight: { userRightId: 'ANN_GLOBAL', forReading: false, defRight: false }}],
   [{ type: 'BUTTON', caption: stringResources.btnCancelSendAnnouncement, command: '.cancelSendAnnouncement' }],
 ];
 
@@ -111,7 +128,18 @@ export const keyboardOther: Menu = [
     { type: 'BUTTON', caption: stringResources.menuRates, command: '.rates' }
   ],
   [
-    { type: 'BUTTON', caption: stringResources.menuBillboard, command: '.billboard', needRight: { any: ['ANN_GLOBAL', 'ANN_ENT', 'ANN_DEPT'] } },
+    {
+      type: 'BUTTON',
+      caption: stringResources.menuBillboard,
+      command: '.billboard',
+      needRight: {
+        any: [
+          { userRightId: 'ANN_DEPT', forReading: false, defRight: true },
+          { userRightId: 'ANN_ENT', forReading: false, defRight: false },
+          { userRightId: 'ANN_GLOBAL', forReading: false, defRight: false }
+        ]
+      }
+    },
   ],
   [
     { type: 'BUTTON', caption: stringResources.btnBackToMenu, command: '.cancelOther' },
