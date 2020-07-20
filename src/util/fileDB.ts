@@ -97,7 +97,7 @@ export class FileDB<T extends Object> {
           // выполнил частичное редактирование JSON и сохранил
           // промежуточную версию
           if (this._watch || this._ignore) {
-            this._logger.error(e);
+            this._logger.error(`File: ${this._fn}, error: ${e}`);
           } else {
             throw e;
           }

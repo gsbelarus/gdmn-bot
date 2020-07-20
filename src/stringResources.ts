@@ -65,6 +65,16 @@ export const stringResources = {
     ru: 'Не выходить',
     be: 'Не выходзіць'
   },
+  btnConfirmSending: {
+    en: 'Confirm',
+    ru: 'Подтвердить',
+    be: 'Пацвердзіць'
+  },
+  btnCancelSending: {
+    en: 'Cancel sending',
+    ru: 'Отменить рассылку',
+    be: 'Адмяніць рассылку'
+  },
   noData: {
     en: '😕 There is no data for selected period!',
     ru: '😕 Нет данных за выбранный период!',
@@ -89,6 +99,11 @@ export const stringResources = {
     en: 'Select language.',
     ru: 'Выберите язык.',
     be: 'Выбярыце мову.'
+  },
+  sentBy: {
+    en: 'Announcement was sent by:',
+    ru: 'Объявление составлено:',
+    be: 'Аб\'ява складзена:'
   },
   selectYear: {
     en: (year: number) => `${year} year has been selected...`,
@@ -414,6 +429,11 @@ export const stringResources = {
     en: 'Check the message text and choose type of mailing.',
     ru: 'Проверьте текст сообщения и выберите тип рассылки.',
     be: 'Праверце тэкст паведамлення і выбярыце тып рассылкі.'
+  },
+  sendAnnouncementConfirmation: {
+    en: 'Please, confirm sending of the announcement.',
+    ru: 'Пожалуйста, подтвердите рассылку объявления.',
+    be: 'Калі ласка, пацвердзіце рассылку аб\'явы.'
   },
   notEnoughRights: {
     en: 'You don\'t have enough rights to send announcements.',

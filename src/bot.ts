@@ -2,11 +2,13 @@ import { FileDB, IData } from "./util/fileDB";
 import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, ITimeSheet, IScheduleData, ITimeSheetJSON, ICanteenMenus } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
-import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
+import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions, State } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName, getLName2 } from "./stringResources";
 import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL, pause, format2, format } from "./util/utils";
-import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement, mapUserRights, TestUserRightFunc, keyboardLogout, keyboardCanteenMenu, ICanteenMenuKeybord } from "./menu";
+import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates,
+keyboardEnterAnnouncement, keyboardSendAnnouncement, mapUserRights, TestUserRightFunc, keyboardLogout, keyboardCanteenMenu, ICanteenMenuKeybord,
+keyboardSendAnnouncementConfirmation, IUserRightDescr } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
@@ -99,7 +101,9 @@ const scheduleRestorer = (data: IData<Omit<IScheduleData, 'id'>>): IData<Omit<IS
       )
     );
 
-type ReplyFunc = (s: ILocString | string | Promise<string>, menu?: Menu | undefined, ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'chatId' | 'semaphore'>) => Promise<void>;
+type ReplyFunc = (s: ILocString | string | Promise<string>, menu?: Menu | 'KEEP' | 'REMOVE', ...args: any[]) => ({ chatId, semaphore }: Pick<IBotMachineContext, 'chatId' | 'semaphore'>) => Promise<void>;
+
+const inMainMenu = (state?: State<IBotMachineContext, BotMachineEvent, any, any>) => state?.value instanceof Object && state.value['mainMenu'] === 'showMenu';
 
 export class Bot {
   private _telegramAccountLink: FileDB<IAccountLink>;
@@ -137,6 +141,7 @@ export class Bot {
   private _updateSemaphore: { [id: string]: Semaphore } = {};
   private _viberSemaphore: Semaphore = new Semaphore('viber');
   private _telegramSemaphore: Semaphore = new Semaphore('telegram');
+  private _announcementSemaphore: Semaphore = new Semaphore('announcement');
 
   constructor(telegramToken: string, viberToken: string, logger: Logger) {
     this._logger = logger;
@@ -177,7 +182,7 @@ export class Bot {
     /**************************************************************/
     /**************************************************************/
 
-    this._replyTelegram = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'chatId' | 'semaphore'>) => {
+    this._replyTelegram = (s: ILocString | string | undefined | Promise<string>, menu: Menu | 'KEEP' | 'REMOVE' = 'REMOVE', ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'chatId' | 'semaphore'>) => {
       if (!semaphore) {
         this._logger.error(chatId, undefined, 'No semaphore');
         return;
@@ -196,12 +201,12 @@ export class Bot {
 
         let keyboard: ReturnType<typeof Markup.inlineKeyboard> | undefined;
 
-        if (menu) {
+        if (Array.isArray(menu)) {
           let fn: TestUserRightFunc | undefined;
 
           //FIXME: пока мы не зарегистрируемся права не будут проверяться?
           if (accountLink?.customerId && accountLink.employeeId) {
-            fn = (ur: UserRightId) => this._hasPermission(ur, accountLink.customerId, accountLink.employeeId);
+            fn = (ur: IUserRightDescr) => this._hasPermission(ur, accountLink.customerId, accountLink.employeeId);
           } else {
             fn = undefined;
           }
@@ -260,9 +265,11 @@ export class Bot {
               this._telegramAccountLink.merge(chatId, { lastMenuId: message.message_id });
             }
             else if (text && !keyboard) {
-              await editMessageReplyMarkup(true);
+              if (menu === 'REMOVE') {
+                await editMessageReplyMarkup(true);
+                this._telegramAccountLink.merge(chatId, {}, ['lastMenuId']);
+              }
               await this._telegram.telegram.sendMessage(chatId, text, extra);
-              this._telegramAccountLink.merge(chatId, {}, ['lastMenuId']);
             }
             else if (!text && keyboard) {
               await editMessageReplyMarkup();
@@ -302,7 +309,7 @@ export class Bot {
 
     const calendarMachineOptions = (reply: ReplyFunc): Partial<MachineOptions<ICalendarMachineContext, CalendarMachineEvent>> => ({
       actions: {
-        showSelectedDate: ctx => reply(stringResources.showSelectedDate, undefined, ctx.selectedDate)(ctx),
+        showSelectedDate: ctx => reply(stringResources.showSelectedDate, 'REMOVE', ctx.selectedDate)(ctx),
         showCalendar: ({ chatId, semaphore, selectedDate, dateKind }, { type }) => type === 'CHANGE_YEAR'
           ? reply(stringResources.selectYear, keyboardCalendar(selectedDate.year), selectedDate.year)({ chatId, semaphore })
           : reply(dateKind === 'PERIOD_1_DB'
@@ -647,42 +654,119 @@ export class Bot {
         showOther: reply(stringResources.mainMenuCaption, keyboardOther),
         enterAnnouncementInvitation: reply(stringResources.enterAnnouncementInvitation, keyboardEnterAnnouncement),
         sendAnnouncementMenu: reply(stringResources.sendAnnouncementMenuCaption, keyboardSendAnnouncement),
-        sendToDepartment: async ctx => {
-          const { customerId, employeeId, announcement, chatId, semaphore } = ctx;
+        sendConfirmation: reply(stringResources.sendAnnouncementConfirmation, keyboardSendAnnouncementConfirmation),
+        sendAnnouncement: async ctx => {
+          const { customerId, employeeId, announcement, chatId, semaphore, platform, announcementType } = ctx;
 
-          if (customerId && employeeId && announcement) {
+          if (customerId && employeeId && announcement && chatId && platform && announcementType) {
+            if (announcementType === 'DEPARTMENT' && !this._hasPermission({ userRightId: 'ANN_DEPT', forReading: false, defRight: true }, customerId, employeeId)) {
+              this._logger.error(chatId, undefined, 'Access denied for sending announcement to department.')
+              return;
+            }
+
+            if (announcementType === 'ENTERPRISE' && !this._hasPermission({ userRightId: 'ANN_ENT', forReading: false, defRight: false }, customerId, employeeId)) {
+              this._logger.error(chatId, undefined, 'Access denied for sending announcement to enterprise.')
+              return;
+            }
+
+            if (announcementType === 'GLOBAL' && !this._hasPermission({ userRightId: 'ANN_GLOBAL', forReading: false, defRight: false }, customerId, employeeId)) {
+              this._logger.error(chatId, undefined, 'Access denied for sending global announcement.')
+              return;
+            }
+
             await semaphore?.acquire();
             try {
-              if (!this._hasPermission('ANN_DEPT', customerId, employeeId, false)) {
-                this._logger.error(chatId, undefined, 'Access denied for sending announcement to department.')
-                return;
-              }
-
               const department = this._getDepartment(customerId, employeeId);
+              const language = this._accountLanguage[this.getUniqId(platform, chatId)] ?? 'ru';
+              const employee = customerId && employeeId && this._getEmployee(customerId, employeeId);
+              const employeeName = employee
+                ? `${employee.lastName} ${employee.firstName.slice(0, 1)}. ${employee.patrName ? employee.patrName.slice(0, 1) + '.' : ''}`
+                : 'Bond, James Bond';
+              const creditedAnnouncement = announcementType === 'GLOBAL' ? announcement : `${announcement}\n\n${getLocString(stringResources.sentBy, language)} ${employeeName}`;
 
-              if (department) {
-                this._announcements.write(uuidv4(), {
-                  date: new Date(),
-                  fromCustomerId: customerId,
-                  fromEmployeeId: employeeId,
-                  toCustomerId: customerId,
-                  toDepartmentId: department.id,
-                  body: announcement
-                });
+              this._announcements.write(uuidv4(), {
+                date: new Date(),
+                fromCustomerId: customerId,
+                fromEmployeeId: employeeId,
+                toCustomerId: announcementType === 'GLOBAL' ? undefined : customerId,
+                toDepartmentId: announcementType === 'DEPARTMENT' ? department?.id : undefined,
+                body: creditedAnnouncement
+              });
 
-                await reply(stringResources.startSendingAnnouncements)({ chatId, semaphore: new Semaphore('start sending announcement') });
+              await this._logger.info(chatId, undefined, `Start sending announcement. type=${announcementType}.`);
+              await reply(stringResources.startSendingAnnouncements)({ chatId, semaphore: new Semaphore('start sending announcement') });
 
+              await this._announcementSemaphore.acquire();
+              try {
                 let cnt = 0;
+                let timeouted = 0;
 
-                for (const [linkChatId, link] of Object.entries(this._telegramAccountLink.getMutable(false))) {
-                  if (link.customerId === customerId && linkChatId !== chatId && this._getDepartment(customerId, link.employeeId)?.id === department.id ) {
-                    //await this._replyTelegram(announcement)({ chatId, semaphore: new Semaphore('announcement') });
-                    await pause(50);
-                    cnt++;
+                const sendToAccounts = async (replyFunc: ReplyFunc, accountLink: IData<IAccountLink>, getUniqId: (cId: string) => string) => {
+                  for (const [linkChatId, link] of Object.entries(accountLink)) {
+                    if (linkChatId === chatId) {
+                      continue;
+                    }
+
+                    if (announcementType === 'DEPARTMENT' && (link.customerId !== customerId || this._getDepartment(customerId, link.employeeId)?.id !== department?.id)) {
+                      continue;
+                    }
+
+                    if (announcementType === 'ENTERPRISE' && link.customerId !== customerId) {
+                      continue;
+                    }
+
+                    /**
+                      * Мы пытаемся избежать ситуации, когда пользователь был в процессе диалога
+                      * и тут мы ему вылезли под руку со своим сообщением.
+                      *
+                      * 1) Если активной машины нет для этого чата, то можем слать. Все равно состояние
+                      *    пользователя скинется в главное меню при очередном подключении.
+                      * 2) Если машина есть, но состояние "главное меню", то тоже шлем сразу.
+                      * 3) Если состояние не главное меню и активность последняя была больше часа назад,
+                      *    то шлем.
+                      * 4) Если активность была менее часа назад, то выждем 5 минут и тогда опять запустим проверку.
+                      * 5) При этом, если акаунт линк почему-то все время обновляется, мы не хотели бы допустить
+                      *    бесконечных попыток отправить сообщение. Ограничем количество пятью.
+                      */
+
+                    const fn = async (countDown: number) => {
+                      const service = this._service[getUniqId(linkChatId)];
+                      const anHourAgo = Date.now() - 60 * 60 * 1000;
+
+                      if (
+                        !countDown
+                        ||
+                        !service
+                        ||
+                        inMainMenu(service?.state)
+                        ||
+                        (link.lastUpdated?.getTime() ?? 0) < anHourAgo
+                      ) {
+                        await replyFunc(creditedAnnouncement, 'KEEP')({ chatId: linkChatId, semaphore: new Semaphore('temp for announcement') });
+                        await pause(50);
+                        cnt++;
+                      } else {
+                        timeouted++;
+                        setTimeout( () => { timeouted--; fn(countDown - 1); }, 5 * 60 * 1000 );
+                      }
+                    };
+
+                    await fn(5);
                   }
+                };
+
+                await sendToAccounts(this._replyTelegram, this._telegramAccountLink.getMutable(false), (cId: string) => this.getUniqId('TELEGRAM', cId));
+
+                if (this._replyViber) {
+                  await sendToAccounts(this._replyViber, this._viberAccountLink.getMutable(false), (cId: string) => this.getUniqId('VIBER', cId));
                 }
 
                 await reply(stringResources.endSendingAnnouncements, undefined, cnt)({ chatId, semaphore: new Semaphore('end sending announcement') });
+                await this._logger.info(chatId, undefined, `End sending announcement. type=${announcementType}. sent=${cnt}. timeouted=${timeouted}`);
+              }
+              finally {
+                //TODO: но ведь останутся еще отложенные по таймауту отсылки
+                this._announcementSemaphore.release();
               }
             }
             finally {
@@ -690,8 +774,6 @@ export class Bot {
             }
           }
         },
-        sendToEnterprise: reply(stringResources.notEnoughRights),
-        sendToAll: reply(stringResources.notEnoughRights),
         showBirthdays: getShowBirthdaysFunc(reply),
         showCanteenMenuText: getShowCanteenMenuTextFunc(reply),
         showCanteenMenu: getShowCanteenMenuFunc(reply),
@@ -844,7 +926,7 @@ export class Bot {
     /**************************************************************/
 
     if (viberToken) {
-      this._replyViber = (s: ILocString | string | undefined | Promise<string>, menu?: Menu, ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
+      this._replyViber = (s: ILocString | string | undefined | Promise<string>, menu: Menu | 'KEEP' | 'REMOVE' = 'REMOVE', ...args: any[]) => async ({ chatId, semaphore }: Pick<IBotMachineContext, 'platform' | 'chatId' | 'semaphore'>) => {
         if (!semaphore) {
           this._logger.error(chatId, undefined, 'No semaphore');
           return;
@@ -864,11 +946,11 @@ export class Bot {
 
           let keyboard: any;
 
-          if (menu) {
+          if (Array.isArray(menu)) {
             let fn: TestUserRightFunc | undefined;
 
             if (accountLink?.customerId && accountLink.employeeId) {
-              fn = (ur: UserRightId) => this._hasPermission(ur, accountLink.customerId, accountLink.employeeId);
+              fn = (ur: IUserRightDescr) => this._hasPermission(ur, accountLink.customerId, accountLink.employeeId);
             } else {
               fn = undefined;
             }
@@ -983,15 +1065,15 @@ export class Bot {
     return this._viber;
   }
 
-  private _hasPermission(userRight: UserRightId, customerId: string, employeeId: string, forReading = true, def = true) {
+  private _hasPermission(ur: IUserRightDescr, customerId: string, employeeId: string) {
 
     const check = (rules?: UserRights) => {
       if (rules) {
-        const filtered = rules.filter( r => r.rights.includes(userRight) );
+        const filtered = rules.filter( r => r.rights.includes(ur.userRightId) );
 
         for (const r of filtered) {
           if (r.users?.includes(employeeId)) {
-            if (forReading) {
+            if (ur.forReading) {
               if (r.read !== undefined) {
                 return r.read;
               }
@@ -1005,7 +1087,7 @@ export class Bot {
 
         for (const r of filtered) {
           if (r.eneryone) {
-            if (forReading) {
+            if (ur.forReading) {
               if (r.read !== undefined) {
                 return r.read;
               }
@@ -1018,7 +1100,7 @@ export class Bot {
         }
       }
 
-      return def;
+      return undefined;
     };
 
     const custPermission = check(this._userRights.read(customerId));
@@ -1033,7 +1115,7 @@ export class Bot {
       return globalPermission;
     }
 
-    return true;
+    return ur.defRight;
   }
 
   private _menu2ViberMenu(menu: Menu, lng: Language) {
@@ -2348,7 +2430,7 @@ export class Bot {
     if (service) {
       // у нас сервер уже связан с чатом в мессенджере
       // сотрудника.
-      if (service.state.value instanceof Object && service.state.value['mainMenu'] === 'showMenu') {
+      if (inMainMenu(service.state)) {
         service.send({ type: 'MENU_COMMAND', command: '.latestPayslip' });
       }
     } else {
