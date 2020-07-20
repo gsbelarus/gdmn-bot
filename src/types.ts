@@ -1,4 +1,4 @@
-import { Language, LName } from "./stringResources";
+import { Language, LName, ILocString } from "./stringResources";
 import { IBotMachineContext } from "./machine";
 import { StateValue } from "xstate";
 import { ILoggerParams } from "./log";
@@ -257,4 +257,22 @@ export interface IAnnouncement {
   toDepartmentId?: string;
   toEmployeeId?: string;
   body: string;
+};
+
+export type ICanteenMenus = ICanteenMenu[];
+
+export interface ICanteenMenu {
+  id: string;
+  name: ILocString;
+  data: ICanteenMenuData[];
+};
+
+export interface ICanteenMenuData {
+  group: ILocString;
+  n: number;
+  groupdata: {
+    good: ILocString;
+    det: string;
+    cost: number;
+  }[];
 };

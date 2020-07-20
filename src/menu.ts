@@ -22,6 +22,12 @@ export interface IMenuLink extends IWithUserRight {
   url: string;
 };
 
+export interface ICanteenMenuKeybord {
+  id: string;
+  menu: ILocString;
+};
+
+
 export type MenuItem = IMenuButton | IMenuLink | IMenuStatic;
 
 export type Menu = MenuItem[][];
@@ -111,6 +117,7 @@ export const keyboardOther: Menu = [
     { type: 'BUTTON', caption: stringResources.menuRates, command: '.rates' }
   ],
   [
+    { type: 'BUTTON', caption: stringResources.menuMenu, command: '.canteenmenu', needRight: 'CANTEEN_MENU' },
     { type: 'BUTTON', caption: stringResources.menuBillboard, command: '.billboard', needRight: { any: ['ANN_GLOBAL', 'ANN_ENT', 'ANN_DEPT'] } },
   ],
   [
@@ -156,6 +163,11 @@ export const keyboardCurrencyRates: Menu = [
       ['UAH', stringResources.currencyUAH],
      ].map( l => ([{ type: 'BUTTON', caption: l[1], command: `{ "type": "SELECT_CURRENCY", "id": "${l[0]}" }` } as IMenuButton]) ),
   [{ type: 'BUTTON', caption: stringResources.btnBackToMenu, command: '.cancelRates' }]
+];
+
+export const keyboardCanteenMenu = (canteenMenus: ICanteenMenuKeybord[]): Menu => [
+  ...canteenMenus.map( (l, xid) => ([{ type: 'BUTTON', caption: l.menu, command: `{ "type": "SELECT_CANTEEN_MENU", "id": "${l.id}" }` } as IMenuButton]) ),
+  [{ type: 'BUTTON', caption: stringResources.btnBackToMenu, command: '.cancelSettings' }]
 ];
 
 export const keyboardCalendar = (year: number): Menu => {

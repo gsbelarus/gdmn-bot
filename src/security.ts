@@ -25,7 +25,11 @@ export const userRightIds = [
   /**
    * Право на доступ к системе, включая регистрацию.
    */
-  'ACCESS'
+  'ACCESS',
+  /**
+   * Право на меню общепита.
+   */
+  'CANTEEN_MENU'
 ] as const;
 
 export type UserRightId = typeof userRightIds[number];

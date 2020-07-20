@@ -85,6 +85,10 @@ export interface IBotMachineContext extends IMachineContextBase {
    * Текст объявления.
    */
   announcement?: string;
+  /**
+  * Подразделение для меню (общепит)
+  */
+  canteenMenuId?: string;
 };
 
 export type StartEvent           = { type: 'START' } & Required<IMachineContextBase>;
@@ -92,13 +96,15 @@ export type MainMenuEvent        = { type: 'MAIN_MENU' } & Required<IMachineCont
 export type EnterTextEvent       = { type: 'ENTER_TEXT';  text: string; };
 export type MenuCommandEvent     = { type: 'MENU_COMMAND';  command: string; };
 export type SelectCurrencyEvent  = { type: 'SELECT_CURRENCY'; id: string; };
+export type SelectCanteenMenuEvent  = { type: 'SELECT_CANTEEN_MENU'; id: string; };
 
 export type BotMachineEvent = CalendarMachineEvent
   | StartEvent
   | EnterTextEvent
   | MenuCommandEvent
   | MainMenuEvent
-  | SelectCurrencyEvent;
+  | SelectCurrencyEvent
+  | SelectCanteenMenuEvent
 
 export function isEnterTextEvent(event: BotMachineEvent): event is EnterTextEvent {
   return event.type === 'ENTER_TEXT' && typeof event.text === 'string';
@@ -114,7 +120,8 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       dateBegin2: { year: new Date().getFullYear(), month: 0 },
       currencyDate: { year: new Date().getFullYear(), month: 0 },
       tableDate: { year: new Date().getFullYear(), month: 0 },
-      scheduleDate: { year: new Date().getFullYear(), month: 0 }
+      scheduleDate: { year: new Date().getFullYear(), month: 0 },
+      canteenMenuId: undefined
     },
     states: {
       init: {
@@ -299,6 +306,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
             {
               cond: (_, { command }: MenuCommandEvent) => command === '.schedule',
               target: 'showSchedule'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.canteenmenu',
+              target: 'showCanteenMenu'
             }
           ]
         },
@@ -349,6 +360,49 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       showBirthdays: {
         on: { '': '#botMachine.mainMenu' },
         entry: 'showBirthdays'
+      },
+      showCanteenMenu: {
+        initial: 'isThereMenuData',
+        on: {
+          MENU_COMMAND: {
+            cond: (_, { command }: MenuCommandEvent) => command === '.cancelSettings',
+            target: '#botMachine.mainMenu'
+          },
+          SELECT_CANTEEN_MENU: {
+            actions: assign({ canteenMenuId: (_, { id }: SelectCanteenMenuEvent) => id }),
+            target: '.showCanteenMenuText'
+          }
+        },
+        states: {
+          isThereMenuData: {
+            on: {
+              '': [
+                {
+                  cond: 'isThereMenuData',
+                  target: 'selectCanteenMenu'
+                },
+                {
+                  target: 'showNoMenuData'
+                }
+              ]
+            }
+          },
+          showNoMenuData: {
+            on: {
+              '': '#botMachine.mainMenu'
+            },
+            entry: 'showNoMenuData'
+          },
+          selectCanteenMenu: {
+            entry: 'showCanteenMenu' // показывает меню (список кнопок)
+          },
+          showCanteenMenuText: {
+            on: {
+              '': '#botMachine.mainMenu'
+            },
+            entry: 'showCanteenMenuText'
+          }
+        }
       },
       showCurrencyRates: {
         initial: 'selectCurrency',
@@ -437,7 +491,7 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           }
         }
       },
-     showSchedule: {
+      showSchedule: {
         initial: 'enterDate',
         states: {
           enterDate: {

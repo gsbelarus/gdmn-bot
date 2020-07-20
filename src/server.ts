@@ -142,6 +142,20 @@ router.post('/zarobak/v2/upload_schedules', (ctx, next) => {
   next();
 });
 
+router.post('/zarobak/v2/upload_canteenmenu', (ctx, next) => {
+  try {
+    const { customerId, objData, date } = ctx.request.body;
+    bot.upload_canteenMenu(customerId, objData, date);
+    ctx.response.status = 200;
+    ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
+  } catch(err) {
+    log.error(`Error in menu uploading. ${err.message}`);
+    ctx.response.status = 500;
+    ctx.response.body = JSON.stringify({ status: 500, result: err.message });
+  }
+  next();
+});
+
 app.on('error', (err, ctx) => log.error('koa server error', err, ctx));
 
 app

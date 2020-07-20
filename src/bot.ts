@@ -1,17 +1,17 @@
 import { FileDB, IData } from "./util/fileDB";
-import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, ITimeSheet, IScheduleData, ITimeSheetJSON } from "./types";
+import { IAccountLink, Platform, IUpdate, ICustomer, IEmployee, IAccDed, IPayslipItem, AccDedType, IDate, PayslipType, IDet, IPayslipData, IPayslip, IAnnouncement, ITimeSheet, IScheduleData, ITimeSheetJSON, ICanteenMenus } from "./types";
 import Telegraf from "telegraf";
 import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName, getLName2 } from "./stringResources";
-import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL, pause } from "./util/utils";
-import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement, mapUserRights, TestUserRightFunc, keyboardLogout } from "./menu";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL, pause, format2, format } from "./util/utils";
+import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates, keyboardEnterAnnouncement, keyboardSendAnnouncement, mapUserRights, TestUserRightFunc, keyboardLogout, keyboardCanteenMenu, ICanteenMenuKeybord } from "./menu";
 import { Semaphore } from "./semaphore";
 import { getCurrRate, getCurrRateForDate } from "./currency";
 import { ExtraEditMessage } from "telegraf/typings/telegram-types";
 import { Logger, ILogger } from "./log";
-import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getScheduleFN, getUserRightsFN } from "./files";
+import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDedFN, getAnnouncementsFN, getTimeSheetFN, getScheduleFN, getUserRightsFN, getCanteenMenuFN } from "./files";
 import { hashELF64 } from "./hashELF64";
 import { v4 as uuidv4 } from 'uuid';
 import { hourTypes } from "./constants";
@@ -110,7 +110,6 @@ export class Bot {
   private _telegramCalendarMachine: StateMachine<ICalendarMachineContext, any, CalendarMachineEvent>;
   private _telegramMachine: StateMachine<IBotMachineContext, any, BotMachineEvent>;
   private _employees: { [customerId: string]: FileDB<Omit<IEmployee, 'id'>> } = {};
-  private _schedules: { [customerId: string]: FileDB<Omit<IScheduleData, 'id'>> } = {};
   private _announcements: FileDB<Omit<IAnnouncement, 'id'>>;
   /**
    * Все права доступа храним в одном файле, где ключ -- идентификатор
@@ -355,6 +354,75 @@ export class Bot {
       if (lastPaySlipDate) {
         const lastPaySlipDateStr: IDate = {year: lastPaySlipDate.getFullYear(), month: lastPaySlipDate.getMonth()};
         reply(this.getPayslip(customerId, employeeId, 'CONCISE', language ?? 'ru', currency ?? 'BYN', platform, lastPaySlipDateStr, lastPaySlipDateStr))(rest);
+      }
+    };
+
+    /**
+     * Получаем список меню (подразделение -- тип меню) для выбора
+     * @param reply
+     */
+
+    const getShowCanteenMenuFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+      const { accountLink, platform, ...rest } = checkAccountLink(ctx);
+      const { customerId, language } = accountLink;
+      const lng = language ?? 'ru';
+      const date = new Date();
+      try {
+        const menu = this._getCanteenMenu(customerId, date2str(date, 'YYYY.MM.DD'));
+
+        if (menu) {
+          const canteenMenus: ICanteenMenuKeybord[] = menu.map(m => ({ id: m.id, menu: m.name }));
+          await reply(stringResources.canteenMenu, keyboardCanteenMenu(canteenMenus))(rest);
+        }
+
+      } catch(e) {
+        await this._logger.error(ctx.chatId, undefined, e);
+        await reply(`${getLocString(stringResources.noData, lng)}`)(rest);
+      }
+    };
+
+    /**
+     * Получаем состав меню для вывода на экран в валюте
+     * @param reply
+     */
+    const getShowCanteenMenuTextFunc = (reply: ReplyFunc) => async (ctx: IBotMachineContext) => {
+      const { accountLink, platform, semaphore, chatId, ...rest } = checkAccountLink(ctx);
+      const { customerId, language, currency } = accountLink;
+      const lng = language ?? 'ru';
+      const date = new Date();
+      const { canteenMenuId } = ctx;
+
+      await semaphore?.acquire();
+      try {
+        const menu = this._getCanteenMenu(customerId, date2str(date, 'YYYY.MM.DD'))?.find(m => m.id === canteenMenuId);
+        let rate: number | undefined = 1;
+        if (currency && currency !== 'BYN') {
+          rate = await getCurrRateForDate(date, currency, this._log);
+        }
+        if (!rate) {
+          await reply(getLocString(stringResources.cantLoadRate, lng, currency))({ chatId, semaphore: new Semaphore(`Temp for chatId: ${chatId}`) });
+        } else {
+          if (menu) {
+            const formatList = menu.data.sort((a, b) => a.n - b.n).map(m =>
+              `${getLocString(m.group, lng)}\n${m.groupdata.sort((a, b) => getLocString(a.good, lng).toLowerCase() < getLocString(b.good, lng).toLowerCase() ? -1 : 1).map(gr => `  ${format2(gr.cost/(rate ?? 1))} ${getLocString(gr.good, lng).substr(0, 40)}${gr.det ? ', ' + gr.det : ''}`).join('\n')}\n`).join('\n');
+            const qSymbols = platform === 'VIBER' ? 1000 : 4000;
+            const text = (formatList ? `${getLocString(stringResources.menuTitle, lng, date)}${getLocString(menu.name, lng)}\n${currency && currency !== 'BYN' ? getLocString(stringResources.canteenMenuCurrency, lng, currency, date, rate) + '\n' : ''}\n${formatList}` : getLocString(stringResources.noData, lng));
+            const n = Math.min(Math.trunc(text.length/qSymbols), 6);
+
+            for (let i = 0; i <= n; i++) {
+              const t = '^FIXED\n' + text.substr(i*qSymbols + (i > 0 ? 1 : 0), qSymbols);
+              await reply(t)({ chatId, semaphore: new Semaphore(`Temp for chatId: ${chatId}`) })
+              if (i < n) {
+                await pause(1000);
+              }
+            }
+          }
+				}
+      } catch(e) {
+        await this._logger.error(ctx.chatId, undefined, e);
+        await reply(`${getLocString(stringResources.noData, lng)} Date: ${date2str(date)}.`)(rest);
+      } finally {
+        semaphore?.release();
       }
     };
 
@@ -625,6 +693,9 @@ export class Bot {
         sendToEnterprise: reply(stringResources.notEnoughRights),
         sendToAll: reply(stringResources.notEnoughRights),
         showBirthdays: getShowBirthdaysFunc(reply),
+        showCanteenMenuText: getShowCanteenMenuTextFunc(reply),
+        showCanteenMenu: getShowCanteenMenuFunc(reply),
+        showNoMenuData: reply(stringResources.noData),
         showPayslip: getShowPayslipFunc('CONCISE', reply),
         showLatestPayslip: getShowLatestPayslipFunc(reply),
         showDetailedPayslip: getShowPayslipFunc('DETAIL', reply),
@@ -698,6 +769,9 @@ export class Bot {
         },
         isProtected: ({ customerId }) => customerId
           ? !!(this._customers.read(customerId)?.protected)
+          : false,
+        isThereMenuData: ({ customerId }) =>  customerId
+          ? !!this._getCanteenMenu(customerId, date2str(new Date(), 'YYYY.MM.DD'))
           : false
       }
     });
@@ -1018,6 +1092,11 @@ export class Bot {
     return employees && employees.read(employeeId);
   }
 
+  private _getCanteenMenu(customerId: string, date: string) {
+    return new FileDB<ICanteenMenus>({ fn: getCanteenMenuFN(customerId), logger: this._log })
+      .read(date);
+  }
+
   private _getDepartment(customerId: string, employeeId: string) {
     const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log })
       .read(employeeId);
@@ -1038,20 +1117,6 @@ export class Bot {
     return undefined;
   }
 
-  private _getSchedules(customerId: string) {
-    let schedules = this._schedules[customerId];
-
-    if (!schedules) {
-      const db = new FileDB<Omit<IScheduleData, 'id'>>({ fn: getScheduleFN(customerId), logger: this._log, restore: scheduleRestorer });
-      if (!db.isEmpty()) {
-        this._schedules[customerId] = db;
-        return db;
-      }
-    }
-
-    return schedules;
-  }
-
   /**
    * Получить график рабочего времени по сотруднику за месяц
    * @param customerId
@@ -1059,7 +1124,7 @@ export class Bot {
    * @param de
    */
   private _getSchedule(customerId: string, employeeId: string, de: Date) {
-    const schedules = this._getSchedules(customerId);
+    const schedules = new FileDB<Omit<IScheduleData, 'id'>>({ fn: getScheduleFN(customerId), logger: this._log, restore: scheduleRestorer });
     const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log })
       .read(employeeId);
 
@@ -1458,9 +1523,6 @@ export class Bot {
       ? getLocString(s, lng)
       : s;
 
-    const format2 = new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format;
-    const format = new Intl.NumberFormat('ru-RU', { style: 'decimal', useGrouping: true, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format;
-
     const payslipView = (template: Template) => {
       /**
        * Ширина колонки с названием показателя в расчетном листке.
@@ -1745,10 +1807,6 @@ export class Bot {
     this._viberAccountLink.flush();
     this._announcements.flush();
     this._userRights.flush();
-
-    for (const s of Object.values(this._schedules)) {
-      s.flush();
-    }
   }
 
   createService(inPlatform: Platform, inChatId: string) {
@@ -2145,13 +2203,7 @@ export class Bot {
   }
 
   upload_schedules(customerId: string, objData: IScheduleData, rewrite: boolean) {
-   let schedule = this._schedules[customerId];
-
-    if (!schedule) {
-      schedule = new FileDB<Omit<IScheduleData, 'id'>>({ fn: getScheduleFN(customerId), logger: this._log });
-      this._schedules[customerId] = schedule;
-    }
-
+    const schedule = new FileDB<Omit<IScheduleData, 'id'>>({ fn: getScheduleFN(customerId), logger: this._log });
     schedule.clear();
 
     for (const [key, value] of Object.entries(objData)) {
@@ -2161,6 +2213,15 @@ export class Bot {
     schedule.flush();
 
     this._log.info(`Customer: ${customerId}. ${Object.keys(objData).length} schedules have been uploaded.`);
+  }
+
+  upload_canteenMenu(customerId: string, objData: ICanteenMenus, date: string) {
+    const menu = new FileDB<ICanteenMenus>({ fn: getCanteenMenuFN(customerId), logger: this._log });
+    menu.clear();
+    menu.write(date, objData);
+    menu.flush();
+
+    this._log.info(`Customer: ${customerId}. ${Object.keys(objData).length} menu have been uploaded.`);
   }
 
   upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
