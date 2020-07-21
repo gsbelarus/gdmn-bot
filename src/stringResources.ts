@@ -90,6 +90,11 @@ export const stringResources = {
     ru: 'Выберите валюту.',
     be: 'Выбярыце валюту.'
   },
+  canteenMenu: {
+    en: 'Select a menu.',
+    ru: 'Выберите меню.',
+    be: 'Выбярыце меню.'
+  },
   selectLanguage: {
     en: 'Select language.',
     ru: 'Выберите язык.',
@@ -275,6 +280,11 @@ export const stringResources = {
     ru: '📢 Доска объявлений',
     be: '📢 Дошка аб\'яў',
   },
+  menuMenu: {
+    en: '🍲 Menu',
+    ru: '🍲 Меню',
+    be: '🍲 Меню',
+  },
   menuHelp: {
     en: '❓',
     ru: '❓',
@@ -374,6 +384,11 @@ export const stringResources = {
     en: (date: IDate) => `Work schedule for ${new Date(date.year, date.month).toLocaleString('en-US', {month: 'long'})} ${date.year}:\n`,
     ru: (date: IDate) => `График рабочего времени за ${new Date(date.year, date.month).toLocaleString('ru', {month: 'long'})} ${date.year}:\n`,
     be: (date: IDate) => `Графiк працоўнага часу за ${new Date(date.year, date.month).toLocaleString('be', {month: 'long'})} ${date.year}:\n`
+  } as ILocString,
+  menuTitle: {
+    en: (date: Date) => `Menu on ${date2str(date, 'DD.MM.YYYY')}:\n`,
+    ru: (date: Date) => `Меню на ${date2str(date, 'DD.MM.YYYY')}:\n`,
+    be: (date: Date) => `Меню на ${date2str(date, 'DD.MM.YYYY')}:\n`
   } as ILocString,
   payslipTitle: {
     en: 'Payslip',
@@ -640,7 +655,22 @@ export const stringResources = {
         ? `${db2.month + 1}.${db2.year}-${de2.month + 1}.${de2.year}`
         : `${new Date(db2.year, db2.month).toLocaleDateString('be', { month: 'long', year: 'numeric' })}`
       )
+  },
+  canteenMenuCurrency: {
+    en: (currency: string, date: Date, currencyRate?: number) => 'Currency: ' + (
+      currencyRate
+        ? `${currency}\nExchange rate ${currencyRate.toFixed(4)} on ${date2str(date, 'DD.MM.YY')}`
+        : 'Belarusian ruble'),
+    ru: (currency: string, date: Date, currencyRate?: number) => 'Валюта: ' + (
+      currencyRate
+        ? `${currency}\nКурс ${currencyRate.toFixed(4)} на ${date2str(date, 'DD.MM.YY')}`
+        : 'Белорусский рубль'),
+    be: (currency: string, date: Date, currencyRate?: number) => 'Валюта: ' + (
+      currencyRate
+        ? `${currency}\nКурс ${currencyRate.toFixed(4)} на ${date2str(date, 'DD.MM.YY')}`
+        : 'Беларускі рубель')
   }
+
 };
 
 export type Language = keyof ILocString;
