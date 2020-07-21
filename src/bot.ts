@@ -17,7 +17,7 @@ import { getAccountLinkFN, getEmployeeFN, getCustomersFN, getPayslipFN, getAccDe
 import { hashELF64 } from "./hashELF64";
 import { v4 as uuidv4 } from 'uuid';
 import { hourTypes } from "./constants";
-import { UserRights, UserRightId } from "./security";
+import { UserRights } from "./security";
 
 const vb = require('viber-bot');
 const ViberBot = vb.Bot
@@ -655,6 +655,11 @@ export class Bot {
         enterAnnouncementInvitation: reply(stringResources.enterAnnouncementInvitation, keyboardEnterAnnouncement),
         sendAnnouncementMenu: reply(stringResources.sendAnnouncementMenuCaption, keyboardSendAnnouncement),
         sendConfirmation: reply(stringResources.sendAnnouncementConfirmation, keyboardSendAnnouncementConfirmation),
+        showDiagnostics: (ctx, event) => {
+          if (event.type === 'MAIN_MENU' && event.diagnostics) {
+             reply(event.diagnostics)(ctx);
+          }
+        },
         sendAnnouncement: async ctx => {
           const { customerId, employeeId, announcement, chatId, semaphore, platform, announcementType } = ctx;
 
@@ -1973,7 +1978,7 @@ export class Bot {
       const accountLink = accountLinkDB.read(chatId);
       let service = this._service[uniqId];
 
-      if (body === 'diagnostics') {
+      if (accountLink && body === 'diagnostics') {
         this.finalize();
 
         let serviceStat: { [signature: string]: number } = {};
@@ -2041,6 +2046,7 @@ export class Bot {
           .join('\n');
 
         const data = [
+          '^FIXED',
           `Server started: ${new Intl.DateTimeFormat("be", dateOptions).format(this._botStarted)}`,
           `Node version: ${process.versions.node}`,
           `RSS memory: ${new Intl.NumberFormat().format(process.memoryUsage().rss)} bytes`,
@@ -2053,21 +2059,19 @@ export class Bot {
           `Users/Empl/%/V/T (inact): ${totalV + totalT}/${totalE}/${((totalV + totalT) * 100 / totalE).toFixed(0)}%/${totalV}${totalIV ? '(' + totalIV + ')' : ''}/${totalT}${totalIT ? '(' + totalIT + ')' : ''}`,
           `${formatStats()}`
         ];
-        if (platform === 'TELEGRAM') {
-          await this._telegramSemaphore.acquire();
-          try {
-            await this._telegram.telegram.sendMessage(chatId, '```\n' + data.join('\n') + '```', { parse_mode: 'MarkdownV2' });
-          } finally {
-            this._telegramSemaphore.release();
-          }
-        } else {
-          await this._viberSemaphore.acquire();
-          try {
-            await this._viber.sendMessage({ id: chatId }, [new TextMessage(data.join('\n'))]);
-          } finally {
-            this._viberSemaphore.release();
-          }
-        }
+
+        const { customerId, employeeId, } = accountLink;
+        this.createService(platform, chatId).send({
+          type: 'MAIN_MENU',
+          platform,
+          chatId,
+          customerId,
+          employeeId,
+          forceMainMenu: true,
+          diagnostics: data.join('\n'),
+          semaphore: new Semaphore(`chatId: ${chatId}`)
+        });
+
         return;
       }
 

@@ -63,7 +63,6 @@ export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, 
 };
 
 type AnnouncementType = 'DEPARTMENT' | 'ENTERPRISE' | 'GLOBAL' | undefined;
-type Announcement = string | undefined;
 
 export interface IBotMachineContext extends IMachineContextBase {
   customerId?: string;
@@ -96,7 +95,7 @@ export interface IBotMachineContext extends IMachineContextBase {
 };
 
 export type StartEvent           = { type: 'START' } & Required<IMachineContextBase>;
-export type MainMenuEvent        = { type: 'MAIN_MENU' } & Required<IMachineContextBase> & { customerId: string; employeeId: string; forceMainMenu: boolean; };
+export type MainMenuEvent        = { type: 'MAIN_MENU' } & Required<IMachineContextBase> & { customerId: string; employeeId: string; forceMainMenu: boolean; diagnostics?: string; };
 export type EnterTextEvent       = { type: 'ENTER_TEXT';  text: string; };
 export type MenuCommandEvent     = { type: 'MENU_COMMAND';  command: string; };
 export type SelectCurrencyEvent  = { type: 'SELECT_CURRENCY'; id: string; };
@@ -140,13 +139,16 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           },
           MAIN_MENU: {
             target: 'mainMenu',
-            actions: assign({
-              platform: (_, { platform }: MainMenuEvent) => platform,
-              chatId: (_, { chatId }: MainMenuEvent) => chatId,
-              customerId: (_, { customerId }: MainMenuEvent) => customerId,
-              employeeId: (_, { employeeId }: MainMenuEvent) => employeeId,
-              semaphore: (_, { semaphore }: MainMenuEvent) => semaphore
-            })
+            actions: [
+              assign({
+                platform: (_, { platform }: MainMenuEvent) => platform,
+                chatId: (_, { chatId }: MainMenuEvent) => chatId,
+                customerId: (_, { customerId }: MainMenuEvent) => customerId,
+                employeeId: (_, { employeeId }: MainMenuEvent) => employeeId,
+                semaphore: (_, { semaphore }: MainMenuEvent) => semaphore
+              }),
+              'showDiagnostics'
+            ]
           }
         }
       },
