@@ -624,7 +624,7 @@ export class Bot {
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
       actions: {
         askCompanyName: reply(stringResources.askCompanyName),
-        unknownCompanyName: reply(stringResources.unknownCompanyName),
+        unknownCompanyName: reply(stringResources.unknownCompanyName, undefined, Object.values(this._customers.getMutable(false)).map(customer => customer.name).sort((a, b) => a > b ? 1 : -1).join('\n')),
         unknownEmployee: reply(stringResources.unknownEmployee),
         askPIN: ctx => {
           const { customerId, employeeId } = ctx;
@@ -2057,8 +2057,6 @@ export class Bot {
               `${(idx + 1).toString().padEnd(4, '.')}${custId}: ${custV + custT}/${custE}/${((custV + custT) * 100 / custE).toFixed(0)}%/${custV}${custIV ? '(' + custIV + ')' : ''}/${custT}${custIT ? '(' + custIT + ')' : ''}\n  canteen: ${this._getCarteenLastDate(custId)}\n  payslip: ${this._getPayslipLastDate(custId)}`
             )
           .join('\n');
-
-
 
         const data = [
           '^FIXED',

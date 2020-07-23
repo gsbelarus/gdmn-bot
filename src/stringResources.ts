@@ -26,9 +26,9 @@ export const stringResources = {
     be: (d: Date) => `Няверны ПІН код!\n\nПраверце, ці дакладна Вы ўказалі ПІН код з свайго разлiковага лicтка за ${d.toLocaleString('be', { month: 'long' })} ${d.getFullYear()} і паўтарыце ўвод.`
   },
   unknownCompanyName: {
-    en: 'We can\'t find a company or organization with such name.\n\nApparently you have made a typo while entering the name or your company doesn\'t use system "Gedemin: Payroll calculation".\n\nTry again.',
-    ru: 'Мы не можем найти предприятие или организацию с таким названием.\n\nВозможно вы ошиблись при вводе или ваше предприятие не использует систему "Гедымин: Расчет заработной платы".\n\nПопробуйте ввести еще раз.',
-    be: 'Мы ня можам знайсці прадпрыемства альбо арганізацыю з такой назвай.\n\nМагчыма Вы памыліліся пры ўводзе, альбо вашае прадпрыемства не выкарыстоўвае сістэму "Гедымін: Разлік заробку".\n\nПаспрабуйце яшчэ раз.'
+    en: (customers: string) => `We can\'t find a company or organization with such name.\n\nEither you have misspelled the company name or your company doesn\'t use system "Gedemin: Payroll calculation".\n\nAs for now only following companies are supported:\n${customers}\n\nTry again.`,
+    ru: (customers: string) => `Мы не можем найти предприятие или организацию с таким названием.\n\nВозможно вы ошиблись при вводе или ваше предприятие не использует систему "Гедымин: Расчет заработной платы".\n\nНа данный момент поддерживаются только следующие компании:\n${customers}\n\nПопробуйте ввести еще раз.`,
+    be: (customers: string) => `Мы ня можам знайсці прадпрыемства альбо арганізацыю з такой назвай.\n\nМагчыма Вы памыліліся пры ўводзе, альбо вашае прадпрыемства не выкарыстоўвае сістэму "Гедымін: Разлік заробку".\n\nПакуль што падтрымліваюцца толькі наступныя кампаніі:\n${customers}\n\nПаспрабуйце яшчэ раз.`
   },
   unknownEmployee: {
     en: 'We can\'t find an employee with such personal identification umber.\n\nCheck the data and repeat the enter.',
