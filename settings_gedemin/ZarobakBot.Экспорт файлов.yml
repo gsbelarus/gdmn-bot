@@ -5,10 +5,10 @@ Properties:
   RUID: 1193786287_1320926324
   Name: "ZarobakBot.Экспорт файлов"
   Caption: "ZarobakBot.Экспорт файлов"
-  Version: "1.0.0.42"
+  Version: "1.0.0.43"
   Optional: False
   Internal: True
-  MD5: 19EADD130FC33DD8D46B9C3E72465F19
+  MD5: BA568F238ED63306CA0790D612ED60C8
 Uses: 
   - "148233742_349062642 Зарплата - исследователь"
   - "158513268_1444931844 ZarobakBot.Сбор данных"
@@ -1006,4 +1006,23 @@ Objects:
       ORDR: ~
       SUBTYPE: ~
       EDITIONDATE: 2020-07-06T16:46:42+03:00
+      DISABLED: 0
+  - 
+    Properties: 
+      Class: "TgdcExplorer"
+      RUID: 1173100412_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      PARENT: "1193786363_1320926323 Исследователь\\Зарплата и Отдел кадров\\ZarobakBot"
+      NAME: "04. Экспорт меню столовой"
+      CLASSNAME: ~
+      CMD: "1173100410_1450749196"
+      CMDTYPE: 1
+      HOTKEY: ~
+      IMGINDEX: 174
+      ORDR: ~
+      SUBTYPE: ~
+      EDITIONDATE: 2020-07-22T16:23:10+03:00
       DISABLED: 0
