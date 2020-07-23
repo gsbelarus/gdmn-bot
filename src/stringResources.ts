@@ -281,9 +281,9 @@ export const stringResources = {
     be: '📢 Дошка аб\'яў',
   },
   menuMenu: {
-    en: '🍲 Menu',
-    ru: '🍲 Меню',
-    be: '🍲 Меню',
+    en: '🍲 Canteen menu',
+    ru: '🍲 Меню столовой',
+    be: '🍲 Меню сталовай',
   },
   menuHelp: {
     en: '❓',

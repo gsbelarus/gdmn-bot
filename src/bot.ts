@@ -1298,6 +1298,18 @@ export class Bot {
     return undefined;
   }
 
+  private _getPayslipLastDate = (customerId: string) => {
+    const employeeId: string = Object.entries(this._getEmployees(customerId).getMutable(false))[0][0];
+    const date = this._getLastPayslipDate(customerId, employeeId);
+    return date && date2str(date, 'DD.MM.YYYY');
+  }
+
+  private _getCarteenLastDate = (customerId: string) => {
+    const menu = new FileDB<ICanteenMenus>({ fn: getCanteenMenuFN(customerId), logger: this._log }).getMutable(false);
+    const canteen = Object.entries(menu)[0];
+    return canteen && date2str(str2Date(canteen[0]), 'DD.MM.YYYY');
+  }
+
   private _getPayslipData(customerId: string, employeeId: string, mb: IDate, me?: IDate): IPayslipData | undefined {
     const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log })
       .read(employeeId);
@@ -1894,6 +1906,7 @@ export class Bot {
     this._viberAccountLink.flush();
     this._announcements.flush();
     this._userRights.flush();
+    this._customers.flush();
   }
 
   createService(inPlatform: Platform, inChatId: string) {
@@ -2041,9 +2054,11 @@ export class Bot {
           .sort( ([, [AV, , AT]], [, [BV, , BT]]) => (BV + BT) - (AV + AT) )
           .map(
             ([custId, [custV, custIV, custT, custIT, custE]], idx) =>
-              `${(idx + 1).toString().padEnd(4, '.')}${custId}: ${custV + custT}/${custE}/${((custV + custT) * 100 / custE).toFixed(0)}%/${custV}${custIV ? '(' + custIV + ')' : ''}/${custT}${custIT ? '(' + custIT + ')' : ''}`
+              `${(idx + 1).toString().padEnd(4, '.')}${custId}: ${custV + custT}/${custE}/${((custV + custT) * 100 / custE).toFixed(0)}%/${custV}${custIV ? '(' + custIV + ')' : ''}/${custT}${custIT ? '(' + custIT + ')' : ''}\n  canteen: ${this._getCarteenLastDate(custId)}\n  payslip: ${this._getPayslipLastDate(custId)}`
             )
           .join('\n');
+
+
 
         const data = [
           '^FIXED',
@@ -2286,6 +2301,7 @@ export class Bot {
       timeSheet.write(employeeId, newTimeSheetData);
     }
     timeSheet.flush();
+
   }
 
   upload_schedules(customerId: string, objData: IScheduleData, rewrite: boolean) {
@@ -2401,6 +2417,7 @@ export class Bot {
 
       payslip.write(employeeId, newPayslipData);
     }
+
     payslip.flush();
 
     this._log.info(`Payslips for employee: ${employeeId}, customer: ${customerId} have been uploaded.`);
