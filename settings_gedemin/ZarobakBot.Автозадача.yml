@@ -5,10 +5,10 @@ Properties:
   RUID: 1173045327_1450749196
   Name: "ZarobakBot.Автозадача"
   Caption: "ZarobakBot.Автозадача"
-  Version: "1.0.0.5"
+  Version: "1.0.0.7"
   Optional: False
   Internal: True
-  MD5: 877786831F929B8F914510DD9C5A05EE
+  MD5: 8511AAA5170152E674C37F37EDCC6227
 Uses: 
   - "1193786287_1320926324 ZarobakBot.Экспорт файлов"
   - "158513268_1444931844 ZarobakBot.Сбор данных"
@@ -188,4 +188,38 @@ Objects:
       WEEKLY: ~
       CREATIONDATE: 2020-07-08T14:08:32+03:00
       EDITIONDATE: 2020-07-08T14:35:44+03:00
+      DISABLED: 1
+  - 
+    Properties: 
+      Class: "TgdcAutoTask"
+      RUID: 1173100413_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "ZarobakBot Canteen menu"
+      ATSTARTUP: ~
+      AUTOTRKEY: ~
+      BACKUPFILE: ~
+      CMDLINE: ~
+      COMPUTER: ~
+      DAILY: 1
+      DESCRIPTION: ~
+      EMAILEXPORTTYPE: ~
+      EMAILGROUPKEY: ~
+      EMAILRECIPIENTS: ~
+      EMAILSMTPKEY: ~
+      ENDTIME: 1899-12-30T23:59:59+03:00
+      EXACTDATE: ~
+      FUNCTIONKEY: "1173100410_1450749196 bot_exportMenus"
+      MONTHLY: ~
+      PRIORITY: 0
+      PULSE: ~
+      RELOAD: 0
+      REPORTKEY: ~
+      STARTTIME: 1899-12-30T23:00:00+03:00
+      USERKEY: ~
+      WEEKLY: ~
+      CREATIONDATE: 2020-07-23T16:51:44+03:00
+      EDITIONDATE: 2020-07-23T17:02:16+03:00
       DISABLED: 1

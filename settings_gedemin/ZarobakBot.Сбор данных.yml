@@ -5,10 +5,10 @@ Properties:
   RUID: 158513268_1444931844
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.37"
+  Version: "1.0.0.39"
   Optional: False
   Internal: True
-  MD5: 8E16807E52E6315673C46124AB97C241
+  MD5: D935F4F6363B8084FF9F1A0933440ACE
 Objects: 
   - 
     Properties: 
@@ -1536,6 +1536,141 @@ Objects:
         End Function
         
         sub bot_prepareSchedules_RollBack(Transaction)
+          if Transaction.InTransaction then
+            Transaction.Rollback
+          end if
+        end sub
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "147160790_1454092899 bot_strRepl"
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173098158_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_prepareMenu"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-23T17:05:20+03:00
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-23T17:05:18+03:00
+      DISPLAYSCRIPT: | 
+        BOT_PREPAREMENU
+        BOT_PREPAREMENU_ROLLBACK
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAABQAAAAAAAAAA
+        AAAAAEZOU1RQUlNUCQAAAENPTVBBTllJRAkAAABDT01QQU5ZSUQAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAAAARk5TVFBSU1QFAAAAUERBVEUFAAAAUERBVEUAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAA
+        Rk5TVFBSU1QEAAAASlNPTgQAAABKU09OAAAAAAAAAAAAAAAABQAAAAAAAAAAAAAAAEZOU1RGTFBS
+      SCRIPT: | 
+        '#include BOT_STRREPL
+        Option Explicit
+        Function bot_prepareMenu(customerId, companyId, pDate, ByRef Json)
+          dim Creator, Transaction
+          set Creator = new TCreator
+          set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
+          Transaction.Defaultdatabase = IBLogin.Database
+          if not Transaction.InTransaction then
+            Transaction.StartTransaction
+          end if
+        
+          except bot_prepareMenu_RollBack(Transaction)
+        
+          dim qSel
+          set qSel = Creator.GetObject(nil, "TIBSQL", "")
+          qSel.Transaction = Transaction
+          qSel.SQL.Text = _
+            " SELECT " & _
+            "   con.name || ' -- ' || mn.usr$name  as menuname, " & _
+            "   con.id || mn.id as menuid, " & _
+            "   gg.USR$NUMBERSORT as n, " & _
+            "   gg.name as groupname, " & _
+            "   g.name as goodname, " & _
+            "   mc.usr$outputstr as det, " & _
+            "   ml.usr$cost as cost " & _
+            " FROM usr$mn_menu mm " & _
+            " LEFT JOIN usr$mn_menuline ml on mm.documentkey = ml.masterkey " & _
+            " LEFT JOIN gd_good g on g.id = ml.usr$goodkey " & _
+            " LEFT JOIN usr$mn_calccard mc on mc.documentkey = ml.usr$cardkey " & _
+            " LEFT JOIN GD_GOODGROUP gg on gg.id = g.groupkey " & _
+            " JOIN usr$mn_menuname mn on mm.usr$menunamekey = mn.id " & _
+            " JOIN gd_contact con on mm.usr$depotkey = con.id " & _
+            " JOIN GD_DOCUMENT doc ON doc.id = mm.documentkey " & _
+            " WHERE (doc.documentdate <= :pDate AND mm.usr$todate >= :pDate) and doc.companykey = :companyId " & _
+            " ORDER BY con.name, mn.usr$name, gg.USR$NUMBERSORT, gg.name, mc.usr$posinmenu, g_s_delchar(g.alias) "
+          qSel.ParamByName("companyId").AsInteger = companyId
+          qSel.ParamByName("pDate").AsDateTime = pDate
+          qSel.ExecQuery
+        
+          dim  name, str, groupname, strgroup, n, id
+          name = ""
+          groupname = ""
+          while not qSel.eof
+            if (name <> qSel.FieldByName("menuname").AsString and name <> "") then
+              if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+              Json.Add("{""id"":""" & id & """," & _
+                """name"":{""ru"":"""  & bot_strRepl(name) & """}," & _
+                """data"":[" & strgroup & "]}")
+              strgroup = ""
+            end if
+            if groupname <> qSel.FieldByName("groupname").AsString and groupname <> "" then
+              if strgroup <> "" then strgroup = strgroup & ","
+              strgroup = strgroup & "{""group"":{""ru"":""" & bot_strRepl(groupname) & """}," & _
+                """n"":" & n & "," & _
+                """groupdata"":[" & str & "]}"
+                str = ""
+            end if
+            if str <> "" then str = str & ","
+            str = str & "{""good"":{""ru"":""" & bot_strRepl(qSel.FieldByName("goodname").AsString) & """}," & _
+              """det"":""" &  bot_strRepl(qSel.FieldByName("det").AsString) & """," & _
+              """cost"":" & Replace(qSel.FieldByName("cost").AsCurrency, ",", ".") & "}"
+            name = qSel.FieldByName("menuname").AsString
+            groupname = qSel.FieldByName("groupname").AsString
+            n = qSel.FieldByName("n").AsString
+            id = qSel.FieldByName("menuid").AsString
+            qSel.Next
+          wend
+          
+          if (name <> "") then
+            if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+            Json.Add("{""id"":""" & id & """," & _
+              """name"": {""ru"":"""  & bot_strRepl(name) & """}," & _
+              """data"":[" & strgroup & "]}")
+          end if
+          
+          Json.Text = "{" & _
+            """version"":""2.0""," & _
+            """customerId"":""" & customerId & """," & _
+            """date"":""" & Year(pDate) & "." & Right("0" & Month(pDate), 2) & "." & Right("0" & Day(pDate), 2) & """," & _
+            """objData"":[" & Json.Text & "]" & _
+            "}"
+        
+          if Transaction.InTransaction then
+            Transaction.Commit
+          end if
+        End Function
+        
+        sub bot_prepareMenu_RollBack(Transaction)
           if Transaction.InTransaction then
             Transaction.Rollback
           end if
