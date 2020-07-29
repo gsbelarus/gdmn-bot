@@ -21,17 +21,17 @@
 
   4. В открывшемся окне нажмите на кнопку «Сообщение»:
 
-      ![QR-код для Viber](img/viber/message.png).
+      ![QR-код для Viber](img/viber/message.png)
 
   5. В строке ввода напишите сообщение, например «Привет».
 
       Нажмите кнопку «Отправить»:
 
-      ![QR-код для Viber](img/viber/hello.png).
+      ![QR-код для Viber](img/viber/hello.png)
 
       Теперь вы подписаны на бот и вам необходимо зарегистрироваться.
 
-      ![Подписка на бот](img/viber/subscribed.png).
+      ![Подписка на бот](img/viber/subscribed.png)
 
   ## По ссылке
 
