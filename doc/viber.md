@@ -133,7 +133,7 @@
 
   ![Пункт меню «Курсы валют»](img/viber/currencyrate_btn.png)
 
-  ![Список валют](img/viber/currencyrate.png)  ![Список валют](img/viber/currencyrateS.png)
+  ![Список валют](img/viber/currencyrate.png)  ![Список валют](img/viber/currencyrates.png)
 
 - Пункт меню «Меню столовой» выведет меню столовой на текущий день.
 
