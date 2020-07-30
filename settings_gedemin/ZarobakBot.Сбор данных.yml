@@ -5,10 +5,10 @@ Properties:
   RUID: 158513268_1444931844
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.39"
+  Version: "1.0.0.40"
   Optional: False
   Internal: True
-  MD5: D935F4F6363B8084FF9F1A0933440ACE
+  MD5: 47CC4F1C65E0BA602A296EA103BF2F5D
 Objects: 
   - 
     Properties: 
@@ -1563,7 +1563,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-23T17:05:20+03:00
+      MODIFYDATE: 2020-07-30T13:27:39+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -1572,7 +1572,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-23T17:05:18+03:00
+      EDITIONDATE: 2020-07-30T13:27:36+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREMENU
         BOT_PREPAREMENU_ROLLBACK
@@ -1615,8 +1615,17 @@ Objects:
             " LEFT JOIN GD_GOODGROUP gg on gg.id = g.groupkey " & _
             " JOIN usr$mn_menuname mn on mm.usr$menunamekey = mn.id " & _
             " JOIN gd_contact con on mm.usr$depotkey = con.id " & _
-            " JOIN GD_DOCUMENT doc ON doc.id = mm.documentkey " & _
-            " WHERE (doc.documentdate <= :pDate AND mm.usr$todate >= :pDate) and doc.companykey = :companyId " & _
+            " JOIN GD_DOCUMENT d ON d.id = mm.documentkey " & _
+            " WHERE d.documentdate <= :pDate AND mm.usr$todate >= :pDate AND d.companykey = :companyId " & _
+            "   AND mm.DOCUMENTKEY = " & _
+            "   ( " & _
+            "    SELECT FIRST 1 doc.ID " & _
+            "    FROM usr$mn_menu menu " & _
+            "    LEFT JOIN GD_DOCUMENT doc ON doc.id = menu.documentkey " & _
+            "    WHERE doc.documentdate <= :pDate AND menu.usr$todate >= :pDate AND doc.companykey = :companyId " & _
+            "      AND menu.USR$DEPOTKEY = mm.USR$DEPOTKEY AND menu.USR$MENUNAMEKEY = mm.USR$MENUNAMEKEY " & _
+            "    ORDER BY doc.documentdate DESC " & _
+            "    ) " & _
             " ORDER BY con.name, mn.usr$name, gg.USR$NUMBERSORT, gg.name, mc.usr$posinmenu, g_s_delchar(g.alias) "
           qSel.ParamByName("companyId").AsInteger = companyId
           qSel.ParamByName("pDate").AsDateTime = pDate
@@ -1650,14 +1659,14 @@ Objects:
             id = qSel.FieldByName("menuid").AsString
             qSel.Next
           wend
-          
+        
           if (name <> "") then
             if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
             Json.Add("{""id"":""" & id & """," & _
               """name"": {""ru"":"""  & bot_strRepl(name) & """}," & _
               """data"":[" & strgroup & "]}")
           end if
-          
+        
           Json.Text = "{" & _
             """version"":""2.0""," & _
             """customerId"":""" & customerId & """," & _

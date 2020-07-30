@@ -5,14 +5,14 @@ Properties:
   RUID: 1173071147_1450749196
   Name: "ZarobakBot.Отчеты"
   Caption: "ZarobakBot.Отчеты"
-  Version: "1.0.0.5"
+  Version: "1.0.0.6"
   Optional: False
   Internal: True
-  MD5: 26AA91AC4FDDF7D5D9CB4841C488177E
+  MD5: 83336F8057FC35AB1571CAB6E150F42B
 Uses: 
   - "148233742_349062642 Зарплата - исследователь"
-  - "147769863_84733194 Зарплата - Evt_Object"
   - "1193786287_1320926324 ZarobakBot.Экспорт файлов"
+  - "147769863_84733194 Зарплата - Evt_Object"
 Objects: 
   - 
     Properties: 
