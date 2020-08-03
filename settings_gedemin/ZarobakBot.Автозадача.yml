@@ -5,10 +5,10 @@ Properties:
   RUID: 1173045327_1450749196
   Name: "ZarobakBot.Автозадача"
   Caption: "ZarobakBot.Автозадача"
-  Version: "1.0.0.8"
+  Version: "1.0.0.10"
   Optional: False
   Internal: True
-  MD5: 8511AAA5170152E674C37F37EDCC6227
+  MD5: 127EE560DEF1DD611AD0ABDF03ED321B
 Uses: 
   - "1193786287_1320926324 ZarobakBot.Экспорт файлов"
   - "158513268_1444931844 ZarobakBot.Сбор данных"
@@ -191,6 +191,72 @@ Objects:
       DISABLED: 1
   - 
     Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173100452_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_task_canteen"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-31T15:10:13+03:00
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-31T15:10:12+03:00
+      DISPLAYSCRIPT: | 
+        BOT_TASK_CANTEEN
+        
+      ENTEREDPARAMS: ~
+      SCRIPT: | 
+        '#include BOT_EXPORTMENUU
+        '#include BOT_GETSERVERDATA
+        Option Explicit
+        Function bot_task_canteen
+          const upload_menu = "/zarobak/v2/upload_canteenmenu"
+        
+          dim customerArray, URL, count
+          'Из констант получим параметры для отправки на сервер
+          'customerArray - массив данных по клиенту (ид и RUID организации, пример: ("id1,123_456", "id2,789_123"))
+          'URL - путь к серверу
+          call bot_GetServerData(false, customerArray, URL)
+        
+          count = UBound(customerArray)
+          if count < 0 or URL = "" then
+            exit function
+          end if
+        
+          dim i, customer, customerId, companyId
+        
+          for i = 0 to count
+            customer = Split(customerArray(i), ",")
+            customerId = customer(0)
+            companyId = gdcBaseManager.GetIDByRUIDString(customer(1))
+            call bot_exportMenuU(customerId, companyId, URL & upload_menu, Date())
+          next
+        End Function
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1173100409_1450749196 bot_exportMenuU"
+          - 
+            ADDFUNCTIONKEY: "158512755_1444931844 bot_getServerData"
+  - 
+    Properties: 
       Class: "TgdcAutoTask"
       RUID: 1173100413_1450749196
       AlwaysOverwrite: False
@@ -209,17 +275,17 @@ Objects:
       EMAILGROUPKEY: ~
       EMAILRECIPIENTS: ~
       EMAILSMTPKEY: ~
-      ENDTIME: 1899-12-30T23:59:59+03:00
+      ENDTIME: 1899-12-30T16:25:00+03:00
       EXACTDATE: ~
-      FUNCTIONKEY: "1173100410_1450749196 bot_exportMenus"
+      FUNCTIONKEY: "1173100452_1450749196 bot_task_canteen"
       MONTHLY: ~
       PRIORITY: 0
       PULSE: ~
       RELOAD: 0
       REPORTKEY: ~
-      STARTTIME: 1899-12-30T23:00:00+03:00
+      STARTTIME: 1899-12-30T15:25:00+03:00
       USERKEY: ~
       WEEKLY: ~
       CREATIONDATE: 2020-07-23T16:51:44+03:00
-      EDITIONDATE: 2020-07-23T17:02:16+03:00
+      EDITIONDATE: 2020-07-31T15:40:33+03:00
       DISABLED: 1
