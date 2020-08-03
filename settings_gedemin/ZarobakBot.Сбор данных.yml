@@ -5,10 +5,10 @@ Properties:
   RUID: 158513268_1444931844
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.40"
+  Version: "1.0.0.41"
   Optional: False
   Internal: True
-  MD5: 47CC4F1C65E0BA602A296EA103BF2F5D
+  MD5: 8261A1907C41CD82C81D005D3320A2BB
 Objects: 
   - 
     Properties: 
@@ -1563,7 +1563,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-30T13:27:39+03:00
+      MODIFYDATE: 2020-08-03T18:30:20+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -1572,7 +1572,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-30T13:27:36+03:00
+      EDITIONDATE: 2020-08-03T18:30:20+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREMENU
         BOT_PREPAREMENU_ROLLBACK
@@ -1595,6 +1595,18 @@ Objects:
           end if
         
           except bot_prepareMenu_RollBack(Transaction)
+          
+          dim gdcConst, isSortByNumber, strSel
+          set gdcConst = Creator.GetObject(null, "TgdcConst", "")
+          'Константа ZarobakBot. Сортировка меню столовой
+          '1 - сортировка по usr$numbersort
+          '0 - сортировка по alias группы
+          isSortByNumber = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1173100475_1450749196"))
+          if isSortByNumber = 1 then
+            strSel = " coalesce(gg.USR$NUMBERSORT, -1) as n, "
+          else
+            strSel = " coalesce(gg.alias, -1) as n, "
+          end if
         
           dim qSel
           set qSel = Creator.GetObject(nil, "TIBSQL", "")
@@ -1603,7 +1615,7 @@ Objects:
             " SELECT " & _
             "   con.name || ' -- ' || mn.usr$name  as menuname, " & _
             "   con.id || mn.id as menuid, " & _
-            "   gg.USR$NUMBERSORT as n, " & _
+            strSel & _
             "   gg.name as groupname, " & _
             "   g.name as goodname, " & _
             "   mc.usr$outputstr as det, " & _
@@ -1626,7 +1638,7 @@ Objects:
             "      AND menu.USR$DEPOTKEY = mm.USR$DEPOTKEY AND menu.USR$MENUNAMEKEY = mm.USR$MENUNAMEKEY " & _
             "    ORDER BY doc.documentdate DESC " & _
             "    ) " & _
-            " ORDER BY con.name, mn.usr$name, gg.USR$NUMBERSORT, gg.name, mc.usr$posinmenu, g_s_delchar(g.alias) "
+            " ORDER BY con.name, mn.usr$name, n, gg.name, mc.usr$posinmenu, g_s_delchar(g.alias) "
           qSel.ParamByName("companyId").AsInteger = companyId
           qSel.ParamByName("pDate").AsDateTime = pDate
           qSel.ExecQuery
