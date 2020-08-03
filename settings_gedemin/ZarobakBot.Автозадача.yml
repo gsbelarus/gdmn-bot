@@ -5,10 +5,10 @@ Properties:
   RUID: 1173045327_1450749196
   Name: "ZarobakBot.Автозадача"
   Caption: "ZarobakBot.Автозадача"
-  Version: "1.0.0.10"
+  Version: "1.0.0.11"
   Optional: False
   Internal: True
-  MD5: 127EE560DEF1DD611AD0ABDF03ED321B
+  MD5: 5C965BF457C0141DBC0C9073355DA28A
 Uses: 
   - "1193786287_1320926324 ZarobakBot.Экспорт файлов"
   - "158513268_1444931844 ZarobakBot.Сбор данных"
@@ -275,7 +275,7 @@ Objects:
       EMAILGROUPKEY: ~
       EMAILRECIPIENTS: ~
       EMAILSMTPKEY: ~
-      ENDTIME: 1899-12-30T16:25:00+03:00
+      ENDTIME: 1899-12-30T09:00:00+03:00
       EXACTDATE: ~
       FUNCTIONKEY: "1173100452_1450749196 bot_task_canteen"
       MONTHLY: ~
@@ -283,9 +283,9 @@ Objects:
       PULSE: ~
       RELOAD: 0
       REPORTKEY: ~
-      STARTTIME: 1899-12-30T15:25:00+03:00
+      STARTTIME: 1899-12-30T08:00:00+03:00
       USERKEY: ~
       WEEKLY: ~
       CREATIONDATE: 2020-07-23T16:51:44+03:00
-      EDITIONDATE: 2020-07-31T15:40:33+03:00
+      EDITIONDATE: 2020-08-03T15:11:05+03:00
       DISABLED: 1
