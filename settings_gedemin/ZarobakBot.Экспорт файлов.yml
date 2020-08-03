@@ -5,10 +5,10 @@ Properties:
   RUID: 1193786287_1320926324
   Name: "ZarobakBot.Экспорт файлов"
   Caption: "ZarobakBot.Экспорт файлов"
-  Version: "1.0.0.45"
+  Version: "1.0.0.46"
   Optional: False
   Internal: True
-  MD5: B325F24C0F3C5D6E90B80112F816A4B5
+  MD5: 2A5008D1CBDB90C525CF95457D0411BC
 Uses: 
   - "148233742_349062642 Зарплата - исследователь"
   - "158513268_1444931844 ZarobakBot.Сбор данных"
@@ -1158,3 +1158,16 @@ Objects:
       SUBTYPE: ~
       EDITIONDATE: 2020-07-22T16:23:10+03:00
       DISABLED: 0
+  - 
+    Properties: 
+      Class: "TgdcConst"
+      RUID: 1173100475_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "ZarobakBot. Сортировка меню столовой"
+      COMMENT: "1 = сортировать меню столовой по usr$numbersort, 0 = по alias"
+      CONSTTYPE: 0
+      DATATYPE: "N"
+      EDITIONDATE: 2020-08-03T18:24:37+03:00

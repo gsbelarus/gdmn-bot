@@ -5,10 +5,10 @@ Properties:
   RUID: 1173065484_1450749196
   Name: "ZarobakBot.Экспорт данных по признакам"
   Caption: "ZarobakBot.Экспорт данных по признакам"
-  Version: "1.0.0.5"
+  Version: "1.0.0.6"
   Optional: False
   Internal: True
-  MD5: AD6EF6028BF876D9211E0DBB22E898A2
+  MD5: 0EBDA0DE51137536BD1C6505F940AADF
 Uses: 
   - "1193786287_1320926324 ZarobakBot.Экспорт файлов"
   - "158513268_1444931844 ZarobakBot.Сбор данных"
@@ -128,6 +128,46 @@ Objects:
             ADDFUNCTIONKEY: "158513032_1444931844 bot_exportAccDedsU"
           - 
             ADDFUNCTIONKEY: "158512755_1444931844 bot_getServerData"
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173059124_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_isReadyForExport"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-10T13:04:24+03:00
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-09T14:17:14+03:00
+      DISPLAYSCRIPT: | 
+        BOT_ISREADYFOREXPORT
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QEAAAAU0VMRgQAAABTRUxGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RGTFBS
+      SCRIPT: | 
+        Option Explicit
+        Function bot_isReadyForExport(Self)
+          bot_isReadyForExport = Self.FieldByName("USR$BLOCKED").AsInteger
+          if Self.FieldByName("USR$BLOCKED").AsInteger = 0 and Assigned(Self.FindField("USR$PRINTPAYILIP")) then
+            bot_isReadyForExport = Self.FieldByName("USR$PRINTPAYILIP").AsInteger
+          end if
+        End Function
+        
   - 
     Properties: 
       Class: "TgdcFunction"
@@ -335,7 +375,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODIFYDATE: 2020-08-03T15:07:23+03:00
       MODULE: "METHOD"
       MODULECODE: "147572216_119619099 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147567052_119619099"
       OBJECTNAME: "TgdcUserDocument147567052_119619099"
@@ -344,7 +384,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-09T14:18:47+03:00
+      EDITIONDATE: 2020-08-03T15:07:20+03:00
       DISPLAYSCRIPT: | 
         TGDCUSERDOCUMENT147567052_119619099DOBEFOREEDIT
         
@@ -384,7 +424,7 @@ Objects:
       OBJECTKEY: "147572216_119619099 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147567052_119619099"
       OBJECTNAME: "TgdcUserDocument147567052_119619099"
       PARENTNAME: "TgdcUserDocument"
-      EDITIONDATE: 2020-07-09T14:18:47+03:00
+      EDITIONDATE: 2020-08-03T15:07:20+03:00
   - 
     Properties: 
       Class: "TgdcFunction"
