@@ -4,7 +4,7 @@
 - Через поле поиска приложения
 
 ## Подключение по ссылке
-1. Перейдите по ссылке https://telegram-zarobakbot.gdmn.app
+1. Перейдите по ссылке https://t.me/ZarobakBot
 
    и нажмите на кнопку «Open Telegram Desktop», чтобы открыть бот в Telegram Desktop:
 
