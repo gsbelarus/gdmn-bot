@@ -2054,9 +2054,11 @@ export class Bot {
         const formatStats = () => Object.entries(stat)
           .sort( ([, [AV, , AT]], [, [BV, , BT]]) => (BV + BT) - (AV + AT) )
           .map(
-            ([custId, [custV, custIV, custT, custIT, custE]], idx) =>
-              `${(idx + 1).toString().padEnd(4, '.')}${custId}: ${custV + custT}/${custE}/${((custV + custT) * 100 / custE).toFixed(0)}%/${custV}${custIV ? '(' + custIV + ')' : ''}/${custT}${custIT ? '(' + custIT + ')' : ''}\n  canteen: ${this._getCarteenLastDate(custId)}\n  payslip: ${this._getPayslipLastDate(custId)}`
-            )
+            ([custId, [custV, custIV, custT, custIT, custE]], idx) => {
+              const c = this._getCarteenLastDate(custId);
+              const p = this._getPayslipLastDate(custId);
+              return (`${(idx + 1).toString().padEnd(4, '.')}${custId}: ${custV + custT}/${custE}/${((custV + custT) * 100 / custE).toFixed(0)}%/${custV}${custIV ? '(' + custIV + ')' : ''}/${custT}${custIT ? '(' + custIT + ')' : ''}\n${c ? `  canteen: ${c}\n` : ''}${p ? `  payslip: ${this._getPayslipLastDate(custId)}` : ''}`)
+            })
           .join('\n');
 
         const data = [
