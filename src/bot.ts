@@ -415,7 +415,7 @@ export class Bot {
                 m.groupdata
                   .sort( (a, b) => getLocString(a.good, lng).localeCompare(getLocString(b.good, lng)) )
                   .map( gr => `  ${format2(gr.cost / rate)} ${getLocString(gr.good, lng).substring(0, 40)}${gr.det ? ', ' + gr.det : ''}`),
-                '\n'
+                ''
               ])
           ].flat(5);
 
