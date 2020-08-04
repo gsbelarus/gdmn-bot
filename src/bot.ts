@@ -398,36 +398,47 @@ export class Bot {
       const lng = language ?? 'ru';
       const date = new Date();
       const { canteenMenuId } = ctx;
+      const menu = this._getCanteenMenu(customerId, date2str(date, 'YYYY.MM.DD'))?.find( m => m.id === canteenMenuId );
 
       await semaphore?.acquire();
       try {
-        const menu = this._getCanteenMenu(customerId, date2str(date, 'YYYY.MM.DD'))?.find(m => m.id === canteenMenuId);
-        let rate: number | undefined = 1;
-        if (currency && currency !== 'BYN') {
-          rate = await getCurrRateForDate(date, currency, this._log);
-        }
-        if (!rate) {
-          await reply(getLocString(stringResources.cantLoadRate, lng, currency))({ chatId, semaphore: new Semaphore(`Temp for chatId: ${chatId}`) });
-        } else {
-          if (menu) {
-            const formatList = menu.data.sort((a, b) => a.n - b.n).map(m =>
-              `${getLocString(m.group, lng)}\n${m.groupdata.sort((a, b) => getLocString(a.good, lng).toLowerCase() < getLocString(b.good, lng).toLowerCase() ? -1 : 1).map(gr => `  ${format2(gr.cost/(rate ?? 1))} ${getLocString(gr.good, lng).substr(0, 40)}${gr.det ? ', ' + gr.det : ''}`).join('\n')}\n`).join('\n');
-            const qSymbols = platform === 'VIBER' ? 1000 : 4000;
-            const text = (formatList ? `${getLocString(stringResources.menuTitle, lng, date)}${getLocString(menu.name, lng)}\n${currency && currency !== 'BYN' ? getLocString(stringResources.canteenMenuCurrency, lng, currency, date, rate) + '\n' : ''}\n${formatList}` : getLocString(stringResources.noData, lng));
-            const n = Math.min(Math.trunc(text.length/qSymbols), 6);
+        if (menu) {
+          const rate = ((currency && currency !== 'BYN') ? await getCurrRateForDate(date, currency, this._log) : 1) ?? 1;
+          const menuTitle = getLocString(stringResources.menuTitle, lng, date);
+          const menuName = getLocString(menu.name, lng);
+          const formatList = [
+            `${menuTitle}${menuName}${rate !== 1 ? '\n' + getLocString(stringResources.canteenMenuCurrency, lng, currency, date, rate) : ''}`,
+            ...menu.data
+              .sort( (a, b) => a.n - b.n )
+              .map( m => [
+                getLocString(m.group, lng),
+                m.groupdata
+                  .sort( (a, b) => getLocString(a.good, lng).localeCompare(getLocString(b.good, lng)) )
+                  .map( gr => `  ${format2(gr.cost / rate)} ${getLocString(gr.good, lng).substring(0, 40)}${gr.det ? ', ' + gr.det : ''}`),
+                '\n'
+              ])
+          ].flat(5);
 
-            for (let i = 0; i <= n; i++) {
-              const t = '^FIXED\n' + text.substr(i*qSymbols + (i > 0 ? 1 : 0), qSymbols);
-              await reply(t)({ chatId, semaphore: new Semaphore(`Temp for chatId: ${chatId}`) })
-              if (i < n) {
-                await pause(1000);
-              }
+          const maxLength = platform === 'VIBER' ? 1000 : 4000; // TODO: сделать константы для VIBER и TELEGRAM
+          let msg = '';
+
+          for (let i = 0; i < formatList.length; i++) {
+            let newMsg = msg + formatList[i] + '\n';
+
+            // второе условие, чтобы обработать ситуацию, когда попадется одна строка длиннее лимита месенджера
+            if (newMsg.length > maxLength && msg) {
+              await reply('^FIXED\n' + msg.substring(0, maxLength))({ chatId, semaphore: new Semaphore(`Temp for chatId: ${chatId}`) })
+              await pause(200);
+              msg = formatList[i] + '\n';
+            } else {
+              msg = newMsg;
             }
           }
-				}
+        } else {
+          await reply(stringResources.noCanteenDataToday)({ chatId, semaphore: new Semaphore(`Temp for chatId: ${chatId}`) });
+        }
       } catch(e) {
         await this._logger.error(ctx.chatId, undefined, e);
-        await reply(`${getLocString(stringResources.noData, lng)} Date: ${date2str(date)}.`)(rest);
       } finally {
         semaphore?.release();
       }
