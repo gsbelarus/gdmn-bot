@@ -5,7 +5,7 @@ import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions, State } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName, getLName2 } from "./stringResources";
-import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL, pause, format2, format, normalizeStr } from "./util/utils";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL, pause, format2, format, normalizeStr, companyToIgnore } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates,
 keyboardEnterAnnouncement, keyboardSendAnnouncement, mapUserRights, TestUserRightFunc, keyboardLogout, keyboardCanteenMenu, ICanteenMenuKeybord,
 keyboardSendAnnouncementConfirmation, IUserRightDescr } from "./menu";
@@ -646,12 +646,12 @@ export class Bot {
         unknownCompanyName: (ctx) => {
           reply(stringResources.unknownCompanyName, undefined,
             Object.entries(this._customers.getMutable(false))
-              .filter(([id, customer]) => id !== 'test')
+              .filter(([id, customer]) => !companyToIgnore.includes(id))
               .map(([id, customer]) => {
                 const s = normalizeStr(customer.name) ?? '';
                 return(s.substr(0,1).toLocaleUpperCase() + s.substr(1))
               })
-            .sort((a, b) => a > b ? 1 : -1).join('\n'));
+            .sort((a, b) => a > b ? 1 : -1).join('\n'))(ctx);
         },
         unknownEmployee: reply(stringResources.unknownEmployee),
         askPIN: ctx => {

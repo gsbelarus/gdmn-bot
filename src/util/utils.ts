@@ -4,6 +4,11 @@
 const wordsToIgnore = 'ооо,иооо,одо,оао,зао,таа,зат,аат,ип,іп,уп,куп,упп,г'.split(',');
 
 /**
+ * alias организаций, которые не должны попадать в список организаций в подсказке
+ */
+export const companyToIgnore = 'test,ampersant,gs'.split(',');
+
+/**
  * эти символы заменяем на пробелы
  */
 const charsToIgnore = '.,"\'`:\n\t«»#'.split('');
