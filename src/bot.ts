@@ -643,14 +643,16 @@ export class Bot {
     const machineOptions = (reply: ReplyFunc): Partial<MachineOptions<IBotMachineContext, BotMachineEvent>> => ({
       actions: {
         askCompanyName: reply(stringResources.askCompanyName),
-        unknownCompanyName: reply(stringResources.unknownCompanyName, undefined,
-          Object.entries(this._customers.getMutable(false))
-            .filter(([id, customer]) => id !== 'test')
-            .map(([id, customer]) => {
-              const s = normalizeStr(customer.name) ?? '';
-              return(s.substr(0,1).toLocaleUpperCase() + s.substr(1))
-            })
-          .sort((a, b) => a > b ? 1 : -1).join('\n')),
+        unknownCompanyName: (ctx) => {
+          reply(stringResources.unknownCompanyName, undefined,
+            Object.entries(this._customers.getMutable(false))
+              .filter(([id, customer]) => id !== 'test')
+              .map(([id, customer]) => {
+                const s = normalizeStr(customer.name) ?? '';
+                return(s.substr(0,1).toLocaleUpperCase() + s.substr(1))
+              })
+            .sort((a, b) => a > b ? 1 : -1).join('\n'));
+        },
         unknownEmployee: reply(stringResources.unknownEmployee),
         askPIN: ctx => {
           const { customerId, employeeId } = ctx;
