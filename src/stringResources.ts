@@ -80,6 +80,11 @@ export const stringResources = {
     ru: '😕 Нет данных за выбранный период!',
     be: '😕 Няма дадзеных за выбраны перыяд!'
   },
+  noMenuData: {
+    en: '😕 We can\'t find a menu for today!',
+    ru: '😕 Мы не нашли меню на сегодня!',
+    be: '😕 Мы не знайшлі меню на сёння!'
+  },
   weAreLost: {
     en: '😕 Sorry! I\'m lost a little bit. Please, start it over.',
     ru: '😕 Извините, я тут немного запутался. Начните с начала.',
