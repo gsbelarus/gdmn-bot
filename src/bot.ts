@@ -1547,7 +1547,7 @@ export class Bot {
       periodName,
       currencyName,
       data.hourrate ? stringResources.payslipHpr : stringResources.payslipSalary,
-      data.hourrate ? [data.hourrate ?? 0, data2.hourrate ?? 0, (data2.hourrate ?? 0) - (data.hourrate ?? 0)] : [data.salary ?? 0, data2.salary ?? 0, (data2.salary ?? 0) - (data.salary ?? 0)],
+      data.hourrate ? [data.hourrate ?? 0, data2.hourrate ?? 0, (data2.hourrate ?? 0) - (data.hourrate ?? 0)] : [data.salary ?? 0, data2.salary ?? 0, ((data2.salary ?? 0) - (data.salary ?? 0))],
       '=',
       stringResources.payslipAccrued,
       [accruals, accruals2, accruals2 - accruals],
