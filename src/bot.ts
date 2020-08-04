@@ -422,17 +422,25 @@ export class Bot {
           const maxLength = platform === 'VIBER' ? 1000 : 4000; // TODO: сделать константы для VIBER и TELEGRAM
           let msg = '';
 
+          const replyMsg = async () => {
+            await reply('^FIXED\n' + msg.substring(0, maxLength))({ chatId, semaphore: new Semaphore(`Temp for chatId: ${chatId}`) })
+            await pause(200);
+          };
+
           for (let i = 0; i < formatList.length; i++) {
             let newMsg = msg + formatList[i] + '\n';
 
             // второе условие, чтобы обработать ситуацию, когда попадется одна строка длиннее лимита месенджера
             if (newMsg.length > maxLength && msg) {
-              await reply('^FIXED\n' + msg.substring(0, maxLength))({ chatId, semaphore: new Semaphore(`Temp for chatId: ${chatId}`) })
-              await pause(200);
+              await replyMsg();
               msg = formatList[i] + '\n';
             } else {
               msg = newMsg;
             }
+          }
+
+          if (msg) {
+            await replyMsg();
           }
         } else {
           await reply(stringResources.noCanteenDataToday)({ chatId, semaphore: new Semaphore(`Temp for chatId: ${chatId}`) });
