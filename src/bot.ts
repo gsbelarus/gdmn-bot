@@ -789,7 +789,17 @@ export class Bot {
         showBirthdays: getShowBirthdaysFunc(reply),
         showCanteenMenuText: getShowCanteenMenuTextFunc(reply),
         showCanteenMenu: getShowCanteenMenuFunc(reply),
-        showNoMenuData: reply(stringResources.noData),
+        showNoMenuData: ctx => {
+          const { ...rest } = checkAccountLink(ctx);
+          const { customerId } = ctx;
+          //Если файлы по меню столовой есть, но еще не загружено на сегодня
+          if (customerId && this._getCanteenLastDate(customerId)) {
+            reply(stringResources.noCanteenDataToday)(rest);
+          } else {
+            //Если нет файлов меню
+            reply(stringResources.noCanteenData)(rest);
+          }
+        },
         showPayslip: getShowPayslipFunc('CONCISE', reply),
         showLatestPayslip: getShowLatestPayslipFunc(reply),
         showDetailedPayslip: getShowPayslipFunc('DETAIL', reply),
@@ -1311,7 +1321,7 @@ export class Bot {
     return date && date2str(date, 'DD.MM.YYYY');
   }
 
-  private _getCarteenLastDate = (customerId: string) => {
+  private _getCanteenLastDate = (customerId: string) => {
     const menu = new FileDB<ICanteenMenus>({ fn: getCanteenMenuFN(customerId), logger: this._log }).getMutable(false);
     const canteen = Object.entries(menu)[0];
     return canteen && date2str(str2Date(canteen[0]), 'DD.MM.YYYY');
@@ -2061,7 +2071,7 @@ export class Bot {
           .sort( ([, [AV, , AT]], [, [BV, , BT]]) => (BV + BT) - (AV + AT) )
           .map(
             ([custId, [custV, custIV, custT, custIT, custE]], idx) => {
-              const c = this._getCarteenLastDate(custId);
+              const c = this._getCanteenLastDate(custId);
               const p = this._getPayslipLastDate(custId);
               return (`${(idx + 1).toString().padEnd(4, '.')}${custId}: ${custV + custT}/${custE}/${((custV + custT) * 100 / custE).toFixed(0)}%/${custV}${custIV ? '(' + custIV + ')' : ''}/${custT}${custIT ? '(' + custIT + ')' : ''}\n${c ? `  canteen: ${c}\n` : ''}${p ? `  payslip: ${this._getPayslipLastDate(custId)}` : ''}`)
             })
