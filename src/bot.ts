@@ -1218,6 +1218,7 @@ export class Bot {
   }
 
   private _getCanteenMenu(customerId: string, date: string) {
+    date = customerId === 'test' ? '2020.07.28' : date;
     return new FileDB<ICanteenMenus>({ fn: getCanteenMenuFN(customerId), logger: this._log })
       .read(date);
   }
