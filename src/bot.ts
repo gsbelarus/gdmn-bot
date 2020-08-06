@@ -2458,10 +2458,12 @@ export class Bot {
       payslipDB.clear();
     }
 
+    let needInformUser: boolean;
     const prevPayslipData = payslipDB.read(employeeId);
 
     if (!prevPayslipData) {
       payslipDB.write(employeeId, receivedData);
+      needInformUser = true;
     } else {
       const receivedMonths: IDate[] = [];
 
@@ -2487,13 +2489,28 @@ export class Bot {
       };
 
       payslipDB.write(employeeId, newPayslipData);
+
+      /**
+      * Информируем пользователя только если поступили/обновились новейшие данные за текущий или предыдущий месяц.
+      */
+      const currMonthYear = new Date().getFullYear();
+      const currMonth = new Date().getMonth();
+      const prevMonthYear = currMonth > 0 ? currMonthYear : (currMonthYear - 1);
+      const prevMonth = currMonth > 0 ? (currMonth - 1) : 11;
+      needInformUser = !!receivedMonths.find( rm =>
+        (rm.year === currMonthYear && rm.month === currMonth)
+        ||
+        (rm.year === prevMonthYear && rm.month === prevMonth)
+      );
     }
 
     payslipDB.flush();
 
     this._log.info(`Payslips for employee: ${employeeId}, customer: ${customerId} have been uploaded.`);
 
-    this.informUserOnNewPayslip(customerId, employeeId);
+    if (needInformUser) {
+      this.informUserOnNewPayslip(customerId, employeeId);
+    }
   }
 
   public async sendLatestPayslip(customerId: string, employeeId: string) {

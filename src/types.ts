@@ -21,6 +21,9 @@ export interface IConfig {
   logger: ILoggerParams;
 };
 
+/**
+ * Дата, только год и месяц.
+ */
 export interface IDate {
   year: number;
   /**
