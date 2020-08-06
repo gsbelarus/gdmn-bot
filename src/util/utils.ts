@@ -1,3 +1,5 @@
+import { IDate } from "../types";
+
 /**
  * эти слова просто выкидываем из текста.
  */
@@ -78,6 +80,16 @@ export const str2Date = (date: Date | string) => {
   }
 };
 
+/**
+ * Возвращает true, если d1 больше либо равна d2.
+ * @param d1
+ * @param d2
+ */
+export const isIDateGrOrEq = (d1: IDate, d2: IDate) =>
+  (d1.year > d2.year)
+  ||
+  (d1.year === d2.year && d1.month >= d2.month);
+
 export const isEq = (d1: Date | string, d2: Date | string) => {
   if (typeof d1 === 'string' && typeof d2 === 'string') {
     return d1 === d2;
@@ -89,6 +101,11 @@ export const isEq = (d1: Date | string, d2: Date | string) => {
   }
 };
 
+/**
+ * Возвращает true, если d1 больше d2.
+ * @param d1
+ * @param d2
+ */
 export const isGr = (d1: Date, d2: Date) => {
   return d1.getTime() > d2.getTime();
 };
