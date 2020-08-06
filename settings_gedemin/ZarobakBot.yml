@@ -5,9 +5,12 @@ Properties:
   RUID: 158513317_1444931844
   Name: "ZarobakBot"
   Caption: "ZarobakBot"
-  Version: "1.0.0.10"
+  Version: "1.0.0.17"
   Optional: False
   Internal: False
-  MD5: 6CF0CAEF721D5C305562AC313CE989BD
+  MD5: C7A8741158E42FE680BF268D4D38C2F1
 Uses: 
+  - "1173045327_1450749196 ZarobakBot.Автозадача"
   - "1193786287_1320926324 ZarobakBot.Экспорт файлов"
+  - "1173071147_1450749196 ZarobakBot.Отчеты"
+  - "1173065484_1450749196 ZarobakBot.Экспорт данных по признакам"

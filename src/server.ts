@@ -57,70 +57,118 @@ const app = new Koa();
 const router = new Router();
 
 router.get('/', (ctx, next) => {
-  ctx.body = 'Zarobak Telegram/Viber Bot. Copyright (c) 2020 by Golden Software of Belarus, Ltd';
-  return next();
+  ctx.response.body = 'Zarobak Telegram/Viber Bot. Copyright (c) 2020 by Golden Software of Belarus, Ltd';
+  next();
 });
 
 //TODO: dangerous!
-router.get('/zarobak/v1/shutdown_gdmn_bot_server', async (ctx, next) => {
-  ctx.status = 200;
-  ctx.body = JSON.stringify({ status: 200, result: `ok` });
-  await shutdown('Server shutting down...');
-  setTimeout( () => process.exit(), 100 );
-  //return next();
+router.get('/zarobak/v1/shutdown_gdmn_bot_server', (ctx, next) => {
+  ctx.response.status = 200;
+  ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
+  shutdown('Server shutting down...')
+    .then( () => setTimeout( () => process.exit(), 100 ) );
+  next();
 });
 
 router.post('/zarobak/v1/upload_employees', (ctx, next) => {
   try {
     const { customerId, objData } = ctx.request.body;
     bot.uploadEmployees(customerId, objData);
-    ctx.status = 200;
-    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+    ctx.response.status = 200;
+    ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {
     log.error(`Error in employees uploading. ${err.message}`);
-    ctx.status = 500;
-    ctx.body = JSON.stringify({ status: 500, result: err.message });
+    ctx.response.status = 500;
+    ctx.response.body = JSON.stringify({ status: 500, result: err.message });
   }
-  return next();
+  next();
 });
 
 router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
   try {
     const { customerId, objData } = ctx.request.body;
     bot.uploadAccDeds(customerId, objData);
-    ctx.status = 200;
-    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+    ctx.response.status = 200;
+    ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {
     log.error(`Error in accdedrefs uploading. ${err.message}`);
-    ctx.status = 500;
-    ctx.body = JSON.stringify({ status: 500, result: err.message });
+    ctx.response.status = 500;
+    ctx.response.body = JSON.stringify({ status: 500, result: err.message });
   }
-  return next();
+  next();
 });
 
-// TODO: ид сотрудника, данные которого передаются, можно сразу включать в URI,
-// например: /zarobak/v1/upload_paySlips?employeeId=445566
-// тогда сразу будет видно на каком именно сотруднике произошла ошибка
 router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
   try {
     const { customerId, objData, rewrite } = ctx.request.body;
     bot.upload_payslips(customerId, objData, rewrite);
-    bot.sendLatestPayslip(customerId, objData.emplId);
-    ctx.status = 200;
-    ctx.body = JSON.stringify({ status: 200, result: `ok` });
+    //TODO: отключаем рассылку. может она подвешивает сервер
+    //await bot.sendLatestPayslip(customerId, objData.emplId);
+    ctx.response.status = 200;
+    ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
   } catch(err) {
     log.error(`Error in payslips uploading. ${err.message}`);
-    ctx.status = 500;
-    ctx.body = JSON.stringify({ status: 500, result: err.message });
+    ctx.response.status = 500;
+    ctx.response.body = JSON.stringify({ status: 500, result: err.message });
   }
-  return next();
+  next();
 });
+
+router.post('/zarobak/v2/upload_timeSheets', (ctx, next) => {
+  try {
+    const { customerId, objData, rewrite } = ctx.request.body;
+    bot.upload_timeSheets(customerId, objData, rewrite);
+    ctx.response.status = 200;
+    ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
+  } catch(err) {
+    log.error(`Error in timesheets uploading. ${err.message}`);
+    ctx.response.status = 500;
+    ctx.response.body = JSON.stringify({ status: 500, result: err.message });
+  }
+  next();
+});
+
+router.post('/zarobak/v2/upload_schedules', (ctx, next) => {
+  try {
+    const { customerId, objData, rewrite } = ctx.request.body;
+    bot.upload_schedules(customerId, objData, rewrite);
+    ctx.response.status = 200;
+    ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
+  } catch(err) {
+    log.error(`Error in schedules uploading. ${err.message}`);
+    ctx.response.status = 500;
+    ctx.response.body = JSON.stringify({ status: 500, result: err.message });
+  }
+  next();
+});
+
+router.post('/zarobak/v2/upload_canteenmenu', (ctx, next) => {
+  try {
+    const { customerId, objData, date } = ctx.request.body;
+    bot.upload_canteenMenu(customerId, objData, date);
+    ctx.response.status = 200;
+    ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
+  } catch(err) {
+    log.error(`Error in menu uploading. ${err.message}`);
+    ctx.response.status = 500;
+    ctx.response.body = JSON.stringify({ status: 500, result: err.message });
+  }
+  next();
+});
+
+app.on('error', (err, ctx) => log.error('koa server error', err, ctx));
 
 app
   .use(bodyParser({
-    jsonLimit: '20mb',
-    textLimit: '20mb'
+    jsonLimit: '40mb',
+    textLimit: '40mb'
   }))
+  .use(
+    (ctx, next) => {
+      log.info(ctx.request.href);
+      next();
+    }
+  )
   .use(router.routes())
   .use(router.allowedMethods());
 
@@ -128,7 +176,7 @@ const koaCallback = app.callback();
 
 const httpServer = http.createServer(koaCallback);
 
-httpServer.listen(config.httpPort, () => log.info(`>>> SERVER: Сервер запущен: http://localhost:${config.httpPort}`) );
+httpServer.listen(config.httpPort, () => log.info(`>>> HTTP server is running at http://localhost:${config.httpPort}`) );
 
 /**
  * HTTPS сервер с платным сертификатом нам нужен для подключения
@@ -142,9 +190,14 @@ const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bun
   .map(cert => cert +'-----END CERTIFICATE-----\r\n')
   .pop();
 
+if (!ca) {
+  throw new Error('No CA file or file is invalid');
+}
+
 const viberCallback = bot.viber?.middleware();
 
 https.createServer({ cert, ca, key },
+  //viberCallback
   (req, res) => {
     if (req.headers['x-viber-content-signature']) {
       viberCallback?.(req, res);
@@ -167,12 +220,20 @@ https.createServer({ cert, ca, key },
       log.warn('Viber bot isn\'t activated.')
     }
 
-    // раз в час пишем на диск все несохраненные данные
-    setInterval(() => bot.finalize(), 60 * 60 * 1000);
+    log.info(`>>> HTTPS server is running at https://localhost:${config.httpsPort}`)
   }
 );
 
-bot.launch();
+
+if (config.telegram.useWebHook) {
+  const { callbackHost, hookPath, port } = config.telegram;
+  bot.launchTelegram(callbackHost, hookPath, port, { key, cert, ca });
+} else {
+  bot.launchTelegram();
+}
+
+// раз в час пишем на диск все несохраненные данные
+setInterval(() => bot.finalize(), 60 * 60 * 1000);
 
 /**
  * При завершении работы сервера скидываем на диск все данные.
@@ -191,7 +252,7 @@ process
     process.exit();
   })
   .on('SIGTERM', async () => {
-    await shutdown('SIGINT received...');
+    await shutdown('SIGTERM received...');
     process.exit();
   })
   .on('unhandledRejection', (reason, p) => console.error({ err: reason }, p) )

@@ -62,6 +62,8 @@ export const calendarMachineConfig: MachineConfig<ICalendarMachineContext, any, 
   }
 };
 
+type AnnouncementType = 'DEPARTMENT' | 'ENTERPRISE' | 'GLOBAL' | undefined;
+
 export interface IBotMachineContext extends IMachineContextBase {
   customerId?: string;
   employeeId?: string;
@@ -74,18 +76,38 @@ export interface IBotMachineContext extends IMachineContextBase {
   dateBegin: IDate;
   dateEnd: IDate;
   dateBegin2: IDate;
+  /**
+   * ИД валюты для отображения курсов.
+   */
+  currencyId?: string;
+  currencyDate: IDate;
+  tableDate: IDate;
+  scheduleDate: IDate;
+  /**
+   * Текст объявления.
+   */
+  announcement?: string;
+  announcementType?: AnnouncementType;
+  /**
+  * Подразделение для меню (общепит)
+  */
+  canteenMenuId?: string;
 };
 
-export type StartEvent        = { type: 'START' } & Required<IMachineContextBase>;
-export type MainMenuEvent     = { type: 'MAIN_MENU' } & Required<IMachineContextBase> & { customerId: string; employeeId: string; forceMainMenu: boolean; };
-export type EnterTextEvent    = { type: 'ENTER_TEXT';    text: string; };
-export type MenuCommandEvent  = { type: 'MENU_COMMAND';  command: string; };
+export type StartEvent           = { type: 'START' } & Required<IMachineContextBase>;
+export type MainMenuEvent        = { type: 'MAIN_MENU' } & Required<IMachineContextBase> & { customerId: string; employeeId: string; forceMainMenu: boolean; diagnostics?: string; };
+export type EnterTextEvent       = { type: 'ENTER_TEXT';  text: string; };
+export type MenuCommandEvent     = { type: 'MENU_COMMAND';  command: string; };
+export type SelectCurrencyEvent  = { type: 'SELECT_CURRENCY'; id: string; };
+export type SelectCanteenMenuEvent  = { type: 'SELECT_CANTEEN_MENU'; id: string; };
 
 export type BotMachineEvent = CalendarMachineEvent
   | StartEvent
   | EnterTextEvent
   | MenuCommandEvent
-  | MainMenuEvent;
+  | MainMenuEvent
+  | SelectCurrencyEvent
+  | SelectCanteenMenuEvent
 
 export function isEnterTextEvent(event: BotMachineEvent): event is EnterTextEvent {
   return event.type === 'ENTER_TEXT' && typeof event.text === 'string';
@@ -99,6 +121,10 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
       dateBegin: { year: new Date().getFullYear(), month: 0 },
       dateEnd: { year: new Date().getFullYear(), month: 11 },
       dateBegin2: { year: new Date().getFullYear(), month: 0 },
+      currencyDate: { year: new Date().getFullYear(), month: 0 },
+      tableDate: { year: new Date().getFullYear(), month: 0 },
+      scheduleDate: { year: new Date().getFullYear(), month: 0 },
+      canteenMenuId: undefined
     },
     states: {
       init: {
@@ -113,13 +139,16 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           },
           MAIN_MENU: {
             target: 'mainMenu',
-            actions: assign({
-              platform: (_, { platform }: MainMenuEvent) => platform,
-              chatId: (_, { chatId }: MainMenuEvent) => chatId,
-              customerId: (_, { customerId }: MainMenuEvent) => customerId,
-              employeeId: (_, { employeeId }: MainMenuEvent) => employeeId,
-              semaphore: (_, { semaphore }: MainMenuEvent) => semaphore
-            })
+            actions: [
+              assign({
+                platform: (_, { platform }: MainMenuEvent) => platform,
+                chatId: (_, { chatId }: MainMenuEvent) => chatId,
+                customerId: (_, { customerId }: MainMenuEvent) => customerId,
+                employeeId: (_, { employeeId }: MainMenuEvent) => employeeId,
+                semaphore: (_, { semaphore }: MainMenuEvent) => semaphore
+              }),
+              'showDiagnostics'
+            ]
           }
         }
       },
@@ -197,6 +226,34 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
         on: {
           MENU_COMMAND: [
             {
+              cond: (_, { command }: MenuCommandEvent) => command === '.wage',
+              target: 'wage'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.other',
+              target: 'other'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.settings',
+              target: 'settings'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.logout',
+              target: 'logout'
+            }
+          ]
+        },
+        states: {
+          showMenu: {
+            entry: 'showMainMenu'
+          }
+        }
+      },
+      wage: {
+        initial: 'showWage',
+        on: {
+          MENU_COMMAND: [
+            {
               cond: (_, { command }: MenuCommandEvent) => command === '.payslip',
               target: 'payslip'
             },
@@ -217,18 +274,279 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
               target: 'comparePayslip'
             },
             {
-              cond: (_, { command }: MenuCommandEvent) => command === '.settings',
-              target: 'settings'
+              cond: (_, { command }: MenuCommandEvent) => command === '.cancelWage',
+              target: 'mainMenu'
+            },
+          ]
+        },
+        states: {
+          showWage: {
+            entry: 'showWage'
+          }
+        },
+      },
+      other: {
+        initial: 'showOther',
+        on: {
+          MENU_COMMAND: [
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.cancelOther',
+              target: 'mainMenu'
             },
             {
-              cond: (_, { command }: MenuCommandEvent) => command === '.logout',
-              target: 'logout'
+              cond: (_, { command }: MenuCommandEvent) => command === '.birthdays',
+              target: 'showBirthdays'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.billboard',
+              target: 'sendAnnouncement'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.rates',
+              target: 'showCurrencyRates'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.table',
+              target: 'showTable'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.schedule',
+              target: 'showSchedule'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.canteenmenu',
+              target: 'showCanteenMenu'
             }
           ]
         },
         states: {
-          showMenu: {
-            entry: 'showMainMenu'
+          showOther: {
+            entry: 'showOther'
+          }
+        },
+      },
+      sendAnnouncement: {
+        initial: 'enterAnnouncement',
+        on: {
+          MENU_COMMAND: [
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.cancelEnterAnnouncement' || command === '.cancelSendAnnouncement',
+              target: '#botMachine.mainMenu'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.sendToDepartment',
+              target: '.confirmationMenu',
+              actions: assign({ announcementType: (_) => 'DEPARTMENT' })
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.sendToEnterprise',
+              target: '.confirmationMenu',
+              actions: assign({ announcementType: (_) => 'ENTERPRISE' })
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.sendToAll',
+              target: '.confirmationMenu',
+              actions: assign({ announcementType: (_) => 'GLOBAL' })
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.confirmSending',
+              target: '.sending'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.cancelSending',
+              target: '#botMachine.mainMenu'
+            },
+          ],
+          ENTER_TEXT: {
+            target: '.sendAnnouncementMenu',
+            actions: assign({ announcement: (_, { text }: EnterTextEvent) => text })
+          }
+        },
+        states: {
+          enterAnnouncement: {
+            entry: 'enterAnnouncementInvitation'
+          },
+          sendAnnouncementMenu: {
+            entry: 'sendAnnouncementMenu'
+          },
+          confirmationMenu: {
+            entry: 'sendConfirmation'
+          },
+          sending: {
+            on: {
+              '': '#botMachine.mainMenu'
+            },
+            entry: 'sendAnnouncement'
+          }
+        }
+      },
+      showBirthdays: {
+        on: { '': '#botMachine.mainMenu' },
+        entry: 'showBirthdays'
+      },
+      showCanteenMenu: {
+        initial: 'isThereMenuData',
+        on: {
+          MENU_COMMAND: {
+            cond: (_, { command }: MenuCommandEvent) => command === '.cancelSettings',
+            target: '#botMachine.mainMenu'
+          },
+          SELECT_CANTEEN_MENU: {
+            actions: assign({ canteenMenuId: (_, { id }: SelectCanteenMenuEvent) => id }),
+            target: '.showCanteenMenuText'
+          }
+        },
+        states: {
+          isThereMenuData: {
+            on: {
+              '': [
+                {
+                  cond: 'isThereMenuData',
+                  target: 'selectCanteenMenu'
+                },
+                {
+                  target: 'showNoMenuData'
+                }
+              ]
+            }
+          },
+          showNoMenuData: {
+            on: {
+              '': '#botMachine.mainMenu'
+            },
+            entry: 'showNoMenuData'
+          },
+          selectCanteenMenu: {
+            entry: 'showCanteenMenu' // показывает меню (список кнопок)
+          },
+          showCanteenMenuText: {
+            on: {
+              '': '#botMachine.mainMenu'
+            },
+            entry: 'showCanteenMenuText'
+          }
+        }
+      },
+      showCurrencyRates: {
+        initial: 'selectCurrency',
+        on: {
+          MENU_COMMAND: {
+            cond: (_, { command }: MenuCommandEvent) => command === '.cancelRates',
+            target: '#botMachine.mainMenu'
+          },
+          SELECT_CURRENCY: {
+            actions: assign({ currencyId: (_, { id }: SelectCurrencyEvent) => id }),
+            target: '.selectMonth'
+          }
+        },
+        states: {
+          selectCurrency: {
+            entry: 'showSelectCurrencyRatesMenu'
+          },
+          selectMonth: {
+            invoke: {
+              id: 'calendarMachine',
+              src: calendarMachine,
+              autoForward: true,
+              data: (ctx: IBotMachineContext) => ({
+                selectedDate: ctx.currencyDate,
+                canceled: false,
+                dateKind: 'PERIOD_MONTH',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
+              }),
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  target: 'showCurrencyRatesForMonth',
+                  actions: assign({
+                    currencyDate: (_, event) => event.data.selectedDate
+                  })
+                }
+              ]
+            }
+          },
+          showCurrencyRatesForMonth: {
+            on: {
+              '': '#botMachine.mainMenu'
+            },
+            entry: 'showCurrencyRatesForMonth'
+          }
+        }
+      },
+      showTable: {
+        initial: 'enterDate',
+        states: {
+          enterDate: {
+            invoke: {
+              id: 'calendarMachine',
+              src: calendarMachine,
+              autoForward: true,
+              data: (ctx: IBotMachineContext) => ({
+                selectedDate: ctx.tableDate,
+                canceled: false,
+                dateKind: 'PERIOD_MONTH',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
+              }),
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  target: 'showTable',
+                  actions: assign({
+                    tableDate: (_, event) => event.data.selectedDate,
+                  })
+                }
+              ]
+            }
+          },
+          showTable: {
+            on: { '': '#botMachine.mainMenu' },
+            entry: 'showTable'
+          }
+        }
+      },
+      showSchedule: {
+        initial: 'enterDate',
+        states: {
+          enterDate: {
+            invoke: {
+              id: 'calendarMachine',
+              src: calendarMachine,
+              autoForward: true,
+              data: (ctx: IBotMachineContext) => ({
+                selectedDate: ctx.scheduleDate,
+                canceled: false,
+                dateKind: 'PERIOD_MONTH',
+                platform: ctx.platform,
+                chatId: ctx.chatId,
+                semaphore: ctx.semaphore
+              }),
+              onDone: [
+                {
+                  cond: (_, event) => event.data.canceled,
+                  target: '#botMachine.mainMenu'
+                },
+                {
+                  target: 'showSchedule',
+                  actions: assign({
+                    scheduleDate: (_, event) => event.data.selectedDate,
+                  })
+                }
+              ]
+            }
+          },
+          showSchedule: {
+            on: { '': '#botMachine.mainMenu' },
+            entry: 'showSchedule'
           }
         }
       },
@@ -283,12 +601,32 @@ export const botMachineConfig = (calendarMachine: StateMachine<ICalendarMachineC
           },
           showSettings: {
             entry: 'showSettings'
-          }
+          },
         },
       },
       logout: {
-        type: 'final',
-        entry: 'logout'
+        initial: 'showLogoutMessage',
+        on: {
+          MENU_COMMAND: [
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.cancelLogout',
+              target: '#botMachine.mainMenu'
+            },
+            {
+              cond: (_, { command }: MenuCommandEvent) => command === '.confirmLogout',
+              target: '.confirmedLogout'
+            }
+          ]
+        },
+        states: {
+          showLogoutMessage: {
+            entry: 'showLogoutMessage'
+          },
+          confirmedLogout: {
+            type: 'final',
+            entry: 'logout'
+          }
+        }
       },
       latestPayslip: {
         on: {

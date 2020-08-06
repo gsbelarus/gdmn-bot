@@ -1,0 +1,180 @@
+%YAML 1.1
+--- 
+StructureVersion: "1.0"
+Properties: 
+  RUID: 1173071147_1450749196
+  Name: "ZarobakBot.Отчеты"
+  Caption: "ZarobakBot.Отчеты"
+  Version: "1.0.0.6"
+  Optional: False
+  Internal: True
+  MD5: 83336F8057FC35AB1571CAB6E150F42B
+Uses: 
+  - "148233742_349062642 Зарплата - исследователь"
+  - "1193786287_1320926324 ZarobakBot.Экспорт файлов"
+  - "147769863_84733194 Зарплата - Evt_Object"
+Objects: 
+  - 
+    Properties: 
+      Class: "TgdcTemplate"
+      RUID: 1173065567_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1173071091_1450749196
+    Fields: 
+      NAME: "Бот. ПИН-коды для бота"
+      DESCRIPTION: ~
+      TEMPLATETYPE: "FR4"
+      EDITIONDATE: 2020-07-10T14:53:15+03:00
+      TEMPLATEDATA: | 
+        <?xml version="1.0" encoding="utf-8"?>
+        <Tgs_fr4SingleReport Version="4.15.13" DotMatrixReport="False" IniFile="\Software\Fast Reports" PreviewOptions.Buttons="4095" PreviewOptions.Zoom="1" PrintOptions.Printer="По умолчанию" PrintOptions.PrintOnSheet="0" ReportOptions.CreateDate="44022,4871370023" ReportOptions.Description.Text="" ReportOptions.LastChange="44022,4871370023" ScriptLanguage="PascalScript" ScriptText.Text="procedure GroupHeader1OnBeforePrint(Sender: TfrxComponent);&#13;&#10;begin&#13;&#10;                       &#13;&#10;end;&#13;&#10;&#13;&#10;procedure ReportTitle1OnBeforePrint(Sender: TfrxComponent);&#13;&#10;begin&#13;&#10;   if (&#60;PARAM3&#62; = 0) then&#13;&#10;     GroupHeader1.visible := false&#13;&#10;   else&#13;&#10;     GroupHeader1.Visible := true                                                      &#13;&#10;end;&#13;&#10;&#13;&#10;begin&#13;&#10;&#13;&#10;end." PropData="08446174617365747301010C1C00000020446174615365743D22512220446174615365744E616D653D2251220000095661726961626C65730100055374796C650100">
+          <TfrxDataPage Name="Data" Height="1000" Left="0" Top="0" Width="1000"/>
+          <TfrxReportPage Name="Page1" PaperWidth="215,9" PaperHeight="279,4" PaperSize="1" LeftMargin="10" RightMargin="10" TopMargin="10" BottomMargin="10" ColumnWidth="0" ColumnPositions.Text="" HGuides.Text="" VGuides.Text="">
+            <TfrxReportTitle Name="ReportTitle1" Height="30,23624" Left="0" Top="18,89765" Width="740,409927" OnBeforePrint="ReportTitle1OnBeforePrint">
+              <TfrxMemoView Name="Memo5" Align="baWidth" Left="0" Top="3,77953" Width="740,409927" Height="18,89765" ShowHint="False" Font.Charset="1" Font.Color="0" Font.Height="-13" Font.Name="Arial" Font.Style="1" HAlign="haCenter" ParentFont="False" VAlign="vaCenter" Text="РџРРќ-РєРѕРґС‹ РґР»СЏ Р±РѕС‚Р° Р·Р° [Q.&#34;TOTALNAME&#34;]"/>
+            </TfrxReportTitle>
+            <TfrxGroupHeader Name="GroupHeader1" Height="22,67718" Left="0" Top="109,60637" Width="740,409927" OnBeforePrint="GroupHeader1OnBeforePrint" Condition="Q.&#34;DEPT_NAME&#34;">
+              <TfrxMemoView Name="Memo4" Left="0" Top="0" Width="740,787401574803" Height="22,67718" ShowHint="False" StretchMode="smMaxHeight" Font.Charset="1" Font.Color="0" Font.Height="-13" Font.Name="Arial" Font.Style="1" Frame.Typ="15" ParentFont="False" VAlign="vaCenter" Text="[Q.&#34;DEPT_NAME&#34;]"/>
+            </TfrxGroupHeader>
+            <TfrxMasterData Name="MasterData1" Height="22,67716535" Left="0" Top="154,96073" Width="740,409927" ColumnWidth="0" ColumnGap="0" DataSetName="Q" RowCount="0" Stretched="True">
+              <TfrxMemoView Name="Memo1" Align="baLeft" Left="0" Top="0" Width="264,5671" Height="22,67718" ShowHint="False" StretchMode="smMaxHeight" Font.Charset="1" Font.Color="0" Font.Height="-13" Font.Name="Arial" Font.Style="0" Frame.Typ="15" ParentFont="False" VAlign="vaCenter" Text="[Q.&#34;EMPL_NAME&#34;]"/>
+              <TfrxMemoView Name="Memo2" Align="baLeft" Left="355,27582" Top="0" Width="385,51206" Height="22,67718" ShowHint="False" StretchMode="smMaxHeight" Font.Charset="1" Font.Color="0" Font.Height="-13" Font.Name="Arial" Font.Style="0" Frame.Typ="15" ParentFont="False" VAlign="vaCenter" Text="[Q.&#34;EMPLPOS&#34;]"/>
+              <TfrxMemoView Name="Memo3" Align="baLeft" Left="264,5671" Top="0" Width="90,70872" Height="22,67718" ShowHint="False" StretchMode="smMaxHeight" DataField="PIN" DataSetName="Q" Font.Charset="1" Font.Color="0" Font.Height="-13" Font.Name="Arial" Font.Style="0" Frame.Typ="15" HAlign="haCenter" ParentFont="False" VAlign="vaCenter" Text="[Q.&#34;PIN&#34;]"/>
+            </TfrxMasterData>
+          </TfrxReportPage>
+        </Tgs_fr4SingleReport>
+        
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173071092_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1173071091_1450749196
+    Fields: 
+      NAME: "rp_Main1173065511_14507491961173071092_1450749196"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-10T14:56:58+03:00
+      MODULE: "REPORTMAIN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-07-10T14:56:57+03:00
+      DISPLAYSCRIPT: | 
+        RP_MAIN1173065511_14507491961173071092_1450749196
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QDAAAAVERLEwAAAMjy7uPu4u7lIO3g9+jx6+Xt6OUMAAAAVVNSJFdHX1RPVEFMCAAA
+        AFVTUiROQU1FCwAAAGRvY3VtZW50a2V5BwAAAAAAAAAAAgAAAF5ERk5TVFBSU1QHAAAARU1QTEtF
+        WSMAAADR7vLw8+Tt6OogKOXx6+gg7/Px8u7lLCDy7iDv7iDi8eXsKQoAAABnZF9jb250YWN0BAAA
+        AG5hbWUCAAAAaWQIDwAAAGNvbnRhY3R0eXBlID0gMgAAAAAqAAAAxfHr6CDv7uvlIO/z8fLu5Swg
+        8u4g7+4g4vHl7CDx7vLw8+Tt6Org7F5BRk5TVFBSU1QHAAAAREVQVEtFWScAAADP7uTw4Ofk5evl
+        7ejlICjl8evoIO/z8fLu5Swg8u4g7+4g4vHl7CkKAAAAR0RfQ09OVEFDVAQAAABOQU1FAgAAAGlk
+        CA8AAABjb250YWN0dHlwZSA9IDQAAAAAKwAAAMXx6+gg7+7r5SDv8/Hy7uUsIPLuIO/uIOLx5ewg
+        7+7k8ODn5OXr5e3o/+xGTlNUUFJTVAkAAABJU0JZR1JPVVAeAAAAw/Dz7+/o8O7i4PL8IO/uIO/u
+        5PDg5+Tl6+Xt6P/sAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAEZOU1RGTFBS
+      SCRIPT: | 
+        Option Explicit
+        Function rp_Main1173065511_14507491961173071092_1450749196(tdk, emplkey, deptkey, isByGroup)
+          BaseQueryList.Clear
+          
+          dim strWhere
+          if (Join(emplkey) <> "" ) then
+            strWhere = " AND tl.USR$EMPLKEY IN (" & Join(emplkey, ",") & ") "
+          end if
+          
+          if (Join(deptkey) <> "" ) then
+            strWhere = strWhere & " AND ml.USR$DEPTKEY IN (" & Join(deptkey, ",") & ") "
+          end if
+          
+          dim strOrder
+          if isByGroup then
+            strOrder = " ORDER BY dept.NAME, empl.NAME "
+          else
+            strOrder = " ORDER BY empl.NAME "
+          end if
+        
+          Dim q
+          Set q = BaseQueryList.Query(BaseQueryList.Add("q", 0))
+          q.SQL = " SELECT t.USR$NAME AS TotalName, " & _
+            "   RIGHT(HASH(RIGHT('0' || EXTRACT(MONTH FROM t.USR$DATEEND), 2) || RIGHT(EXTRACT(YEAR FROM t.USR$DATEEND), 2) || LEFT(card.USR$PERSONALNUMBER, 7)), 4) AS Pin, " & _
+            "   t.USR$DATEBEGIN AS date_begin, " & _
+            "   t.USR$DATEEND AS date_end, " & _
+            "   dept.NAME AS dept_name, " & _
+            "   empl.NAME AS empl_name, " & _
+            "   p.NAME AS EmplPos " & _
+            "FROM USR$WG_TOTALLINE tl " & _
+            "  JOIN USR$WG_TOTAL t ON t.DOCUMENTKEY = tl.MASTERKEY " & _
+            "  LEFT JOIN USR$WG_P_EMPLMOVESTATE(tl.USR$EMPLKEY, t.USR$DATEEND) emplm ON 1 = 1 " & _
+            "  LEFT JOIN USR$WG_MOVEMENTLINE ml ON emplm.ID = ml.DOCUMENTKEY " & _
+            "  LEFT JOIN GD_CONTACT dept on dept.ID = ml.USR$DEPTKEY " & _
+            "  LEFT JOIN GD_CONTACT empl on empl.ID = tl.USR$EMPLKEY " & _
+            "  LEFT JOIN USR$WG_P_EMPLCARDSTATE(empl.ID, t.USR$DATEEND) pcard ON 1 = 1 " & _
+            "  LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
+            "  LEFT JOIN WG_POSITION p ON p.ID = ml.USR$POSITIONKEY " & _
+            " WHERE t.DOCUMENTKEY = :tdk " & strWhere & _
+            "   AND (ml.USR$MOVEMENTTYPE <> 3 OR tl.USR$CREDIT <> 0 OR tl.USR$DEBIT <> 0) " & _
+            strOrder
+          q.ParamByName("tdk").AsInteger = tdk(0)
+          q.Open
+        
+          Set rp_Main1173065511_14507491961173071092_1450749196 = BaseQueryList
+        End Function
+        
+  - 
+    Properties: 
+      Class: "TgdcReport"
+      RUID: 1173071091_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "ПИН-коды для бота"
+      DESCRIPTION: ~
+      DISPLAYINMENU: 1
+      EVENTFORMULAKEY: ~
+      FOLDERKEY: "1193786363_1320926323 Исследователь\\Зарплата и Отдел кадров\\ZarobakBot"
+      FRQREFRESH: 1
+      GLOBALREPORTKEY: ~
+      ISLOCALEXECUTE: 1
+      ISREBUILD: 1
+      MAINFORMULAKEY: "1173071092_1450749196 rp_Main1173065511_14507491961173071092_1450749196"
+      MODALPREVIEW: 0
+      PARAMFORMULAKEY: ~
+      PREVIEW: 1
+      REPORTGROUPKEY: "147567070_119619099 Зарплата\\99. Итоговое начисление"
+      SERVERKEY: ~
+      TEMPLATEKEY: "1173065567_1450749196 Бот. ПИН-коды для бота"
+      EDITIONDATE: 2020-07-10T14:56:57+03:00
+  - 
+    Properties: 
+      Class: "TgdcExplorer"
+      RUID: 1173071121_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      PARENT: "1193786363_1320926323 Исследователь\\Зарплата и Отдел кадров\\ZarobakBot"
+      NAME: "ПИН-коды для бота"
+      CLASSNAME: ~
+      CMD: "1173071091_1450749196"
+      CMDTYPE: 2
+      HOTKEY: ~
+      IMGINDEX: 15
+      ORDR: ~
+      SUBTYPE: ~
+      EDITIONDATE: 2020-07-10T12:18:51+03:00
+      DISABLED: 0
