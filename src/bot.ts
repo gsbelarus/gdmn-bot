@@ -37,7 +37,8 @@ const sumPayslip = (arr?: IPayslipItem[], type?: AccDedType) =>
 
 /** */
 const fillInPayslipItem = (item: IPayslipItem[], typeId: string, name: LName, s: number, det: IDet | undefined, n: number, typeAccDed?: AccDedType) => {
-  const i = item.find( d => d.id === typeId );
+  //Ищем начисление\удержание по ид и детальной информации
+    const i = item.find( d => d.id === typeId && JSON.stringify(d.det) === JSON.stringify(det));
   if (i) {
     i.s += s;
   } else {
