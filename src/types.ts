@@ -1,4 +1,4 @@
-import { Language, LName } from "./stringResources";
+import { Language, LName, ILocString } from "./stringResources";
 import { IBotMachineContext } from "./machine";
 import { StateValue } from "xstate";
 import { ILoggerParams } from "./log";
@@ -6,6 +6,10 @@ import { ILoggerParams } from "./log";
 export interface IConfig {
   telegram: {
     token: string;
+    useWebHook?: boolean;
+    callbackHost?: string;
+    hookPath?: string;
+    port?: number;
   },
   viber: {
     token: string;
@@ -17,6 +21,9 @@ export interface IConfig {
   logger: ILoggerParams;
 };
 
+/**
+ * Дата, только год и месяц.
+ */
 export interface IDate {
   year: number;
   /**
@@ -49,14 +56,35 @@ export interface ICustomer {
 };
 
 export interface IEmployee {
+  /**
+   * РУИД сотрудника.
+   */
   id: string;
+  /**
+   * Идентификационный номер из паспорта.
+   */
+  passportId: string;
   firstName: string;
   lastName: string;
-  patrName: string;
-  //TODO: я бы этот параметр сделал необязательным. Не у всех он будет
-  //заполнен.
-  birthday: Date;
-  passportId: string;
+  patrName?: string;
+  /**
+   * Дата рождения. При считывании из файла и при обработке
+   * POST запроса с Гедымина, преобразовывается
+   */
+  birthday?: Date;
+};
+
+export interface IScheduleData {
+  /**
+   * РУИД графика.
+   */
+  id: string;
+  name: LName;
+  data: {
+    d: Date;
+    t?: number;
+    h?: number;
+  }[];
 };
 
 export interface IAccountLink {
@@ -65,7 +93,7 @@ export interface IAccountLink {
   currency?: string;
   language?: Language;
   state?: StateValue;
-  context?: Pick<IBotMachineContext, 'dateBegin' | 'dateEnd' | 'dateBegin2'>;
+  context?: Exclude<IBotMachineContext, 'platform' | 'chatId' | 'semaphore' | 'customerId' | 'employeeId'>;
   /**
    * надо для телеграма, чтобы подменять инлайн меню
    */
@@ -92,6 +120,12 @@ export interface IAccDed {
   name: LName;
   type: AccDedType;
   n?: number;
+};
+
+export interface ISchedule {
+  id: string;
+  name: LName;
+  d: Date;
 };
 
 export interface IPosition {
@@ -131,6 +165,7 @@ export interface IDet {
 export interface IPayslip {
   emplId: string;
   dept: IDepartment[];
+  schedule: ISchedule[];
   pos: IPosition[];
   payForm: IPayForm[];
   salary: ISalary[];
@@ -159,7 +194,7 @@ export interface IPayslipItem {
 export interface IPayslipData {
   department: LName;
   position: LName;
-  saldo?: IPayslipItem,
+  saldo: IPayslipItem[],
   tax: IPayslipItem[],
   advance: IPayslipItem[],
   deduction: IPayslipItem[],
@@ -171,7 +206,76 @@ export interface IPayslipData {
   rate?: number;
 };
 
+export interface ITimeSheet {
+  emplId: string;
+  data: {
+    d: Date;
+    t?: number;
+    h?: number;
+  }[];
+};
+
+export interface ITimeSheetJSON {
+  emplId: string;
+  data: {
+    d: string;
+    t?: number;
+    h?: number;
+  }[];
+};
+
 export interface ICurrencyRate {
   date: Date,
   rate: number
-}
+};
+
+export interface IUserGroup {
+  id: string;
+  name: LName;
+};
+
+export interface IHourType {
+  name: LName;
+};
+
+//TODO: используется?
+export type UserGroups = IUserGroup[];
+
+export interface IUsersByGroups {
+  [groupId: string]: {
+    userIds: string[];
+  }
+};
+
+export interface IAnnouncement {
+  id: string;
+  date: Date;
+  fromCustomerId: string;
+  fromEmployeeId: string;
+  /**
+   * Если CustomerId не указан, то сообщение рассылается
+   * всем пользователям чат-бота.
+   */
+  toCustomerId?: string;
+  toDepartmentId?: string;
+  toEmployeeId?: string;
+  body: string;
+};
+
+export type ICanteenMenus = ICanteenMenu[];
+
+export interface ICanteenMenu {
+  id: string;
+  name: ILocString;
+  data: ICanteenMenuData[];
+};
+
+export interface ICanteenMenuData {
+  group: ILocString;
+  n: number;
+  groupdata: {
+    good: ILocString;
+    det: string;
+    cost: number;
+  }[];
+};

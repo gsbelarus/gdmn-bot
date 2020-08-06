@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "data": {
+    "*": [
+      {
+        "rights": ["ANN_GLOBAL", "ANN_ENT"],
+        "write": false,
+        "eneryone": true
+      }
+    ],
+    "brl": [
+      {
+        "rights": ["TABLE", "SCHEDULE"],
+        "read": false,
+        "eneryone": true
+      }
+    ],
+    "ampersant": [
+      {
+        "rights": ["ANN_GLOBAL", "ANN_ENT"],
+        "write": true,
+        "users": ["154810770_534477944"]
+      }
+    ]
+  }
+}

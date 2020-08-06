@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "data": {
+    "1234_5678": {
+      "firstName": "Мария",
+      "lastName": "Кажемская",
+      "patrName": "Александровна",
+      "birthday": "1984.01.01",
+      "passportId": "123456789"
+    },
+    "5678_1234": {
+      "firstName": "Михаил",
+      "lastName": "Корбан",
+      "patrName": "Иванович",
+      "birthday": "1964.01.01",
+      "passportId": "987654321"
+    }
+  }
+}

@@ -13,7 +13,7 @@
 
 import { FileDB, IData } from './util/fileDB';
 import { date2str } from './util/utils';
-import { MINDATE } from './constants';
+import { MINDATE, URLNBRBRATES, URLNBRBCURRENCIES } from './constants';
 import fetch from 'node-fetch';
 import { LName, Language, getLName } from './stringResources';
 import { IDate } from './types';
@@ -33,24 +33,26 @@ interface ICurrency {
 
 let currenciesDB: FileDB<ICurrency> | undefined = undefined;
 
+export interface ICurrencyRates {
+
+}
+
 /**
  * Функция считывает справочник валют с диска. Если на диске нет нужной нам информации,
  * то справочник берется с сайта национального банка и записывается на диск для
  * последующего использования.
  */
 export async function initCurrencies(log: ILogger) {
-  const fdb = new FileDB<ICurrency>(
-    getCurrenciesFN(),
-    log,
-    {},
-    undefined,
-    (data: IData<ICurrency>) => !Object.keys(data).length
+  const fdb = new FileDB<ICurrency>({
+    fn: getCurrenciesFN(),
+    logger: log,
+    check: (data: IData<ICurrency>) => !Object.keys(data).length
       || (typeof Object.values(data)[0].abbreviation === 'string' && typeof Object.values(data)[0].name === 'object'),
-    true
-  );
+    ignore: true
+  });
 
   if (fdb.isEmpty()) {
-    const urlNBRBCurrencies = "http://www.nbrb.by/API/ExRates/Currencies";
+
 
     interface INBRBCurrency  {
       Cur_ID: number;
@@ -73,7 +75,7 @@ export async function initCurrencies(log: ILogger) {
     };
 
     try {
-      const fetched = await fetch(urlNBRBCurrencies, {});
+      const fetched = await fetch(URLNBRBCURRENCIES, {});
       const parsed: INBRBCurrency[] = await fetched.json();
 
       for (const currency of parsed) {
@@ -161,15 +163,31 @@ let ratesDB: FileDB<ICurrencyRates> | undefined = undefined;
  * @param currency Код валюты. Например, USD.
  */
 export const getCurrRate = async (forDate: IDate, currency: string, log: ILogger) => {
+  const date = new Date(forDate.year, forDate.month);
+  let rate: number | undefined = undefined;
+
+  while (date.getTime() > MINDATE.getTime()) {
+    rate = await getCurrRateForDate(date, currency, log);
+    if (rate !== undefined) {
+      break;
+    }
+    date.setDate(date.getDate() - 1);
+  }
+
+  return rate ? { date, rate } : undefined;
+};
+
+export const getCurrRateForDate = async (date: Date, currency: string, log: ILogger) => {
+
   if (!currenciesDB) {
     throw new Error('No currency db');
   }
 
   let currId = '';
 
-  for (const s of Object.entries(currenciesDB?.getMutable(false))) {
-    if (s[1].abbreviation === currency) {
-      currId = s[0];
+  for (const [id, data] of Object.entries(currenciesDB?.getMutable(false))) {
+    if (data.abbreviation === currency) {
+      currId = id;
     }
   }
 
@@ -179,70 +197,59 @@ export const getCurrRate = async (forDate: IDate, currency: string, log: ILogger
 
   if (!ratesDB) {
     // загружаем курсы с диска
-    ratesDB = new FileDB<ICurrencyRates>(
-      getRatesFN(),
-      log,
-      {},
-      undefined,
-      (data: IData<ICurrencyRates>) => !Object.keys(data).length || typeof Object.values(data)[0] === 'object',
-      true
-    );
+    ratesDB = new FileDB<ICurrencyRates>({
+      fn: getRatesFN(),
+      logger: log,
+      check: (data: IData<ICurrencyRates>) => !Object.keys(data).length || typeof Object.values(data)[0] === 'object',
+      ignore: true
+    });
   }
 
-  let date = new Date(forDate.year, forDate.month);
-  let rate: number | undefined = undefined;
+  const strDate = date2str(date, 'YYYY.MM.DD');
+  const ratesForDate = ratesDB.read(strDate);
+  let rate = ratesForDate?.[currId];
 
-  while (date.getTime() > MINDATE.getTime()) {
-    const strDate = date2str(date, 'YYYY.MM.DD');
-    const ratesForDate = ratesDB.read(strDate);
-    rate = ratesForDate?.[currId];
+  if (rate !== undefined) {
+    return rate;
+  }
 
-    if (rate !== undefined) {
-      break;
-    }
+  // курса на дату нет
+  // попробуем загрузить из интернета
 
-    // курса на дату нет
-    // попробуем загрузить из интернета
-    const urlNBRBRates = "http://www.nbrb.by/API/ExRates/Rates";
+  interface INBRBRate {
+    Cur_ID: number;
+    Date: Date;
+    Cur_Abbreviation: string;
+    Cur_Scale: number;
+    Cur_Name: string;
+    Cur_OfficialRate: number;
+  };
 
-    interface INBRBRate {
-      Cur_ID: number;
-      Date: Date;
-      Cur_Abbreviation: string;
-      Cur_Scale: number;
-      Cur_Name: string;
-      Cur_OfficialRate: number;
-    };
+  try {
+    const fetched = await fetch(`${URLNBRBRATES}?Periodicity=0&onDate=${strDate}`, {});
+    const parsed: INBRBRate[] = await fetched.json();
 
-    try {
-      const fetched = await fetch(`${urlNBRBRates}?Periodicity=0&onDate=${strDate}`, {});
-      const parsed: INBRBRate[] = await fetched.json();
+    if (Array.isArray(parsed)) {
+      const c = parsed.find( p => p['Cur_ID'].toString() === currId );
+      const scale = c?.['Cur_Scale'];
+      const officialRate = c?.['Cur_OfficialRate'];
 
-      if (Array.isArray(parsed)) {
-        const c = parsed.find( p => p['Cur_ID'].toString() === currId );
-        const scale = c?.['Cur_Scale'];
-        const officialRate = c?.['Cur_OfficialRate'];
+      if (scale && scale > 0 && officialRate && officialRate > 0) {
+        rate = parseFloat((officialRate / scale).toFixed(4));
 
-        if (scale && scale > 0 && officialRate && officialRate > 0) {
-          rate = officialRate / scale;
-
-          if (ratesForDate) {
-            ratesDB.write(strDate, { ...ratesForDate, [currId]: rate });
-          } else {
-            ratesDB.write(strDate, { [currId]: rate });
-          }
-
-          ratesDB.flush();
-          break;
+        if (ratesForDate) {
+          ratesDB.write(strDate, { ...ratesForDate, [currId]: rate });
+        } else {
+          ratesDB.write(strDate, { [currId]: rate });
         }
+
+        ratesDB.flush();
       }
     }
-    catch (e) {
-      console.error(`Error fetching currencyRate list: ${e}`);
-    }
-
-    date.setDate(date.getDate() - 1);
   }
-
-  return rate ? { date, rate } : undefined;
-};
+  catch (e) {
+    console.error(`Error fetching currencyRate list: ${e}`);
+    return undefined;
+  }
+  return rate;
+}
