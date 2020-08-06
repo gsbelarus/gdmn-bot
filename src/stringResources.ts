@@ -55,6 +55,11 @@ export const stringResources = {
     ru: 'До свидания! Спасибо, что были с нами.\n\nЧтобы начать новую регистрацию введите\nкоманду /start',
     be: 'Да пабачэння! Дзякуй, што былі з намі.\n\nКаб распачаць новую рэгістрацыю ўвядзіце\nкаманду /start'
   },
+  newPayslipArrived: {
+    en: 'New payslip has been received!',
+    ru: 'Получен новый расчетный листок!',
+    be: 'Атрыманы новы разліковы лісток!'
+  },
   btnConfirmLogout: {
     en: 'Confirm',
     ru: 'Подтвердить',

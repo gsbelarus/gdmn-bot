@@ -729,78 +729,77 @@ export class Bot {
               await this._logger.info(chatId, undefined, `Start sending announcement. type=${announcementType}.`);
               await reply(stringResources.startSendingAnnouncements)({ chatId, semaphore: new Semaphore('start sending announcement') });
 
-              await this._announcementSemaphore.acquire();
-              try {
-                let cnt = 0;
-                let timeouted = 0;
+              let cnt = 0;
+              let timeouted = 0;
 
-                const sendToAccounts = async (replyFunc: ReplyFunc, accountLink: IData<IAccountLink>, getUniqId: (cId: string) => string) => {
-                  for (const [linkChatId, link] of Object.entries(accountLink)) {
-                    if (linkChatId === chatId) {
-                      continue;
-                    }
+              const sendToAccounts = async (replyFunc: ReplyFunc, accountLink: IData<IAccountLink>, getUniqId: (cId: string) => string) => {
+                for (const [linkChatId, link] of Object.entries(accountLink)) {
+                  if (linkChatId === chatId) {
+                    continue;
+                  }
 
-                    if (announcementType === 'DEPARTMENT' && (link.customerId !== customerId || this._getDepartment(customerId, link.employeeId)?.id !== department?.id)) {
-                      continue;
-                    }
+                  if (announcementType === 'DEPARTMENT' && (link.customerId !== customerId || this._getDepartment(customerId, link.employeeId)?.id !== department?.id)) {
+                    continue;
+                  }
 
-                    if (announcementType === 'ENTERPRISE' && link.customerId !== customerId) {
-                      continue;
-                    }
+                  if (announcementType === 'ENTERPRISE' && link.customerId !== customerId) {
+                    continue;
+                  }
 
-                    /**
-                      * Мы пытаемся избежать ситуации, когда пользователь был в процессе диалога
-                      * и тут мы ему вылезли под руку со своим сообщением.
-                      *
-                      * 1) Если активной машины нет для этого чата, то можем слать. Все равно состояние
-                      *    пользователя скинется в главное меню при очередном подключении.
-                      * 2) Если машина есть, но состояние "главное меню", то тоже шлем сразу.
-                      * 3) Если состояние не главное меню и активность последняя была больше часа назад,
-                      *    то шлем.
-                      * 4) Если активность была менее часа назад, то выждем 5 минут и тогда опять запустим проверку.
-                      * 5) При этом, если акаунт линк почему-то все время обновляется, мы не хотели бы допустить
-                      *    бесконечных попыток отправить сообщение. Ограничем количество пятью.
-                      */
+                  /**
+                    * Мы пытаемся избежать ситуации, когда пользователь был в процессе диалога
+                    * и тут мы ему вылезли под руку со своим сообщением.
+                    *
+                    * 1) Если активной машины нет для этого чата, то можем слать. Все равно состояние
+                    *    пользователя скинется в главное меню при очередном подключении.
+                    * 2) Если машина есть, но состояние "главное меню", то тоже шлем сразу.
+                    * 3) Если состояние не главное меню и активность последняя была больше часа назад,
+                    *    то шлем.
+                    * 4) Если активность была менее часа назад, то выждем 5 минут и тогда опять запустим проверку.
+                    * 5) При этом, если акаунт линк почему-то все время обновляется, мы не хотели бы допустить
+                    *    бесконечных попыток отправить сообщение. Ограничем количество пятью.
+                    */
 
-                    const fn = async (countDown: number) => {
-                      const service = this._service[getUniqId(linkChatId)];
-                      const anHourAgo = Date.now() - 60 * 60 * 1000;
+                  const fn = async (countDown: number) => {
+                    const service = this._service[getUniqId(linkChatId)];
+                    const anHourAgo = Date.now() - 60 * 60 * 1000;
 
-                      if (
-                        !countDown
-                        ||
-                        !service
-                        ||
-                        inMainMenu(service?.state)
-                        ||
-                        (link.lastUpdated?.getTime() ?? 0) < anHourAgo
-                      ) {
+                    if (
+                      !countDown
+                      ||
+                      !service
+                      ||
+                      inMainMenu(service?.state)
+                      ||
+                      (link.lastUpdated?.getTime() ?? 0) < anHourAgo
+                    ) {
+                      await this._announcementSemaphore.acquire();
+                      try {
                         await replyFunc(creditedAnnouncement, 'KEEP')({ chatId: linkChatId, semaphore: new Semaphore('temp for announcement') });
                         await pause(50);
                         cnt++;
-                      } else {
-                        timeouted++;
-                        setTimeout( () => { timeouted--; fn(countDown - 1); }, 5 * 60 * 1000 );
                       }
-                    };
+                      finally {
+                        this._announcementSemaphore.release();
+                      }
+                    } else {
+                      timeouted++;
+                      setTimeout( () => { timeouted--; fn(countDown - 1); }, 5 * 60 * 1000 );
+                    }
+                  };
 
-                    await fn(5);
-                  }
-                };
-
-                await sendToAccounts(this._replyTelegram, this._telegramAccountLink.getMutable(false), (cId: string) => this.getUniqId('TELEGRAM', cId));
-
-                if (this._replyViber) {
-                  await sendToAccounts(this._replyViber, this._viberAccountLink.getMutable(false), (cId: string) => this.getUniqId('VIBER', cId));
+                  await fn(5);
                 }
+              };
 
-                await reply(stringResources.endSendingAnnouncements, undefined, cnt)({ chatId, semaphore: new Semaphore('end sending announcement') });
-                await this._logger.info(chatId, undefined, `End sending announcement. type=${announcementType}. sent=${cnt}. timeouted=${timeouted}`);
+              await sendToAccounts(this._replyTelegram, this._telegramAccountLink.getMutable(false), (cId: string) => this.getUniqId('TELEGRAM', cId));
+
+              if (this._replyViber) {
+                await sendToAccounts(this._replyViber, this._viberAccountLink.getMutable(false), (cId: string) => this.getUniqId('VIBER', cId));
               }
-              finally {
-                //TODO: но ведь останутся еще отложенные по таймауту отсылки
-                this._announcementSemaphore.release();
-              }
+
+              await reply(stringResources.endSendingAnnouncements, undefined, cnt)({ chatId, semaphore: new Semaphore('end sending announcement') });
+              await this._logger.info(chatId, undefined, `End sending announcement. type=${announcementType}. sent=${cnt}. timeouted=${timeouted}`);
             }
             finally {
               semaphore?.release();
@@ -2365,6 +2364,73 @@ export class Bot {
     this._log.info(`Customer: ${customerId}. ${Object.keys(objData).length} menu have been uploaded.`);
   }
 
+  _callWithTempSemaphore(f: ({ chatId, semaphore }: Pick<IBotMachineContext, 'chatId' | 'semaphore'>) => Promise<void>, chatId: string) {
+    return f({ chatId, semaphore: new Semaphore('temp semaphore') });
+  }
+
+  async informUserOnNewPayslip(customerId: string, employeeId: string) {
+    let cnt = 0;
+    let timeouted = 0;
+
+    const sendToAccount = async (replyFunc: ReplyFunc, accountLink: IData<IAccountLink>, getUniqId: (cId: string) => string) => {
+      const al = Object.entries(accountLink).find( ([_, l]) => l.customerId === customerId && l.employeeId === employeeId );
+
+      if (al) {
+        const [linkChatId, link] = al;
+
+        /**
+          * Мы пытаемся избежать ситуации, когда пользователь был в процессе диалога
+          * и тут мы ему вылезли под руку со своим сообщением.
+          *
+          * 1) Если активной машины нет для этого чата, то можем слать. Все равно состояние
+          *    пользователя скинется в главное меню при очередном подключении.
+          * 2) Если машина есть, но состояние "главное меню", то тоже шлем сразу.
+          * 3) Если состояние не главное меню и активность последняя была больше часа назад,
+          *    то шлем.
+          * 4) Если активность была менее часа назад, то выждем 5 минут и тогда опять запустим проверку.
+          * 5) При этом, если акаунт линк почему-то все время обновляется, мы не хотели бы допустить
+          *    бесконечных попыток отправить сообщение. Ограничем количество пятью.
+          */
+
+        const fn = async (countDown: number) => {
+          const service = this._service[getUniqId(linkChatId)];
+          const anHourAgo = Date.now() - 60 * 60 * 1000;
+
+          if (
+            !countDown
+            ||
+            !service
+            ||
+            inMainMenu(service?.state)
+            ||
+            (link.lastUpdated?.getTime() ?? 0) < anHourAgo
+          ) {
+            await this._announcementSemaphore.acquire();
+            try {
+              await this._callWithTempSemaphore(replyFunc(stringResources.newPayslipArrived, 'KEEP'), linkChatId);
+              await pause(50);
+              cnt++;
+            }
+            finally {
+              this._announcementSemaphore.release();
+            }
+          } else {
+            timeouted++;
+            setTimeout( () => { timeouted--; fn(countDown - 1); }, 5 * 60 * 1000 );
+          }
+        };
+
+        await fn(5);
+      }
+    };
+
+    await sendToAccount(this._replyTelegram, this._telegramAccountLink.getMutable(false), (cId: string) => this.getUniqId('TELEGRAM', cId));
+
+    if (this._replyViber) {
+      await sendToAccount(this._replyViber, this._viberAccountLink.getMutable(false), (cId: string) => this.getUniqId('VIBER', cId));
+    }
+  }
+
   upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
     const employeeId = objData.emplId;
     const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log });
@@ -2460,6 +2526,8 @@ export class Bot {
     payslip.flush();
 
     this._log.info(`Payslips for employee: ${employeeId}, customer: ${customerId} have been uploaded.`);
+
+    this.informUserOnNewPayslip(customerId, employeeId);
   }
 
   public async sendLatestPayslip(customerId: string, employeeId: string) {
