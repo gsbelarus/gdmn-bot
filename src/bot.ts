@@ -2431,99 +2431,64 @@ export class Bot {
     }
   }
 
-  upload_payslips(customerId: string, objData: IPayslip, rewrite: boolean) {
-    const employeeId = objData.emplId;
-    const payslip = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log });
+  /**
+   * Загрузка данных по расчетным листкам.
+   * @param customerId
+   * @param receivedData
+   * @param rewrite
+   */
+  upload_payslips(customerId: string, receivedData: IPayslip, rewrite: boolean) {
+    /**
+     * Сейчас из сторонней программы всегда передается полная история по всем полям
+     * objData за все периоды, за исключением собственно начислений/удержаний,
+     * которые передаются обычно по-месячно, но могут передаваться и за больший период,
+     * но всегда кратный одному месяцу.
+     *
+     * Таким образом, при загрузке данных мы:
+     * 1) всегда полностью заменяем dept, schedule, payForm и т.п. тем, что поступило из внешней системы
+     * 2) определяем за какие месяцы поступили данные по начислениям/удержаниям
+     * 3) удаляем старые данные за эти месяцы полностью
+     * 4) добавляем новые данные
+     */
+    const employeeId = receivedData.emplId;
+    const payslipDB = new FileDB<IPayslip>({ fn: getPayslipFN(customerId, employeeId), logger: this._log });
 
     if (rewrite) {
-      payslip.clear();
+      payslipDB.clear();
     }
 
-    const prevPayslipData = payslip.read(employeeId);
+    const prevPayslipData = payslipDB.read(employeeId);
 
-    // если на диске не было файла или там было пусто, то
-    // просто запишем данные, которые пришли из интернета
     if (!prevPayslipData) {
-      payslip.write(employeeId, objData);
+      payslipDB.write(employeeId, receivedData);
     } else {
-      // данные есть. надо объединить прибывшие данные с тем
-      // что уже есть на диске
-      const newPayslipData = {
-        ...prevPayslipData,
-        data: [...prevPayslipData.data],
-        dept: [...prevPayslipData.dept],
-        pos: [...prevPayslipData.pos],
-        salary: [...prevPayslipData.salary],
-        payForm: [...prevPayslipData.payForm],
-        hourrate: prevPayslipData.hourrate ? [...prevPayslipData.hourrate] : []
+      const receivedMonths: IDate[] = [];
+
+      for (const { db } of receivedData.data) {
+        const date = str2Date(db);  // TODO: это вызов не нужен, как только мы решим вопрос с преобразованием текста в JSON
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        if (!receivedMonths.find( rm => rm.year === year && rm.month === month )) {
+          receivedMonths.push({ year, month });
+        }
+      }
+
+      const notInReceivedMonths = (d: Date) => {
+        const date = str2Date(d); // TODO: см выше
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        return !receivedMonths.find( rm => rm.year === year && rm.month === month );
       };
 
-      // объединяем начисления
-      for (const d of objData.data) {
-        const i = newPayslipData.data.findIndex( a => a.typeId === d.typeId && isEq(a.db, d.db) && isEq(a.de, d.de) );
-        if (i === -1) {
-          newPayslipData.data.push(d);
-        } else {
-          newPayslipData.data[i] = d;
-        }
-      }
+      const newPayslipData = {
+        ...receivedData,
+        data: [...prevPayslipData.data.filter( ({ db }) => notInReceivedMonths(db) ), ...receivedData.data]
+      };
 
-      // объединяем подразделения
-      for (const d of objData.dept) {
-        const i = newPayslipData.dept.findIndex( a => a.id === d.id && isEq(a.d, d.d) );
-        if (i === -1) {
-          newPayslipData.dept.push(d);
-        } else {
-          newPayslipData.dept[i] = d;
-        }
-      }
-
-      // объединяем должности
-      for (const p of objData.pos) {
-        const i = newPayslipData.pos.findIndex( a => a.id === p.id && isEq(a.d, p.d) );
-        if (i === -1) {
-          newPayslipData.pos.push(p);
-        } else {
-          newPayslipData.pos[i] = p;
-        }
-      }
-
-      // объединяем формы оплат
-      for (const p of objData.payForm) {
-        const i = newPayslipData.payForm.findIndex( a => isEq(a.d, p.d) );
-        if (i === -1) {
-          newPayslipData.payForm.push(p);
-        } else {
-          newPayslipData.payForm[i] = p;
-        }
-      }
-
-      // объединяем оклады
-      for (const p of objData.salary) {
-        const i = newPayslipData.salary.findIndex( a => isEq(a.d, p.d) );
-        if (i === -1) {
-          newPayslipData.salary.push(p);
-        } else {
-          newPayslipData.salary[i] = p;
-        }
-      }
-
-      if (objData.hourrate) {
-        // объединяем чтс
-        for (const p of objData.hourrate) {
-          const i = newPayslipData.hourrate.findIndex( a => isEq(a.d, p.d) );
-          if (i === -1) {
-            newPayslipData.hourrate.push(p);
-          } else {
-            newPayslipData.hourrate[i] = p;
-          }
-        }
-      }
-
-      payslip.write(employeeId, newPayslipData);
+      payslipDB.write(employeeId, newPayslipData);
     }
 
-    payslip.flush();
+    payslipDB.flush();
 
     this._log.info(`Payslips for employee: ${employeeId}, customer: ${customerId} have been uploaded.`);
 
