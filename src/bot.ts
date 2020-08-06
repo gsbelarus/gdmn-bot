@@ -5,7 +5,7 @@ import { Context, Markup, Extra } from "telegraf";
 import { Interpreter, Machine, StateMachine, interpret, assign, MachineOptions, State } from "xstate";
 import { botMachineConfig, IBotMachineContext, BotMachineEvent, isEnterTextEvent, CalendarMachineEvent, ICalendarMachineContext, calendarMachineConfig } from "./machine";
 import { getLocString, str2Language, Language, getLName, ILocString, stringResources, LName, getLName2 } from "./stringResources";
-import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL, pause, format2, format, normalizeStr, companyToIgnore } from "./util/utils";
+import { testNormalizeStr, testIdentStr, str2Date, isGr, isLs, isGrOrEq, date2str, isEq, validURL, pause, format2, format, normalizeStr, companyToIgnore, isIDateGrOrEq } from "./util/utils";
 import { Menu, keyboardMenu, keyboardCalendar, keyboardSettings, keyboardLanguage, keyboardCurrency, keyboardWage, keyboardOther, keyboardCurrencyRates,
 keyboardEnterAnnouncement, keyboardSendAnnouncement, mapUserRights, TestUserRightFunc, keyboardLogout, keyboardCanteenMenu, ICanteenMenuKeybord,
 keyboardSendAnnouncementConfirmation, IUserRightDescr } from "./menu";
@@ -1655,7 +1655,9 @@ export class Bot {
     ];
   }
 
-  async getPayslip(customerId: string, employeeId: string, type: PayslipType, lng: Language, currency: string, platform: Platform, db: IDate, de: IDate, db2?: IDate): Promise<string> {
+  async getPayslip(customerId: string, employeeId: string, type: PayslipType, lng: Language, currency: string, platform: Platform, db: IDate, _de: IDate, db2?: IDate): Promise<string> {
+
+    const de = isIDateGrOrEq(_de, db) ? _de : db;
 
     const translate = (s: string | ILocString) => typeof s === 'object'
       ? getLocString(s, lng)
