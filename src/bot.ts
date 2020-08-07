@@ -2510,9 +2510,12 @@ export class Bot {
 
     this._log.info(`Payslips for employee: ${employeeId}, customer: ${customerId} have been uploaded.`);
 
-    if (needInformUser) {
-      this.informUserOnNewPayslip(customerId, employeeId);
-    }
+    // TODO: в вайбере после вывода текста о новом листке
+    // пропадает меню. тоже самое будет и с броадкастом сообщений
+    // надо найти решение
+    //if (needInformUser) {
+      //this.informUserOnNewPayslip(customerId, employeeId);
+    //}
   }
 
   public async sendLatestPayslip(customerId: string, employeeId: string) {
