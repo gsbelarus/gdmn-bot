@@ -5,10 +5,10 @@ Properties:
   RUID: 1173065484_1450749196
   Name: "ZarobakBot.Экспорт данных по признакам"
   Caption: "ZarobakBot.Экспорт данных по признакам"
-  Version: "1.0.0.6"
+  Version: "1.0.0.7"
   Optional: False
   Internal: True
-  MD5: 0EBDA0DE51137536BD1C6505F940AADF
+  MD5: 59377D91AFD9A85B37A4FE62FF10D7ED
 Uses: 
   - "1193786287_1320926324 ZarobakBot.Экспорт файлов"
   - "158513268_1444931844 ZarobakBot.Сбор данных"
@@ -509,7 +509,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-13T18:25:50+03:00
+      MODIFYDATE: 2020-08-27T16:26:57+03:00
       MODULE: "METHOD"
       MODULECODE: "147572216_119619099 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147567052_119619099"
       OBJECTNAME: "TgdcUserDocument147567052_119619099"
@@ -518,7 +518,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-13T18:25:49+03:00
+      EDITIONDATE: 2020-08-27T16:26:56+03:00
       DISPLAYSCRIPT: | 
         TGDCUSERDOCUMENT147567052_119619099DOAFTERTRANSACTIONEND
         
@@ -559,10 +559,90 @@ Objects:
       DontRemove: False
       IncludeSiblings: False
     Fields: 
-      DISABLE: ~
+      DISABLE: 0
       EVENTNAME: "DOAFTERTRANSACTIONEND"
       FUNCTIONKEY: "1173071185_1450749196 TgdcUserDocument147567052_119619099DoAfterTransactionEnd"
       OBJECTKEY: "147572216_119619099 TgdcBase\\TgdcTree\\TgdcDocument\\TgdcUserBaseDocument\\TgdcUserDocument\\TgdcUserDocument147567052_119619099"
       OBJECTNAME: "TgdcUserDocument147567052_119619099"
       PARENTNAME: "TgdcUserDocument"
-      EDITIONDATE: 2020-07-13T18:25:49+03:00
+      EDITIONDATE: 2020-08-27T16:26:57+03:00
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173102051_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1173102049_1450749196
+    Fields: 
+      NAME: "gdcUserDocumentAfterScroll"
+      COMMENT: ~
+      EVENT: "AFTERSCROLL"
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-08-27T16:28:36+03:00
+      MODULE: "EVENTS"
+      MODULECODE: "147012544_256548741 gdc_frmUserComplexDocument147567052_119619099"
+      OBJECTNAME: "gdc_frmUserComplexDocument147567052_119619099"
+      OWNERNAME: ~
+      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: ~
+      EDITIONDATE: 2020-08-27T16:28:35+03:00
+      DISPLAYSCRIPT: | 
+        GDCUSERDOCUMENTAFTERSCROLL
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QHAAAAREFUQVNFVAcAAABEQVRBU0VUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZO
+        U1RGTFBS
+      SCRIPT: | 
+        Option Explicit
+        Sub gdcUserDocumentAfterScroll(ByVal DataSet)
+        '*** Данный код необходим для вызова встроенного обработчика ***
+        '*** В случае его удаления возможно нарушение работы системы ***
+          Call   Inherited(DataSet, "AfterScroll", Array(DataSet))
+        '*** конец кода поддержки встроенного обработчика            ***
+          if not DataSet.VariableExists("isBlocked") then
+            DataSet.AddVariableItem("isBlocked")
+          end if
+          DataSet.Variables("isBlocked") = bot_isReadyForExport(DataSet)
+        End Sub
+        
+  - 
+    Properties: 
+      Class: "TgdcDelphiObject"
+      RUID: 1173102048_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+      HeadObject: 1173102049_1450749196
+    Fields: 
+      PARENT: "147012544_256548741 gdc_frmUserComplexDocument147567052_119619099"
+      NAME: "gdcUserDocument"
+      CLASSNAME: ""
+      DESCRIPTION: ~
+      MACROSGROUPKEY: ~
+      OBJECTNAME: "gdcUserDocument"
+      OBJECTTYPE: 0
+      REPORTGROUPKEY: ~
+      SUBTYPE: ""
+      EDITIONDATE: 2020-08-27T16:28:01+03:00
+  - 
+    Properties: 
+      Class: "TgdcEvent"
+      RUID: 1173102049_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      DISABLE: ~
+      EVENTNAME: "AFTERSCROLL"
+      FUNCTIONKEY: "1173102051_1450749196 gdcUserDocumentAfterScroll"
+      OBJECTKEY: "1173102048_1450749196 gdc_frmUserComplexDocument147567052_119619099\\gdcUserDocument"
+      OBJECTNAME: "gdcUserDocument"
+      PARENTNAME: "gdc_frmUserComplexDocument147567052_119619099"
+      EDITIONDATE: 2020-08-27T16:28:35+03:00
