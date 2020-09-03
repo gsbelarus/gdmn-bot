@@ -5,10 +5,10 @@ Properties:
   RUID: 1173065484_1450749196
   Name: "ZarobakBot.Экспорт данных по признакам"
   Caption: "ZarobakBot.Экспорт данных по признакам"
-  Version: "1.0.0.7"
+  Version: "1.0.0.8"
   Optional: False
   Internal: True
-  MD5: 59377D91AFD9A85B37A4FE62FF10D7ED
+  MD5: 0BBF9EAA41545535B540EB09645E00FE
 Uses: 
   - "1193786287_1320926324 ZarobakBot.Экспорт файлов"
   - "158513268_1444931844 ZarobakBot.Сбор данных"
@@ -583,7 +583,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-08-27T16:28:36+03:00
+      MODIFYDATE: 2020-09-03T14:17:58+03:00
       MODULE: "EVENTS"
       MODULECODE: "147012544_256548741 gdc_frmUserComplexDocument147567052_119619099"
       OBJECTNAME: "gdc_frmUserComplexDocument147567052_119619099"
@@ -592,7 +592,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-08-27T16:28:35+03:00
+      EDITIONDATE: 2020-09-03T14:17:57+03:00
       DISPLAYSCRIPT: | 
         GDCUSERDOCUMENTAFTERSCROLL
         
@@ -600,6 +600,7 @@ Objects:
         U0xQUlBSU1QHAAAAREFUQVNFVAcAAABEQVRBU0VUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZO
         U1RGTFBS
       SCRIPT: | 
+        '#include BOT_ISREADYFOREXPORT
         Option Explicit
         Sub gdcUserDocumentAfterScroll(ByVal DataSet)
         '*** Данный код необходим для вызова встроенного обработчика ***
@@ -612,6 +613,12 @@ Objects:
           DataSet.Variables("isBlocked") = bot_isReadyForExport(DataSet)
         End Sub
         
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1173059124_1450749196 bot_isReadyForExport"
   - 
     Properties: 
       Class: "TgdcDelphiObject"
@@ -639,10 +646,10 @@ Objects:
       DontRemove: False
       IncludeSiblings: False
     Fields: 
-      DISABLE: ~
+      DISABLE: 0
       EVENTNAME: "AFTERSCROLL"
       FUNCTIONKEY: "1173102051_1450749196 gdcUserDocumentAfterScroll"
       OBJECTKEY: "1173102048_1450749196 gdc_frmUserComplexDocument147567052_119619099\\gdcUserDocument"
       OBJECTNAME: "gdcUserDocument"
       PARENTNAME: "gdc_frmUserComplexDocument147567052_119619099"
-      EDITIONDATE: 2020-08-27T16:28:35+03:00
+      EDITIONDATE: 2020-09-03T14:17:57+03:00
