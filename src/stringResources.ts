@@ -3,9 +3,21 @@ import { date2str } from "./util/utils";
 
 type FormatFunc = (...args: any[]) => string;
 
+/**
+ * Локализованная строка.
+ */
 export interface ILocString {
+  /**
+   * На английском языке.
+   */
   en: string | null | FormatFunc;
+  /**
+   * На русском языке.
+   */
   ru: string | null | FormatFunc;
+  /**
+   * На беларускай мове.
+   */
   be: string | null | FormatFunc;
 };
 

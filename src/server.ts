@@ -12,6 +12,7 @@ import { Logger } from "./log";
 // config.ts.sample as an example
 import { config } from "./config";
 import { Bot } from "./bot";
+import { isICanteenMenuUpload } from "./types";
 
 const logger = new Logger(config.logger);
 const log = logger.getLogger();
@@ -144,6 +145,10 @@ router.post('/zarobak/v2/upload_schedules', (ctx, next) => {
 
 router.post('/zarobak/v2/upload_canteenmenu', (ctx, next) => {
   try {
+    if (!isICanteenMenuUpload(ctx.request.body)) {
+      throw new Error('Invalid canteen menu upload object structure.');
+    }
+
     const { customerId, objData, date } = ctx.request.body;
     bot.upload_canteenMenu(customerId, objData, date);
     ctx.response.status = 200;

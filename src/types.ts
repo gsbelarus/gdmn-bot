@@ -265,17 +265,74 @@ export interface IAnnouncement {
 export type ICanteenMenus = ICanteenMenu[];
 
 export interface ICanteenMenu {
+  /**
+   * Уникальный идентификатор меню.
+   */
   id: string;
+  /**
+   * Наименоване меню. Например, "Меню столовой", "Меню буфета"
+   */
   name: ILocString;
+  /**
+   * Группы и блюда.
+   */
   data: ICanteenMenuData[];
 };
 
 export interface ICanteenMenuData {
+  /**
+   * Название группы блюд. Например, "Закуски"
+   */
   group: ILocString;
+  /**
+   * Порядковый номер вывода группы при печати меню. Меньшие номера идут вначале.
+   */
   n: number;
+  /**
+   * Список блюд в данной группе.
+   */
   groupdata: {
+    /**
+     * Наименование блюда.
+     */
     good: ILocString;
+    /**
+     * Дополнительная информация: выход, калорийность и т.п.
+     */
     det: string;
+    /**
+     * Цена.
+     */
     cost: number;
   }[];
+};
+
+/**
+ * Объект, который используется при загрузке меню на сервер.
+ */
+export interface ICanteenMenuUpload {
+  /**
+   * Сейчас строго "2.0"
+   */
+  version: string;
+  /**
+   * ИД клиента.
+   */
+  customerId: string;
+  /**
+   * Меню загружается одним запросом за один день. Дата в формате "yyyy.mm.dd"
+   */
+  date: string;
+  objData: ICanteenMenus;
+};
+
+export function isICanteenMenuUpload(m: any): m is ICanteenMenuUpload {
+  return m instanceof Object
+    && typeof(m.version) === 'string'
+    && m.version === '2.0'
+    && typeof(m.customerId) === 'string'
+    && m.customerId
+    && typeof(m.date) === 'string'
+    && m.date
+    && Array.isArray(m.objData)
 };
