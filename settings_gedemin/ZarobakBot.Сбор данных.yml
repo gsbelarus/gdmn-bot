@@ -5,10 +5,10 @@ Properties:
   RUID: 158513268_1444931844
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.41"
+  Version: "1.0.0.42"
   Optional: False
   Internal: True
-  MD5: 8261A1907C41CD82C81D005D3320A2BB
+  MD5: D745B8FED1428F60EC1A498DE1FC5971
 Objects: 
   - 
     Properties: 
@@ -26,7 +26,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:24+03:00
+      MODIFYDATE: 2021-03-10T14:06:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -70,7 +70,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODIFYDATE: 2021-03-10T14:14:18+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -79,7 +79,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-07-06T17:40:57+03:00
+      EDITIONDATE: 2021-03-10T14:14:18+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREPAYSLIPS
         BOT_PREPAREPAYSLIP_ROLLBACK
@@ -437,8 +437,8 @@ Objects:
             "      CAST(rDept.XID AS VARCHAR(14)) || '_' || CAST(rDept.DBID AS VARCHAR(14)), " & _
             "      Trim(Replace(Replace(Replace(Replace(Replace(dept.NAME, '\', '\\'), '""', '\""'), '" & vbCrLf & "', '\n'), '" & vbTab & "', '\t'), '" & vbCr & "', '\n')), " & _
             "      CAST(rSch.XID AS VARCHAR(14)) || '_' || CAST(rSch.DBID AS VARCHAR(14)), " & _
-            "      ml.USR$MSALARY, " & _
-            "      ml.USR$MHOURRATE, " & _
+            "      COALESCE(ml.USR$MSALARY, 0), " & _
+            "      COALESCE(ml.USR$MHOURRATE, 0), " & _
             "      ml.USR$DATEBEGIN, " & _
             "      COALESCE(ml.USR$PAYFORMKEY, 0) " & _
             "    FROM " & _
@@ -666,7 +666,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODIFYDATE: 2021-03-10T14:06:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -846,7 +846,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODIFYDATE: 2021-03-10T14:06:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -1011,7 +1011,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:24+03:00
+      MODIFYDATE: 2021-03-10T14:06:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -1444,7 +1444,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODIFYDATE: 2021-03-10T14:06:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -1563,7 +1563,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-08-03T18:30:20+03:00
+      MODIFYDATE: 2021-03-10T14:06:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
