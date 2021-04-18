@@ -113,10 +113,11 @@ dist
 data/telegram/dialogstates.json
 
 /ssl/*.csr
-/ssl/*.key
-/ssl/*.ca-bundle
-/ssl/*.crt
-/ssl/*.p7b
+/ssl/**/*.key
+/ssl/**/*.ca-bundle
+/ssl/**/*.crt
+/ssl/**/*.p7b
+/ssl/**/*.txt
 src/config.ts
 state_after.json
 state_before.json
