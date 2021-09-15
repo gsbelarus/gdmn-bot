@@ -2082,7 +2082,14 @@ export class Bot {
         }
 
         for (const customerId of Object.keys(stat)) {
-          stat[customerId][4] = Object.keys(this._getEmployees(customerId).getMutable(false)).length;
+          const emplDB = this._getEmployees(customerId);
+          
+          if (!emplDB) {
+            console.error(`There is no employee db file for customer ${customerId}`);
+            delete stat[customerId];
+          } else {
+            stat[customerId][4] = Object.keys(this._getEmployees(customerId).getMutable(false)).length;
+          }
         }
 
         const [totalV, totalIV, totalT, totalIT, totalE] = Object.values(stat).reduce( (p, s) => [p[0] + s[0], p[1] + s[1], p[2] + s[2], p[3] + s[3], p[4] + s[4]], [0, 0, 0, 0, 0] );
