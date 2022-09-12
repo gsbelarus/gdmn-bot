@@ -2,13 +2,13 @@
 --- 
 StructureVersion: "1.0"
 Properties: 
-  RUID: 158513268_1444931844
+  RUID: 1537551605_1913435101
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.42"
+  Version: "1.0.0.43"
   Optional: False
   Internal: True
-  MD5: D745B8FED1428F60EC1A498DE1FC5971
+  MD5: B18B99C54EDEFD9800BAB5C9F94E4419
 Objects: 
   - 
     Properties: 
@@ -26,12 +26,11 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2021-03-10T14:06:23+03:00
+      MODIFYDATE: 2020-07-10T13:04:24+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
-      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -57,6 +56,60 @@ Objects:
   - 
     Properties: 
       Class: "TgdcFunction"
+      RUID: 1630087190_1913435101
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_GetLastTotalDocPeriod"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: ~
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2022-09-12T15:01:32+03:00
+      DISPLAYSCRIPT: | 
+        BOT_GETLASTTOTALDOCPERIOD
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QJAAAAQ09NUEFOWUlECQAAAENPTVBBTllJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AABGTlNURkxQUg==
+      SCRIPT: | 
+        Option Explicit
+        Function bot_GetLastTotalDocPeriod(companyId)
+          'pDateE - дата окончания последнего итогового
+          'pDateB - дата начала последнего итогового
+          dim qSelDate, pDateB, pDateE, Creator
+          set Creator = new TCreator
+          set qSelDate = Creator.GetObject(nil, "TIBSQL", "")
+          qSelDate.Transaction = gdcBaseManager.ReadTransaction
+          qSelDate.SQL.Text = _
+            "  SELECT FIRST 1 t.USR$DATEBEGIN, t.USR$DATEEND " & _
+            "  FROM USR$WG_TOTAL t " & _
+            "    JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
+            "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
+            "  WHERE doc.COMPANYKEY = :companyId " & _
+            "  ORDER BY t.USR$DATEEND DESC "
+          qSelDate.ParamByName("companyId").AsInteger = companyId
+          qSelDate.ExecQuery
+          pDateE = qSelDate.FieldByName("USR$DATEEND").AsDateTime
+          pDateB = qSelDate.FieldByName("USR$DATEBEGIN").AsDateTime
+          bot_GetLastTotalDocPeriod = Array(pDateB, pDateE)
+        End Function
+        
+  - 
+    Properties: 
+      Class: "TgdcFunction"
       RUID: 1193785764_1320926323
       AlwaysOverwrite: False
       DontRemove: False
@@ -70,16 +123,15 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2021-03-10T14:14:18+03:00
+      MODIFYDATE: 2020-07-10T13:04:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
-      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2021-03-10T14:14:18+03:00
+      EDITIONDATE: 2022-09-12T16:28:13+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREPAYSLIPS
         BOT_PREPAREPAYSLIP_ROLLBACK
@@ -93,6 +145,7 @@ Objects:
         AAAAAEZOU1RQUlNUBQAAAEpTT05TBQAAAEpTT05TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZO
         U1RGTFBS
       SCRIPT: | 
+        '#include BOT_GETLASTTOTALDOCPERIOD
         Option Explicit
         Function bot_PreparePaySlips(Period, customerId, companyId, isRewrite, isManual, ByRef Jsons)
           dim qSel, Creator, Transaction
@@ -105,20 +158,12 @@ Objects:
         
           except bot_PreparePaySlipByEmploee_RollBack(Transaction)
         
-          'pDate - дата окончания последнего итогового
-          dim qSelDate, pDate
-          set qSelDate = Creator.GetObject(nil, "TIBSQL", "")
-          qSelDate.Transaction = gdcBaseManager.ReadTransaction
-          qSelDate.SQL.Text = _
-            "  SELECT FIRST 1 t.USR$DATEEND " & _
-            "  FROM USR$WG_TOTAL t " & _
-            "    JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
-            "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
-            "  WHERE doc.COMPANYKEY = :companyId " & _
-            "  ORDER BY t.USR$DATEEND DESC "
-          qSelDate.ParamByName("companyId").AsInteger = companyId
-          qSelDate.ExecQuery
-          pDate = qSelDate.FieldByName("USR$DATEEND").AsDateTime
+          'pDateE - дата окончания последнего итогового
+          'pDateB - дата начала последнего итогового
+          dim pDateB, pDateE, lastTotalDocPeriod
+          lastTotalDocPeriod = bot_GetLastTotalDocPeriod(companyId)
+          pDateB = lastTotalDocPeriod(0)
+          pDateE = lastTotalDocPeriod(1)
         
           if isManual then
             dim qSelCount
@@ -133,17 +178,18 @@ Objects:
               "    LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = tline.USR$EMPLKEY " & _
               "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
               "    JOIN USR$WG_EMPLWORKTERM w ON w.USR$FIRSTMOVEKEY = ml.USR$FIRSTMOVE " & _
-              "    LEFT JOIN USR$WG_P_EMPLCARDSTATE(tline.USR$EMPLKEY, :pDate) pcard ON 1 = 1 " & _
+              "    LEFT JOIN USR$WG_P_EMPLCARDSTATE(tline.USR$EMPLKEY, :pDateE) pcard ON 1 = 1 " & _
               "    LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
               "  WHERE COALESCE(TRIM(card.USR$PERSONALNUMBER), '') <> '' AND " & _
               "    t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
               "    AND doc.COMPANYKEY = :companyId " & _
-              "    AND (w.USR$DATEEND > :pDate OR w.USR$DATEEND IS NULL) " & _
+              "    AND (w.USR$DATEEND > :pDateB OR w.USR$DATEEND IS NULL) " & _
               "    AND (ml.USR$MOVEMENTTYPE <> 3 OR tline.USR$CREDIT <> 0 OR tline.USR$DEBIT <> 0)  "
             qSelCount.ParamByName("DB").AsDateTime = Period(0)
             qSelCount.ParamByName("DE").AsDateTime = Period(1)
             qSelCount.ParamByName("companyId").AsInteger = companyId
-            qSelCount.ParamByName("pDate").AsDateTime = pDate
+            qSelCount.ParamByName("pDateB").AsDateTime = pDateB
+            qSelCount.ParamByName("pDateE").AsDateTime = pDateE
             qSelCount.ExecQuery
         
             dim count
@@ -157,11 +203,11 @@ Objects:
           If isRewrite Then b = "true" Else b = "false"
         
           'Формируем расчетные листки за период,
-          'но сотрудников берем тех, кто работает на дату окончания последнего итогового начисления - pDate
+          'но сотрудников берем тех, кто работает на дату начала последнего итогового начисления - pDate
           set qSel = Creator.GetObject(nil, "TIBSQL", "")
           qSel.Transaction = Transaction
           qSel.SQL.Text = _
-            "EXECUTE BLOCK (DB DATE = :DB, DE DATE = :DE, PDATE DATE = :PDATE, COMPANYID dintkey = :COMPANYID) " & _
+            "EXECUTE BLOCK (DB DATE = :DB, DE DATE = :DE, PDATEB DATE = :PDATEB, PDATEE DATE = :PDATEE, COMPANYID dintkey = :COMPANYID) " & _
             "RETURNS ( " & _
             "  EmployeeKey     dforeignkey,      " & _
             "  EmployeeRuid    VARCHAR(40), " & _
@@ -207,14 +253,14 @@ Objects:
             "      LEFT JOIN WG_POSITION pos ON pos.ID = ml.USR$POSITIONKEY " & _
             "      LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = tline.USR$EMPLKEY " & _
             "      JOIN usr$wg_emplworkterm workterm ON workterm.USR$FIRSTMOVEKEY = ml.USR$FIRSTMOVE " & _
-            "      LEFT JOIN USR$WG_P_EMPLCARDSTATE(tline.USR$EMPLKEY, :pDate) pcard ON 1 = 1 " & _
+            "      LEFT JOIN USR$WG_P_EMPLCARDSTATE(tline.USR$EMPLKEY, :pDateE) pcard ON 1 = 1 " & _
             "      LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
             "      LEFT JOIN GD_P_GETRUID(p.CONTACTKEY) r ON 1 = 1 " & _
             "    WHERE COALESCE(card.USR$PERSONALNUMBER, '') <> '' AND " & _
             "      t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
             "      AND (ml.USR$MOVEMENTTYPE <> 3 OR tline.USR$CREDIT <> 0 OR tline.USR$DEBIT <> 0) " & _
             "      AND doc.COMPANYKEY = :companyId " & _
-            "      AND (workterm.USR$DATEEND > :pDate OR workterm.USR$DATEEND IS NULL) " & _
+            "      AND (workterm.USR$DATEEND > :pDateB OR workterm.USR$DATEEND IS NULL) " & _
             "    GROUP BY 1,2,3,4,5,6 " & _
             "    ORDER BY NickName, EmployeeRuid, t.USR$DATEBEGIN " & _
             "    INTO :NickName, :EmployeeRuid, :EmployeeKey, :TotalDocKey,  :OnDateBegin, :OnDateEnd, :EndSaldo " & _
@@ -385,7 +431,8 @@ Objects:
         
           qSel.ParamByName("DB").AsDateTime = Period(0)
           qSel.ParamByName("DE").AsDateTime = Period(1)
-          qSel.ParamByName("pDate").AsDateTime = pDate
+          qSel.ParamByName("pDateB").AsDateTime = pDateB
+          qSel.ParamByName("pDateE").AsDateTime = pDateE
           qSel.ParamByName("companyId").AsInteger = companyId
           qSel.ExecQuery
         
@@ -437,8 +484,8 @@ Objects:
             "      CAST(rDept.XID AS VARCHAR(14)) || '_' || CAST(rDept.DBID AS VARCHAR(14)), " & _
             "      Trim(Replace(Replace(Replace(Replace(Replace(dept.NAME, '\', '\\'), '""', '\""'), '" & vbCrLf & "', '\n'), '" & vbTab & "', '\t'), '" & vbCr & "', '\n')), " & _
             "      CAST(rSch.XID AS VARCHAR(14)) || '_' || CAST(rSch.DBID AS VARCHAR(14)), " & _
-            "      COALESCE(ml.USR$MSALARY, 0), " & _
-            "      COALESCE(ml.USR$MHOURRATE, 0), " & _
+            "      ml.USR$MSALARY, " & _
+            "      ml.USR$MHOURRATE, " & _
             "      ml.USR$DATEBEGIN, " & _
             "      COALESCE(ml.USR$PAYFORMKEY, 0) " & _
             "    FROM " & _
@@ -650,6 +697,12 @@ Objects:
           end if
         end sub
         
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1630087190_1913435101 bot_GetLastTotalDocPeriod"
   - 
     Properties: 
       Class: "TgdcFunction"
@@ -666,12 +719,11 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2021-03-10T14:06:23+03:00
+      MODIFYDATE: 2020-07-10T13:04:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
-      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
@@ -846,16 +898,15 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2021-03-10T14:06:23+03:00
+      MODIFYDATE: 2020-07-10T13:04:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
-      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-07-02T17:39:36+03:00
+      EDITIONDATE: 2022-09-12T16:27:49+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREEMPLOYEES
         BOT_PREPAREEMPLOYEES_ROLLBACK
@@ -867,6 +918,7 @@ Objects:
         AAAAAAAARk5TVFBSU1QEAAAASlNPTgQAAABKU09OAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZO
         U1RGTFBS
       SCRIPT: | 
+        '#include BOT_GETLASTTOTALDOCPERIOD
         '#include BOT_STRREPL
         Option Explicit
         Function bot_prepareEmployees(customerId, companyId, isManual, ByRef Json)
@@ -880,20 +932,12 @@ Objects:
         
           except bot_prepareEmployees_RollBack(Transaction)
         
-          'pDate - дата окончания последнего итогового
-          dim qSelDate, pDate
-          set qSelDate = Creator.GetObject(nil, "TIBSQL", "")
-          qSelDate.Transaction = gdcBaseManager.ReadTransaction
-          qSelDate.SQL.Text = _
-            "  SELECT FIRST 1 t.USR$DATEEND " & _
-            "  FROM USR$WG_TOTAL t " & _
-            "    JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
-            "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
-            "  WHERE doc.COMPANYKEY = :companyId " & _
-            "  ORDER BY t.USR$DATEEND DESC "
-          qSelDate.ParamByName("companyId").AsInteger = companyId
-          qSelDate.ExecQuery
-          pDate = qSelDate.FieldByName("USR$DATEEND").AsDateTime
+          'pDateE - дата окончания последнего итогового
+          'pDateB - дата начала последнего итогового
+          dim pDateB, pDateE, lastTotalDocPeriod
+          lastTotalDocPeriod = bot_GetLastTotalDocPeriod(companyId)
+          pDateB = lastTotalDocPeriod(0)
+          pDateE = lastTotalDocPeriod(1)
         
           if isManual then
             dim qSelCount
@@ -907,13 +951,14 @@ Objects:
               "  JOIN GD_EMPLOYEE empl ON empl.CONTACTKEY = c.ID " & _
               "  JOIN GD_PEOPLE p ON p.CONTACTKEY = c.ID " & _
               "  JOIN USR$WG_EMPLWORKTERM w ON w.USR$EMPLKEY = c.ID " & _
-              "  LEFT JOIN USR$WG_P_EMPLCARDSTATE(c.ID, :pDate) pcard ON 1 = 1 " & _
+              "  LEFT JOIN USR$WG_P_EMPLCARDSTATE(c.ID, :pDateE) pcard ON 1 = 1 " & _
               "  LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
               "WHERE own.ID = :companyId " & _
               "  AND COALESCE(TRIM(card.USR$PERSONALNUMBER), '') <> '' " & _
-              "  AND (w.USR$DATEEND > :pDate OR w.USR$DATEEND IS NULL) "
+              "  AND (w.USR$DATEEND > :pDateB OR w.USR$DATEEND IS NULL) "
             qSelCount.ParamByName("companyId").AsInteger = companyId
-            qSelCount.ParamByName("pDate").AsDateTime = pDate
+            qSelCount.ParamByName("pDateB").AsDateTime = pDateB
+            qSelCount.ParamByName("pDateE").AsDateTime = pDateE
             qSelCount.ExecQuery
         
             dim count
@@ -938,15 +983,16 @@ Objects:
             "  JOIN GD_PEOPLE p ON p.CONTACTKEY = c.ID " & _
             "  LEFT JOIN GD_P_GETRUID(p.CONTACTKEY) r ON 1 = 1 " & _
             "  JOIN USR$WG_EMPLWORKTERM w ON w.USR$EMPLKEY = c.ID " & _
-            "  LEFT JOIN USR$WG_P_EMPLCARDSTATE(c.ID, :pDate) pcard ON 1 = 1 " & _
+            "  LEFT JOIN USR$WG_P_EMPLCARDSTATE(c.ID, :pDateE) pcard ON 1 = 1 " & _
             "  LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
             "WHERE own.ID = :companyId " & _
             "  AND COALESCE(TRIM(card.USR$PERSONALNUMBER), '') <> '' " & _
-            "  AND (w.USR$DATEEND > :pDate OR w.USR$DATEEND IS NULL) " & _
+            "  AND (w.USR$DATEEND > :pDateB OR w.USR$DATEEND IS NULL) " & _
             "ORDER BY TRIM(card.USR$PERSONALNUMBER), c.EDITIONDATE DESC, p.SURNAME "
         
           qSel.ParamByName("companyId").AsInteger = companyId
-          qSel.ParamByName("pDate").AsDateTime = pDate
+          qSel.ParamByName("pDateB").AsDateTime = pDateB
+          qSel.ParamByName("pDateE").AsDateTime = pDateE
           qSel.ExecQuery
         
           dim canceled, persNumber
@@ -994,6 +1040,8 @@ Objects:
         Table: "RP_ADDITIONALFUNCTION"
         Items: 
           - 
+            ADDFUNCTIONKEY: "1630087190_1913435101 bot_GetLastTotalDocPeriod"
+          - 
             ADDFUNCTIONKEY: "147160790_1454092899 bot_strRepl"
   - 
     Properties: 
@@ -1011,12 +1059,11 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2021-03-10T14:06:23+03:00
+      MODIFYDATE: 2020-07-10T13:04:24+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
-      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
@@ -1444,12 +1491,11 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2021-03-10T14:06:23+03:00
+      MODIFYDATE: 2020-07-10T13:04:23+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
-      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
@@ -1563,12 +1609,11 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2021-03-10T14:06:23+03:00
+      MODIFYDATE: 2020-08-03T18:30:20+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
-      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
