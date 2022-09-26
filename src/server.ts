@@ -188,9 +188,9 @@ httpServer.listen(config.httpPort, () => log.info(`>>> HTTP server is running at
  * Viber.
  */
 
-const cert = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.crt'));
+const cert = fs.readFileSync(path.resolve(process.cwd(), 'ssl/gdmn.app.crt'));
 const key = fs.readFileSync(path.resolve(process.cwd(), 'ssl/gdmn.app.key'));
-const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/star.gdmn.app.ca-bundle'), {encoding:'utf8'})
+const ca = fs.readFileSync(path.resolve(process.cwd(), 'ssl/gdmn.app.ca-bundle'), {encoding:'utf8'})
   .split('-----END CERTIFICATE-----\r\n')
   .map(cert => cert +'-----END CERTIFICATE-----\r\n')
   .pop();
