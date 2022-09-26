@@ -2,52 +2,23 @@
 --- 
 StructureVersion: "1.0"
 Properties: 
-  RUID: 1193786287_1320926324
-  Name: "ZarobakBot.Экспорт файлов"
-  Caption: "ZarobakBot.Экспорт файлов"
-  Version: "1.0.0.46"
+  RUID: 1537551605_1913435101
+  Name: "ZarobakBot.Сбор данных"
+  Caption: "ZarobakBot.Сбор данных"
+  Version: "1.0.0.42"
   Optional: False
   Internal: True
-  MD5: 2A5008D1CBDB90C525CF95457D0411BC
-Uses: 
-  - "148233742_349062642 Зарплата - исследователь"
-  - "158513268_1444931844 ZarobakBot.Сбор данных"
+  MD5: B18B99C54EDEFD9800BAB5C9F94E4419
 Objects: 
   - 
     Properties: 
-      Class: "TgdcConst"
-      RUID: 1193786349_1320926324
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      NAME: "ZarobakBot. ИД клиента"
-      COMMENT: ~
-      CONSTTYPE: 0
-      DATATYPE: "S"
-      EDITIONDATE: 2020-05-04T12:58:15+03:00
-  - 
-    Properties: 
-      Class: "TgdcConst"
-      RUID: 1193786343_1320926323
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      NAME: "ZarobakBot. Адрес сервера "
-      COMMENT: ~
-      CONSTTYPE: 0
-      DATATYPE: "S"
-      EDITIONDATE: 2020-05-04T12:58:07+03:00
-  - 
-    Properties: 
       Class: "TgdcFunction"
-      RUID: 1193785048_1320926324
+      RUID: 147160790_1454092899
       AlwaysOverwrite: False
       DontRemove: False
       IncludeSiblings: False
     Fields: 
-      NAME: "bot_SendFile"
+      NAME: "bot_strRepl"
       COMMENT: ~
       EVENT: ~
       FUNCTIONTYPE: ~
@@ -55,63 +26,96 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODIFYDATE: 2020-07-10T13:04:24+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
-      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-06-23T12:35:46+03:00
+      EDITIONDATE: 2020-05-13T12:32:18+03:00
       DISPLAYSCRIPT: | 
-        BOT_SENDFILE
+        BOT_STRREPL
         
       ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QEAAAASlNPTgQAAABKU09OAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RQUlNU
-        AwAAAFVSTAMAAABVUkwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARk5TVEZMUFI=
+        U0xQUlBSU1QDAAAAU1RSAwAAAFNUUgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNURkxQUg==
       SCRIPT: | 
         Option Explicit
         
-        ' Функция принимает на вход:
-        '   Json файл.
-        '   URL скрипта на сервере.
+        '  Функция заменяет символы обратного слэша, двойной кавычки
+        '  и перевода строки на управляющие команды.
         '
-        ' Данные передаются POST запросом.
-        ' Возвращает True, если файл успешно передан.
+        '  Необходима для записи строки в JSON.
         
-        Function bot_SendFile(JSON, URL)
-        
-          on error resume next
-          dim oXMLHTTP
-          set oXMLHTTP = CreateObject("MSXML2.XMLHTTP")
-          call oXMLHTTP.Open("POST", url, false)
-          call oXMLHTTP.setRequestHeader("Content-Type", "application/json")
-          on error resume next
-          call oXMLHTTP.Send(JSON)
-          on error goto 0
-          if Err.Number <> 0 then
-            call Application.MessageBox("Ошибка передачи файла " & Err.Message, "Внимание!", vbOKOnly + vbCritical + vbSystemModal)
-            bot_SendFile = false
-          elseif oXMLHTTP.status <> 200 then
-            call Application.MessageBox("Ошибка обработки данных на сервере. Статус: " & oXMLHTTP.status, "Внимание!", vbOKOnly + vbCritical + vbSystemModal)
-            bot_SendFile = false
-          else
-            bot_SendFile = true
-          end If
+        Function bot_strRepl(str)
+          bot_strRepl = Trim(Replace(Replace(Replace(Replace(Replace(str, "\", "\\"), """", "\"""), vbCrLf, "\n"), vbTab, "\t"), vbCr, "\n"))
         
         End Function
         
   - 
     Properties: 
       Class: "TgdcFunction"
-      RUID: 158512755_1444931844
+      RUID: 1630087190_1913435101
       AlwaysOverwrite: False
       DontRemove: False
       IncludeSiblings: False
     Fields: 
-      NAME: "bot_getServerData"
+      NAME: "bot_GetLastTotalDocPeriod"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: ~
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2022-09-12T15:01:32+03:00
+      DISPLAYSCRIPT: | 
+        BOT_GETLASTTOTALDOCPERIOD
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QJAAAAQ09NUEFOWUlECQAAAENPTVBBTllJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AABGTlNURkxQUg==
+      SCRIPT: | 
+        Option Explicit
+        Function bot_GetLastTotalDocPeriod(companyId)
+          'pDateE - дата окончания последнего итогового
+          'pDateB - дата начала последнего итогового
+          dim qSelDate, pDateB, pDateE, Creator
+          set Creator = new TCreator
+          set qSelDate = Creator.GetObject(nil, "TIBSQL", "")
+          qSelDate.Transaction = gdcBaseManager.ReadTransaction
+          qSelDate.SQL.Text = _
+            "  SELECT FIRST 1 t.USR$DATEBEGIN, t.USR$DATEEND " & _
+            "  FROM USR$WG_TOTAL t " & _
+            "    JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
+            "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
+            "  WHERE doc.COMPANYKEY = :companyId " & _
+            "  ORDER BY t.USR$DATEEND DESC "
+          qSelDate.ParamByName("companyId").AsInteger = companyId
+          qSelDate.ExecQuery
+          pDateE = qSelDate.FieldByName("USR$DATEEND").AsDateTime
+          pDateB = qSelDate.FieldByName("USR$DATEBEGIN").AsDateTime
+          bot_GetLastTotalDocPeriod = Array(pDateB, pDateE)
+        End Function
+        
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1193785764_1320926323
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_PreparePaySlips"
       COMMENT: ~
       EVENT: ~
       FUNCTIONTYPE: ~
@@ -124,484 +128,590 @@ Objects:
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
-      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-13T12:15:30+03:00
+      EDITIONDATE: 2022-09-12T16:28:13+03:00
       DISPLAYSCRIPT: | 
-        BOT_GETSERVERDATA
+        BOT_PREPAREPAYSLIPS
+        BOT_PREPAREPAYSLIP_ROLLBACK
         
       ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QIAAAASVNNQU5VQUwIAAAASVNNQU5VQUwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        Rk5TVFBSU1QNAAAAQ1VTVE9NRVJBUlJBWQ0AAABDVVNUT01FUkFSUkFZAAAAAAAAAAAAAAAAAAAA
-        AAAAAAAAAAAAAEZOU1RQUlNUAwAAAFVSTAMAAABVUkwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        Rk5TVEZMUFI=
-      SCRIPT: | 
-        Option Explicit
-        'Функция возвращает массив значений констант для сервера
-        'customerData - id клиента
-        'URL - адрес сервера
-        Function bot_getServerData(isManual, ByRef customerArray, ByRef URL)
-          dim gdcConst, Creator
-          set Creator = new TCreator
-          set gdcConst = Creator.GetObject(null, "TgdcConst", "")
-          URL = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786343_1320926323"))
-          customerArray = Split(gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1193786349_1320926324")),";")
-          'Если в массиве один элемент и только с ид клиента,
-          'то автоматически добавляем руид текущей организации
-          if UBound(customerArray) = 0 then
-            if UBound(Split(customerArray(0), ",")) = 0 then
-              customerArray(0) = customerArray(0) & "," & gdcBaseManager.GetRUIDStringByID(IBLogin.CompanyKey)
-            end if
-          end if
-          'Если одна из констант не указана, то
-          'то выдаем сообщение
-          if URL = "" then
-            call Application.MessageBox("Не указана константа 'ZarobakBot. Адрес сервера'. Экспорт не будет выполнен!", _
-               "Внимание", vbOkOnly + vbInformation + vbSystemModal)
-          end if
-          if UBound(customerArray) = -1 then
-            call Application.MessageBox("Не указана константа 'ZarobakBot. ИД клиента'. Экспорт не будет выполнен!", _
-               "Внимание", vbOkOnly + vbInformation + vbSystemModal)
-          end if
-        End Function
-        
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 1437183856_1434991069
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      NAME: "bot_exportEmployees"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:24+03:00
-      MODULE: "UNKNOWN"
-      MODULECODE: "1010001_17 APPLICATION"
-      OBJECTNAME: "APPLICATION"
-      OWNERNAME: ~
-      PREPAREDBYPARSER: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: 0
-      EDITIONDATE: 2020-05-03T22:45:13+03:00
-      DISPLAYSCRIPT: | 
-        BOT_EXPORTEMPLOYEES
-        
-      ENTEREDPARAMS: ~
-      SCRIPT: | 
-        Option Explicit
-        '#include BOT_GETSERVERDATA
-        '#include BOT_PREPAREEMPLOYEES
-        '#include BOT_SENDFILE
-        Function bot_exportEmployees
-          dim customerArray, URL, count
-          'Получим параметры для отправки на сервер из констант
-          'customerArray - массив данных по клиенту (ид и RUID организации, пример: ("id1,123_456", "id2,789_123"))
-          'URL - путь к серверу
-          call bot_GetServerData(true, customerArray, URL)
-          count = UBound(customerArray)
-        
-          dim Json, Creator, i, customer, companyId, customerId
-          set Creator = new TCreator
-          set Json = Creator.GetObject(nil, "TStringList", "")
-          for i = 0 to count
-            customer = Split(customerArray(i), ",")
-            customerId = customer(0)
-            companyId = gdcBaseManager.GetIDByRUIDString(customer(1))
-        
-            'Формирование Json файла со списком всех сотрудников за период
-            call bot_PrepareEmployees(customerId, companyId, true, Json)
-            'Отправка на сервер
-            bot_SendFile Json.Text, URL & "/v1/upload_employees"
-          next
-        End Function
-        
-    Set: 
-      - 
-        Table: "RP_ADDITIONALFUNCTION"
-        Items: 
-          - 
-            ADDFUNCTIONKEY: "158512755_1444931844 bot_getServerData"
-          - 
-            ADDFUNCTIONKEY: "1437183754_1434991069 bot_PrepareEmployees"
-          - 
-            ADDFUNCTIONKEY: "1193785048_1320926324 bot_SendFile"
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 1193786366_1320926324
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      NAME: "bot_exportAccDeds"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:24+03:00
-      MODULE: "UNKNOWN"
-      MODULECODE: "1010001_17 APPLICATION"
-      OBJECTNAME: "APPLICATION"
-      OWNERNAME: ~
-      PREPAREDBYPARSER: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: 0
-      EDITIONDATE: 2020-07-06T13:32:49+03:00
-      DISPLAYSCRIPT: | 
-        BOT_EXPORTACCDEDS
-        
-      ENTEREDPARAMS: ~
-      SCRIPT: | 
-        Option Explicit
-        '#include BOT_GETSERVERDATA
-        '#include BOT_PREPAREACCDEDS
-        '#include BOT_SENDFILE
-        Function bot_exportAccDeds
-          dim customerArray, URL, count
-          'Получим параметры для отправки на сервер из констант
-          'customerArray - массив данных по клиенту (ид и RUID организации, пример: ("id1,123_456", "id2,789_123"))
-          'URL - путь к серверу
-          call bot_GetServerData(true, customerArray, URL)
-          count = UBound(customerArray)
-        
-          dim Json, Creator, customer, customerId, i
-          set Creator = new TCreator
-          set Json = Creator.GetObject(nil, "TStringList", "")
-        
-          for i = 0 to count
-            customer = Split(customerArray(i), ",")
-            customerId = customer(0)
-            'Формирование Json файла со списком начислений/удержаний
-            call bot_PrepareAccDeds(customerId, true, Json)
-            'Отправка на сервер
-            bot_SendFile Json.Text, URL & "/v1/upload_accDedRefs"
-          next
-        End Function
-        
-    Set: 
-      - 
-        Table: "RP_ADDITIONALFUNCTION"
-        Items: 
-          - 
-            ADDFUNCTIONKEY: "158512755_1444931844 bot_getServerData"
-          - 
-            ADDFUNCTIONKEY: "1193785027_1320926323 bot_PrepareAccDeds"
-          - 
-            ADDFUNCTIONKEY: "1193785048_1320926324 bot_SendFile"
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 1193786369_1320926324
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      NAME: "bot_exportPaySlips"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:24+03:00
-      MODULE: "UNKNOWN"
-      MODULECODE: "1010001_17 APPLICATION"
-      OBJECTNAME: "APPLICATION"
-      OWNERNAME: ~
-      PREPAREDBYPARSER: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: 0
-      EDITIONDATE: 2020-07-08T13:47:48+03:00
-      DISPLAYSCRIPT: | 
-        BOT_EXPORTPAYSLIPS
-        
-      ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAM/l8Oju5AAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
-        UFJTVAkAAABJU1JFV1JJVEUdAAAAz+Xw5efg7+jx4PL8IPDg8ffl8u375SDr6PHy6ugAAAAAAAAA
-        AAAAAAAGAAAAAAAAAAAAAAAARk5TVEZMUFI=
-      SCRIPT: | 
-        Option Explicit
-        '#include BOT_GETSERVERDATA
-        '#include BOT_SENDFILE
-        '#include BOT_PREPAREPAYSLIPS
-        Function bot_exportPaySlips(Period, isRewrite)
-          dim customerArray, count, URL
-          'Получим параметры для отправки на сервер (ид базы и путь к серверу) из констант
-          call bot_GetServerData(true, customerArray, URL)
-          count = UBound(customerArray)
-        
-          dim Jsons, i, Creator, j, customer, customerId, companyId
-          set Creator = new TCreator
-          set Jsons = Creator.GetObject(nil, "TStringList", "")
-        
-          for i = 0 to count
-            customer = Split(customerArray(i), ",")
-            customerId = customer(0)
-            companyId = gdcBaseManager.GetIDByRUIDString(customer(1))
-            'Формирование списка Json файлов в разрезе сотрудника
-            call bot_PreparePaySlips(Period, customerId, companyId, isRewrite, true, Jsons)
-            'Отправим на сервер по одному
-            for j = 0 to Jsons.Count - 1
-              bot_SendFile Jsons(j), URL & "/v1/upload_paySlips"
-            next
-          next
-        End Function
-        
-    Set: 
-      - 
-        Table: "RP_ADDITIONALFUNCTION"
-        Items: 
-          - 
-            ADDFUNCTIONKEY: "158512755_1444931844 bot_getServerData"
-          - 
-            ADDFUNCTIONKEY: "1193785048_1320926324 bot_SendFile"
-          - 
-            ADDFUNCTIONKEY: "1193785764_1320926323 bot_PreparePaySlips"
-  - 
-    Properties: 
-      Class: "TgdcExplorer"
-      RUID: 1193786363_1320926323
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      PARENT: "147048865_974374174 Исследователь\\Зарплата и Отдел кадров"
-      NAME: "ZarobakBot"
-      CLASSNAME: ~
-      CMD: "1193786363_1320926323"
-      CMDTYPE: 0
-      HOTKEY: ~
-      IMGINDEX: 138
-      ORDR: ~
-      SUBTYPE: ~
-      EDITIONDATE: 2020-07-02T17:59:00+03:00
-      DISABLED: 0
-  - 
-    Properties: 
-      Class: "TgdcExplorer"
-      RUID: 158513257_1444931844
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      PARENT: "1193786363_1320926323 Исследователь\\Зарплата и Отдел кадров\\ZarobakBot"
-      NAME: "01. Экспорт расчетных листков"
-      CLASSNAME: ~
-      CMD: "1437186325_1434991069"
-      CMDTYPE: 1
-      HOTKEY: ~
-      IMGINDEX: 174
-      ORDR: ~
-      SUBTYPE: ~
-      EDITIONDATE: 2020-07-06T13:08:07+03:00
-      DISABLED: 0
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 158513035_1444931844
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-      HeadObject: 1437186325_1434991069
-    Fields: 
-      NAME: "bot_exportPaySlipsU"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:24+03:00
-      MODULE: "UNKNOWN"
-      MODULECODE: "1010001_17 APPLICATION"
-      OBJECTNAME: "APPLICATION"
-      OWNERNAME: ~
-      PREPAREDBYPARSER: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: 0
-      EDITIONDATE: 2020-07-06T13:34:30+03:00
-      DISPLAYSCRIPT: | 
-        BOT_EXPORTPAYSLIPSU
-        
-      ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAFBFUklPRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
+        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAFBFUklPRAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
         UFJTVAoAAABDVVNUT01FUklECgAAAENVU1RPTUVSSUQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
         Rk5TVFBSU1QJAAAAQ09NUEFOWUlECQAAAENPTVBBTllJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        AABGTlNUUFJTVAMAAABVUkwDAAAAVVJMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZOU1RQUlNU
-        CQAAAElTUkVXUklURQkAAABJU1JFV1JJVEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARk5TVFBS
-        U1QIAAAASVNNQU5VQUwIAAAASVNNQU5VQUwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARk5TVEZM
-        UFI=
+        AABGTlNUUFJTVAkAAABJU1JFV1JJVEUJAAAASVNSRVdSSVRFAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAEZOU1RQUlNUCAAAAElTTUFOVUFMCAAAAElTTUFOVUFMAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAEZOU1RQUlNUBQAAAEpTT05TBQAAAEpTT05TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZO
+        U1RGTFBS
       SCRIPT: | 
+        '#include BOT_GETLASTTOTALDOCPERIOD
         Option Explicit
-        '#include BOT_SENDFILE
-        '#include BOT_PREPAREPAYSLIPS
-        Function bot_exportPaySlipsU(Period, customerId, companyId, URL, isRewrite, isManual)
-          bot_exportPaySlipsU = true
-          dim Jsons, i, Creator
+        Function bot_PreparePaySlips(Period, customerId, companyId, isRewrite, isManual, ByRef Jsons)
+          dim qSel, Creator, Transaction
           set Creator = new TCreator
-          set Jsons = Creator.GetObject(nil, "TStringList", "")
-          'Формирование списка Json файлов в разрезе сотрудника
-          call bot_PreparePaySlips(Period, customerId, companyId, isRewrite, isManual, Jsons)
-          'Отправим на сервер по одному
-          for i = 0 to Jsons.Count - 1
-            bot_exportPaySlipsU = bot_SendFile(Jsons(i), URL)
-            if not bot_exportPaySlipsU then
-              exit function
+          set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
+          Transaction.Defaultdatabase = IBLogin.Database
+          if not Transaction.InTransaction then
+            Transaction.StartTransaction
+          end if
+        
+          except bot_PreparePaySlipByEmploee_RollBack(Transaction)
+        
+          'pDateE - дата окончания последнего итогового
+          'pDateB - дата начала последнего итогового
+          dim pDateB, pDateE, lastTotalDocPeriod
+          lastTotalDocPeriod = bot_GetLastTotalDocPeriod(companyId)
+          pDateB = lastTotalDocPeriod(0)
+          pDateE = lastTotalDocPeriod(1)
+        
+          if isManual then
+            dim qSelCount
+            set qSelCount = Creator.GetObject(nil, "TIBSQL", "")
+            qSelCount.Transaction = gdcBaseManager.ReadTransaction
+            qSelCount.SQL.Text = _
+              "  SELECT COUNT(DISTINCT p.CONTACTKEY) AS C " & _
+              "  FROM USR$WG_TOTAL t " & _
+              "    LEFT JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
+              "    LEFT JOIN USR$WG_P_EMPLMOVESTATE(tline.USR$EMPLKEY, t.USR$DATEEND) state ON 1 = 1 " & _
+              "    LEFT JOIN USR$WG_MOVEMENTLINE ml ON ml.DOCUMENTKEY = state.ID " & _
+              "    LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = tline.USR$EMPLKEY " & _
+              "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
+              "    JOIN USR$WG_EMPLWORKTERM w ON w.USR$FIRSTMOVEKEY = ml.USR$FIRSTMOVE " & _
+              "    LEFT JOIN USR$WG_P_EMPLCARDSTATE(tline.USR$EMPLKEY, :pDateE) pcard ON 1 = 1 " & _
+              "    LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
+              "  WHERE COALESCE(TRIM(card.USR$PERSONALNUMBER), '') <> '' AND " & _
+              "    t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
+              "    AND doc.COMPANYKEY = :companyId " & _
+              "    AND (w.USR$DATEEND > :pDateB OR w.USR$DATEEND IS NULL) " & _
+              "    AND (ml.USR$MOVEMENTTYPE <> 3 OR tline.USR$CREDIT <> 0 OR tline.USR$DEBIT <> 0)  "
+            qSelCount.ParamByName("DB").AsDateTime = Period(0)
+            qSelCount.ParamByName("DE").AsDateTime = Period(1)
+            qSelCount.ParamByName("companyId").AsInteger = companyId
+            qSelCount.ParamByName("pDateB").AsDateTime = pDateB
+            qSelCount.ParamByName("pDateE").AsDateTime = pDateE
+            qSelCount.ExecQuery
+        
+            dim count
+            count = qSelCount.FieldByName("C").AsInteger
+        
+            dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
+            P.StartWork "ZarobakBot", "Формируем данные..", count, True, True
+          end if
+        
+          Dim b
+          If isRewrite Then b = "true" Else b = "false"
+        
+          'Формируем расчетные листки за период,
+          'но сотрудников берем тех, кто работает на дату начала последнего итогового начисления - pDate
+          set qSel = Creator.GetObject(nil, "TIBSQL", "")
+          qSel.Transaction = Transaction
+          qSel.SQL.Text = _
+            "EXECUTE BLOCK (DB DATE = :DB, DE DATE = :DE, PDATEB DATE = :PDATEB, PDATEE DATE = :PDATEE, COMPANYID dintkey = :COMPANYID) " & _
+            "RETURNS ( " & _
+            "  EmployeeKey     dforeignkey,      " & _
+            "  EmployeeRuid    VARCHAR(40), " & _
+            "  NickName        VARCHAR(160), " & _
+            "  accdedStr       VARCHAR(10000) " & _
+            "  ) " & _
+            "AS " & _
+            "  DECLARE TotalDocKey         dintkey; " & _
+            "  DECLARE CurMonth            INTEGER; " & _
+            "  DECLARE CurYear             INTEGER; " & _
+            "  DECLARE IncDate             DATE; " & _
+            "  DECLARE DetStr              VARCHAR(240); " & _
+            "  DECLARE IncMonth            INTEGER; " & _
+            "  DECLARE IncYear             INTEGER; " & _
+            "  DECLARE How                 DECIMAL(15,2); " & _
+            "  DECLARE Dow                 DECIMAL(15,2); " & _
+            "  DECLARE FeeTypeName         VARCHAR(90); " & _
+            "  DECLARE typeId              VARCHAR(22); " & _
+            "  DECLARE Category            VARCHAR(60); " & _
+            "  DECLARE S                   DECIMAL(15,4); " & _
+            "  DECLARE OnDateBegin         DATE; " & _
+            "  DECLARE OnDateEnd           DATE; " & _
+            "  DECLARE EndSaldo            DECIMAL(15,4); " & _
+            "  DECLARE code                VARCHAR(8); " & _
+            "  DECLARE DBJson              VARCHAR(20); " & _
+            "  DECLARE DEJson              VARCHAR(20); " & _
+            "BEGIN " & _
+            "  FOR " & _
+            "    SELECT " & _
+            "      p.NICKNAME                  AS NickName, " & _
+            "      CAST(r.XID AS VARCHAR(14)) || '_' || CAST(r.DBID AS VARCHAR(14)) AS EmployeeRuid, " & _
+            "      tline.USR$EMPLKEY          AS EmployeeKey, " & _
+            "      t.DOCUMENTKEY               AS TotalDocKey, " & _
+            "      t.USR$DATEBEGIN             AS OnDateBegin, " & _
+            "      t.USR$DATEEND               AS OnDateEnd, " & _
+            "      SUM(tline.USR$ENDSALDO) " & _
+            "    FROM USR$WG_TOTAL t " & _
+            "      LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
+            "      LEFT JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
+            "      LEFT JOIN USR$WG_P_EMPLMOVESTATE(tline.USR$EMPLKEY, t.USR$DATEEND) state ON 1 = 1 " & _
+            "      LEFT JOIN USR$WG_MOVEMENTLINE ml ON ml.DOCUMENTKEY = state.ID " & _
+            "      LEFT JOIN GD_CONTACT dep ON dep.ID = ml.USR$DEPTKEY " & _
+            "      LEFT JOIN WG_POSITION pos ON pos.ID = ml.USR$POSITIONKEY " & _
+            "      LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = tline.USR$EMPLKEY " & _
+            "      JOIN usr$wg_emplworkterm workterm ON workterm.USR$FIRSTMOVEKEY = ml.USR$FIRSTMOVE " & _
+            "      LEFT JOIN USR$WG_P_EMPLCARDSTATE(tline.USR$EMPLKEY, :pDateE) pcard ON 1 = 1 " & _
+            "      LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
+            "      LEFT JOIN GD_P_GETRUID(p.CONTACTKEY) r ON 1 = 1 " & _
+            "    WHERE COALESCE(card.USR$PERSONALNUMBER, '') <> '' AND " & _
+            "      t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
+            "      AND (ml.USR$MOVEMENTTYPE <> 3 OR tline.USR$CREDIT <> 0 OR tline.USR$DEBIT <> 0) " & _
+            "      AND doc.COMPANYKEY = :companyId " & _
+            "      AND (workterm.USR$DATEEND > :pDateB OR workterm.USR$DATEEND IS NULL) " & _
+            "    GROUP BY 1,2,3,4,5,6 " & _
+            "    ORDER BY NickName, EmployeeRuid, t.USR$DATEBEGIN " & _
+            "    INTO :NickName, :EmployeeRuid, :EmployeeKey, :TotalDocKey,  :OnDateBegin, :OnDateEnd, :EndSaldo " & _
+            "    DO " & _
+            "    BEGIN " & _
+            "      CurMonth = EXTRACT(MONTH FROM OnDateBegin); " & _
+            "      CurYear = EXTRACT(YEAR FROM OnDateBegin); " & _
+            "      accdedStr = ''; " & _
+            "      DBJson = EXTRACT(YEAR FROM OnDateBegin) || '.' || RIGHT('0' || EXTRACT(MONTH FROM OnDateBegin), 2) || '.' || RIGHT('0' || EXTRACT(DAY FROM OnDateBegin), 2); " & _
+            "      DEJson = EXTRACT(YEAR FROM OnDateEnd) || '.' || RIGHT('0' || EXTRACT(MONTH FROM OnDateEnd), 2) || '.' || RIGHT('0' || EXTRACT(DAY FROM OnDateEnd), 2); " & _
+            "      FOR " & _
+            "        SELECT ft.USR$NUMERICCODE, " & _
+            "          ft.USR$NAME                          AS Name, " & _
+            "          CAST(r.XID AS VARCHAR(14)) || '_' || CAST(r.DBID AS VARCHAR(14)) AS typeId, " & _
+            "          it.USR$DATEBEGIN                     AS IncDate, " & _
+            "          EXTRACT(MONTH FROM it.USR$DATEBEGIN) AS IncMonth, " & _
+            "          EXTRACT(YEAR FROM  it.USR$DATEBEGIN) AS IncYear, " & _
+            "          CASE " & _
+            "            WHEN ft.ID = <RUID XID = 147653395 DBID = 119619099/> THEN 'PENSION_TAX' " & _
+            "            WHEN ft.ID = <RUID XID = 147567139 DBID = 119619099/> THEN 'INCOME_TAX' " & _
+            "            WHEN ft.ID = <RUID XID = 147653396 DBID = 119619099/> THEN 'TRADE_UNION_TAX'  /*налог*/ " & _
+            "            WHEN NOT gr_adv.FEETYPE IS NULL THEN 'ADVANCE'                    /*аванс*/ " & _
+            "            WHEN COALESCE(ft.USR$DEDUCTION, 0) = 1 THEN 'DEDUCTION'           /*удержание*/ " & _
+            "            ELSE 'ACCRUAL'                                                    /*начисление*/ " & _
+            "          END  AS Category, " & _
+            "          SUM( IIF(ft.ID IN (<RUID XID = 147653395 DBID = 119619099/>, " & _
+            "                             <RUID XID = 147567139 DBID = 119619099/>, " & _
+            "                             <RUID XID = 147653396 DBID = 119619099/>) " & _
+            "                             OR NOT gr_adv.FEETYPE IS NULL " & _
+            "                             OR COALESCE(ft.USR$DEDUCTION, 0) = 1, " & _
+            "                             cr.USR$CREDIT, cr.USR$DEBIT  ) ) AS S, " & _
+            "          SUM(cr.USR$HOW)                      AS How, " & _
+            "          SUM(cr.USR$DOW)                      AS Dow " & _
+            "        FROM USR$WG_TBLCHARGE cr " & _
+            "        LEFT JOIN USR$WG_TOTAL it ON it.DOCUMENTKEY = cr.USR$INCDOCKEY " & _
+            "        LEFT JOIN USR$WG_FEETYPE ft ON ft.ID = cr.USR$FEETYPEKEY " & _
+            "        LEFT JOIN USR$WG_P_GETFEETYPEBYGROUP(<RUID XID = 184134911 DBID = 1194748640/>) gr_adv ON gr_adv.FEETYPE = ft.ID " & _
+            "        LEFT JOIN GD_P_GETRUID(ft.ID) r ON 1 = 1 " & _
+            "        WHERE cr.USR$TOTALDOCKEY = :TotalDocKey " & _
+            "          AND cr.USR$EMPLKEY = :EmployeeKey " & _
+            "          AND ft.ID <> <RUID XID = 147582378 DBID = 119619099/> /*выдача заплаты*/ " & _
+            "          AND (cr.USR$CREDIT <> 0 OR cr.USR$DEBIT <> 0) " & _
+            "        GROUP BY 1, 2, 3, 4, 5, 6, 7 " & _
+            "        ORDER BY ft.USR$NUMERICCODE " & _
+            "        INTO :code, :FeeTypeName, :typeId, " & _
+            "             :IncDate, :IncMonth, :IncYear, :Category, " & _
+            "             :S, :How, :Dow " & _
+            "      DO " & _
+            "        BEGIN " & _
+            "          IF (How IS NULL) THEN How = 0; " & _
+            "          IF (Dow IS NULL) THEN Dow = 0; " & _
+            "          detStr = ''; " & _
+            "          IF  (IncMonth <> CurMonth OR IncYear <> CurYear OR How > 0 OR Dow > 0 ) THEN " & _
+            "          BEGIN " & _
+            "            IF (Dow > 0) THEN " & _
+            "            BEGIN " & _
+            "              detStr = detStr || '""days"":' || Dow; " & _
+            "            END " & _
+            "            IF (How > 0) THEN " & _
+            "            BEGIN " & _
+            "              IF (detStr <> '') THEN " & _
+            "                BEGIN " & _
+            "                  detStr = detStr || ','; " & _
+            "                END " & _
+            "              detStr = detStr || '""hours"":' || How; " & _
+            "            END " & _
+            "            IF  (IncMonth <> CurMonth OR IncYear <> CurYear) THEN " & _
+            "            BEGIN " & _
+            "              IF (detStr <> '') THEN " & _
+            "                BEGIN " & _
+            "                  detStr = detStr || ','; " & _
+            "                END " & _
+            "              detStr = detStr || '""incMonth"":' || IncMonth || ','; " & _
+            "              detStr = detStr || '""incYear"":' || IncYear; " & _
+            "            END " & _
+            "            ELSE " & _
+            "              BEGIN " & _
+            "              IncMonth = 0; " & _
+            "              IncYear = 0; " & _
+            "              END " & _
+            "            detStr = '""det"": {' || detStr || '}'; " & _
+            "          END " & _
+            "          ELSE " & _
+            "            BEGIN " & _
+            "              IncMonth = 0; " & _
+            "              IncYear = 0; " & _
+            "            END " & _
+            "          IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
+            "          accdedStr = accdedStr || '{""typeId"":""' || typeId || '"",""db"":""' || DBJson || " & _
+            "            '"",""de"":""' || DEJson || " & _
+            "            '"",""s"":' || S; " & _
+            "          IF (detStr <> '') THEN accdedStr = accdedStr || ',' || detStr; " & _
+            "          accdedStr = accdedStr || '}'; " & _
+            "        END " & _
+            "      FeeTypeName = ''; " & _
+            "      S = 0; " & _
+            "      IncMonth = 0; " & _
+            "      IncYear = 0; " & _
+            "      How = 0; " & _
+            "      Dow = 0; " & _
+            " " & _
+            "      /*льготы*/ " & _
+            "      FOR " & _
+            "        SELECT pt.USR$CODE, " & _
+            "          pt.USR$NAME        AS Name, " & _
+            "          CAST(r.XID AS VARCHAR(14)) || '_' || CAST(r.DBID AS VARCHAR(14)) AS typeId, " & _
+            "          'PRIVILAGE'        AS Category, " & _
+            "          SUM(cha.USR$SUMMA) AS Summa " & _
+            "        FROM USR$WG_CHREGADDINFO cha " & _
+            "         JOIN USR$WG_PRIVILEGETYPE pt ON pt.ID = cha.USR$PRIVTYPEKEY " & _
+            "         LEFT JOIN GD_P_GETRUID(pt.ID) r ON 1 = 1 " & _
+            "        WHERE cha.USR$EMPLKEY = :EmployeeKey " & _
+            "          AND cha.USR$TOTALDOCKEY = :TotalDocKey " & _
+            "        GROUP BY 1, 2, 3, 4 " & _
+            "        HAVING SUM(cha.USR$SUMMA) <> 0 " & _
+            "        ORDER BY pt.USR$CODE " & _
+            "        INTO :code, :FeeTypeName, :typeId, :Category, :S " & _
+            "      DO " & _
+            "        BEGIN " & _
+            "          IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
+            "          accdedStr = accdedStr || '{""typeId"":""' || typeId || " & _
+            "            '"",""db"":""' || DBJson || " & _
+            "            '"",""de"":""' || DEJson || " & _
+            "            '"",""s"":' || S || '}'; " & _
+            "        END " & _
+            " " & _
+            "      /* вычеты*/ " & _
+            "      FOR " & _
+            "        SELECT dt.USR$CODE, " & _
+            "          dt.USR$NAME        AS Name, " & _
+            "          CAST(r.XID AS VARCHAR(14)) || '_' || CAST(r.DBID AS VARCHAR(14)) AS typeId, " & _
+            "          'TAX_DEDUCTION'    AS Category, " & _
+            "          SUM(cha.USR$SUMMA) AS Summa " & _
+            "        FROM USR$WG_CHREGADDINFO cha " & _
+            "          JOIN USR$WG_TAXINCOMDEDEDUCTTYPE dt ON dt.ID = cha.USR$INCTAXDEDTYPEKEY " & _
+            "          LEFT JOIN GD_P_GETRUID(dt.ID) r ON 1 = 1 " & _
+            "        WHERE cha.USR$EMPLKEY = :EmployeeKey " & _
+            "          AND cha.USR$TOTALDOCKEY = :TotalDocKey " & _
+            "          AND cha.USR$SUMMA <> 0 " & _
+            "        GROUP BY 1, 2, 3, 4 " & _
+            "        HAVING SUM(cha.USR$SUMMA) <> 0 " & _
+            "        ORDER BY dt.USR$CODE " & _
+            "        INTO  :code, :FeeTypeName, :typeId, :Category, :S " & _
+            "      DO " & _
+            "        BEGIN " & _
+            "          IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
+            "          accdedStr = accdedStr || '{""typeId"":""' || typeId || " & _
+            "            '"",""db"":""' || DBJson || " & _
+            "            '"",""de"":""' || DEJson || " & _
+            "            '"",""s"":' || S || '}'; " & _
+            "        END " & _
+            " " & _
+            "      /*Сальдо на конец*/ " & _
+            "      FeeTypeName = 'Сальдо на конец'; " & _
+            "      typeId = 'saldo'; " & _
+            "      Category = 'SALDO'; " & _
+            "      S = EndSaldo; " & _
+            "      IF (accdedStr <> '') THEN accdedStr = accdedStr || ','; " & _
+            "          accdedStr = accdedStr || '{""typeId"":""' || typeId || " & _
+            "            '"",""db"":""' || DBJson || " & _
+            "            '"",""de"":""' || DEJson || " & _
+            "            '"",""s"":' || S || '}'; " & _
+            " " & _
+            "      IF (accdedStr <> '') THEN SUSPEND; " & _
+            " " & _
+            "    END " & _
+            "END; "
+        
+          qSel.ParamByName("DB").AsDateTime = Period(0)
+          qSel.ParamByName("DE").AsDateTime = Period(1)
+          qSel.ParamByName("pDateB").AsDateTime = pDateB
+          qSel.ParamByName("pDateE").AsDateTime = pDateE
+          qSel.ParamByName("companyId").AsInteger = companyId
+          qSel.ExecQuery
+        
+          dim qSelDep
+          set qSelDep = Creator.GetObject(nil, "TIBSQL", "")
+          qSelDep.Transaction = Transaction
+          qSelDep.SQL.Text = _
+            "EXECUTE BLOCK (EmplKey dintkey = :EmplKey, CompanyId dintkey = :CompanyId) " & _
+            "  RETURNS( " & _
+            "    JSON_POS       VARCHAR(4000), " & _
+            "    JSON_SALARY    VARCHAR(4000), " & _
+            "    JSON_HOURRATE  VARCHAR(4000), " & _
+            "    JSON_DEPT      VARCHAR(4000), " & _
+            "    JSON_SCHEDULE VARCHAR(4000), " & _
+            "    JSON_PAYFORM   VARCHAR(4000)) " & _
+            "AS " & _
+            "  DECLARE VARIABLE PosID VARCHAR(50); " & _
+            "  DECLARE VARIABLE DeptID VARCHAR(50); " & _
+            "  DECLARE VARIABLE ScheduleID VARCHAR(50); " & _
+            "  DECLARE VARIABLE PrevScheduleID VARCHAR(50) = ''; " & _
+            "  DECLARE VARIABLE PrevPosID VARCHAR(50) = ''; " & _
+            "  DECLARE VARIABLE PrevDeptID VARCHAR(50) = ''; " & _
+            "  DECLARE VARIABLE PosName VARCHAR(1024); " & _
+            "  DECLARE VARIABLE DeptName VARCHAR(1024); " & _
+            "  DECLARE VARIABLE Salary NUMERIC(15, 4); " & _
+            "  DECLARE VARIABLE PrevSalary NUMERIC(15, 4); " & _
+            "  DECLARE VARIABLE HourRate NUMERIC(15, 4); " & _
+            "  DECLARE VARIABLE PrevHourRate NUMERIC(15, 4); " & _
+            "  DECLARE VARIABLE D DATE; " & _
+            "  DECLARE VARIABLE DJson VARCHAR(20); " & _
+            "  DECLARE VARIABLE PayFormKey dforeignkey; " & _
+            "  DECLARE VARIABLE PrevFormKey dforeignkey; " & _
+            "BEGIN " & _
+            "  JSON_POS = ''; " & _
+            "  JSON_DEPT = ''; " & _
+            "  JSON_SALARY = ''; " & _
+            "  JSON_HOURRATE = ''; " & _
+            "  JSON_PAYFORM = ''; " & _
+            "  JSON_SCHEDULE = ''; " & _
+            "  PrevSalary = -1; " & _
+            "  PrevHourRate = -1; " & _
+            "  PrevFormKey = -1; " & _
+            "  PrevScheduleID = -1; " & _
+            " " & _
+            "  FOR " & _
+            "    SELECT " & _
+            "      CAST(rPos.XID AS VARCHAR(14)) || '_' || CAST(rPos.DBID AS VARCHAR(14)), " & _
+            "      Trim(Replace(Replace(Replace(Replace(Replace(pos.NAME, '\', '\\'), '""', '\""'), '" & vbCrLf & "', '\n'), '" & vbTab & "', '\t'), '" & vbCr & "', '\n')), " & _
+            "      CAST(rDept.XID AS VARCHAR(14)) || '_' || CAST(rDept.DBID AS VARCHAR(14)), " & _
+            "      Trim(Replace(Replace(Replace(Replace(Replace(dept.NAME, '\', '\\'), '""', '\""'), '" & vbCrLf & "', '\n'), '" & vbTab & "', '\t'), '" & vbCr & "', '\n')), " & _
+            "      CAST(rSch.XID AS VARCHAR(14)) || '_' || CAST(rSch.DBID AS VARCHAR(14)), " & _
+            "      ml.USR$MSALARY, " & _
+            "      ml.USR$MHOURRATE, " & _
+            "      ml.USR$DATEBEGIN, " & _
+            "      COALESCE(ml.USR$PAYFORMKEY, 0) " & _
+            "    FROM " & _
+            "      USR$WG_MOVEMENTLINE ml " & _
+            "      LEFT JOIN WG_POSITION pos ON pos.ID = ml.USR$POSITIONKEY " & _
+            "      LEFT JOIN GD_CONTACT dept ON dept.ID = ml.USR$DEPTKEY " & _
+            "      LEFT JOIN GD_P_GETRUID(pos.ID) rPos ON 1 = 1 " & _
+            "      LEFT JOIN GD_P_GETRUID(dept.ID) rDept ON 1 = 1 " & _
+            "      LEFT JOIN GD_DOCUMENT doc ON doc.ID = ml.DOCUMENTKEY " & _
+            "      LEFT JOIN GD_P_GETRUID(ml.USR$SCHEDULEKEY) rSch ON 1 = 1 " & _
+            "    WHERE ml.USR$EMPLKEY = :EmplKey " & _
+            "      AND ml.USR$MOVEMENTTYPE NOT IN (3, 7) " & _
+            "      AND doc.COMPANYKEY = :CompanyId " & _
+            "      AND ml.USR$KINDOFWORKKEY <> <RUID XID =147017406 DBID = 119619099/> /*не внутреннее совмещение*/ " & _
+            "    ORDER BY " & _
+            "      ml.USR$DATEBEGIN " & _
+            "    INTO " & _
+            "      :PosID, :PosName, :DeptID, :DeptName, :ScheduleID, :Salary, :HourRate, :D, :PayFormKey " & _
+            "  DO BEGIN " & _
+            "    /* может быть ситуация, когда будет документ изменения, но должность      */ " & _
+            "    /* останется прежней. такие записи нас не интересуют с т.зр. формирования */ " & _
+            "    /* расчетного листка                                                      */ " & _
+            "    DJson = EXTRACT(YEAR FROM :D) || '.' || RIGHT('0' || EXTRACT(MONTH FROM :D), 2) || '.' || RIGHT('0' || EXTRACT(DAY FROM :D), 2); " & _
+            "    IF (:PosID <> :PrevPosID) THEN " & _
+            "    BEGIN " & _
+            " " & _
+            "      IF (:JSON_POS > '') THEN " & _
+            "      BEGIN " & _
+            "        JSON_POS = :JSON_POS || ','; " & _
+            "      END " & _
+            " " & _
+            "      JSON_POS = :JSON_POS || '{""id"":""' || :PosID " & _
+            "        || '"",""name"":{""ru"":{""name"":""' || :PosName " & _
+            "        || '""}},""d"":""' || :DJson || '""}'; " & _
+            "    END " & _
+            " " & _
+            "    IF (:DeptID <> :PrevDeptID) THEN " & _
+            "    BEGIN " & _
+            " " & _
+            "      IF (:JSON_DEPT > '') THEN " & _
+            "      BEGIN " & _
+            "        JSON_DEPT = :JSON_DEPT || ','; " & _
+            "      END " & _
+            " " & _
+            "      JSON_DEPT = :JSON_DEPT || '{""id"":""' || :DeptID " & _
+            "        || '"",""name"":{""ru"":{""name"":""' || :DeptName " & _
+            "        || '""}},""d"":""' || :DJson || '""}'; " & _
+            "    END " & _
+            " " & _
+            "    IF (:Salary <> :PrevSalary) THEN " & _
+            "    BEGIN " & _
+            " " & _
+            "      IF (:JSON_SALARY > '') THEN " & _
+            "      BEGIN " & _
+            "        JSON_SALARY = :JSON_SALARY || ','; " & _
+            "      END " & _
+            " " & _
+            "      JSON_SALARY = :JSON_SALARY || '{""s"":' || salary " & _
+            "        || ',""d"":""' || :DJson || '""}'; " & _
+            "    END " & _
+            " " & _
+            "    IF (:HourRate <> :PrevHourRate) THEN " & _
+            "    BEGIN " & _
+            " " & _
+            "      IF (:JSON_HOURRATE > '') THEN " & _
+            "      BEGIN " & _
+            "        JSON_HOURRATE = :JSON_HOURRATE || ','; " & _
+            "      END " & _
+            " " & _
+            "      JSON_HOURRATE = :JSON_HOURRATE || '{""s"":' || HourRate " & _
+            "        || ',""d"":""' || :DJson || '""}'; " & _
+            "    END " & _
+            "     " & _
+            "    IF (:PayFormKey <> :PrevFormKey) THEN " & _
+            "    BEGIN " & _
+            " " & _
+            "      IF (:JSON_PAYFORM > '') THEN " & _
+            "      BEGIN " & _
+            "        JSON_PAYFORM = :JSON_PAYFORM || ','; " & _
+            "      END " & _
+            " " & _
+            "      JSON_PAYFORM = :JSON_PAYFORM || '{""slr"":' || IIF(:PayFormKey = <RUID XID =147009181 DBID = 119619099/> /*форма оплаты - оклад*/, 'true', 'false') " & _
+            "        || ',""d"":""' || :DJson || '""}'; " & _
+            "    END " & _
+            "     " & _
+            "    IF (:ScheduleID <> :PrevScheduleID) THEN " & _
+            "    BEGIN " & _
+            " " & _
+            "      IF (:JSON_SCHEDULE > '') THEN " & _
+            "      BEGIN " & _
+            "        JSON_SCHEDULE = :JSON_SCHEDULE || ','; " & _
+            "      END " & _
+            " " & _
+            "      JSON_SCHEDULE = :JSON_SCHEDULE || '{""id"":""' || :ScheduleID " & _
+            "        || '"",""d"":""' || :DJson || '""}'; " & _
+            "    END " & _
+            " " & _
+            "    PrevPosID = :PosID; " & _
+            "    PrevDeptID = :DeptID; " & _
+            "    PrevSalary = :Salary; " & _
+            "    PrevHourRate = :HourRate; " & _
+            "    PrevFormKey = :PayFormKey; " & _
+            "    PrevScheduleID = :ScheduleID; " & _
+            "  END " & _
+            " " & _
+            "  JSON_POS = '[' || JSON_POS || ']'; " & _
+            "  JSON_DEPT = '[' || JSON_DEPT || ']'; " & _
+            "  JSON_SALARY = '[' || JSON_SALARY || ']'; " & _
+            "  JSON_HOURRATE = '[' || JSON_HOURRATE || ']'; " & _
+            "  JSON_PAYFORM = '[' || JSON_PAYFORM || ']'; " & _
+            "  JSON_SCHEDULE = '[' || JSON_SCHEDULE || ']'; " & _
+            "  SUSPEND; " & _
+            "END "
+        
+        
+          dim employeeItems, objItem, JsonDept, JsonPos, JsonSalary, EmployeeRuid, JsonPayForm, JsonSchedule
+          dim emplkey_prev, hiringdate_prev, nickname_prev
+        
+          EmployeeRuid = ""
+          dim canceled, strData, JsonHourRate
+          canceled = false
+          while not qSel.eof and not canceled
+            if qSel.FieldByName("EmployeeRuid").AsString <> EmployeeRuid and EmployeeRuid <> "" then
+              if isManual then
+                canceled = P.Canceled
+                P.StartStep "Сотрудник: " & nickname_prev, 1
+              end if
+              'добавляем запись по сотруднику
+              qSelDep.Close
+              qSelDep.ParamByName("EmplKey").AsInteger = emplkey_prev
+              qSelDep.ParamByName("CompanyId").AsInteger = companyId
+              qSelDep.ExecQuery
+              JsonDept = qSelDep.FieldByName("JSON_DEPT").AsString
+              JsonPos = qSelDep.FieldByName("JSON_POS").AsString
+              JsonSalary = qSelDep.FieldByName("JSON_SALARY").AsString
+              JsonPayForm = qSelDep.FieldByName("JSON_PAYFORM").AsString
+              JsonSchedule = qSelDep.FieldByName("JSON_SCHEDULE").AsString
+              if qSelDep.FieldByName("JSON_HOURRATE").AsString <> "" then
+                JsonHourRate = """hourrate"":" & qSelDep.FieldByName("JSON_HOURRATE").AsString & ","
+              end if
+        
+              objItem = "{""emplId"":""" & EmployeeRuid & """," & _
+                """dept"":" & JsonDept & "," & _
+                """pos"":" & JsonPos & "," & _
+                """salary"":" & JsonSalary & "," & _
+                """payForm"":" & JsonPayForm & "," & _
+                """schedule"":" & JsonSchedule & "," & _
+                JsonHourRate & _
+                """data"": [" & employeeItems & "]"  & _
+                "}"
+        
+              Jsons.Add("{""version"":""1.0""," & _
+                """customerId"":""" & customerId & """," & _
+                """rewrite"":" & b & "," & _
+                """objData"":" & objItem & "}")
+              employeeItems = ""
             end if
-          next
+        
+            if employeeItems <> "" then employeeItems = employeeItems & ","
+            employeeItems = employeeItems & qSel.FieldByName("accdedStr").AsString
+            EmployeeRuid = qSel.FieldByName("EmployeeRuid").AsString
+            emplkey_prev = qSel.FieldByName("EmployeeKey").AsInteger
+            nickname_prev = qSel.FieldByName("NickName").AsString
+            qSel.Next
+          wend
+        
+          if EmployeeRuid <> "" then
+            if isManual then P.StartStep "Сотрудник: " & qSel.FieldByName("NickName").AsString, 1
+            'добавляем запись по сотруднику
+            qSelDep.Close
+            qSelDep.ParamByName("EmplKey").AsInteger = qSel.FieldByName("EmployeeKey").AsInteger
+            qSelDep.ParamByName("CompanyId").AsInteger = companyId
+            qSelDep.ExecQuery
+            JsonDept = qSelDep.FieldByName("JSON_DEPT").AsString
+            JsonPos = qSelDep.FieldByName("JSON_POS").AsString
+            JsonPayForm = qSelDep.FieldByName("JSON_PAYFORM").AsString
+            JsonSalary = qSelDep.FieldByName("JSON_SALARY").AsString
+            JsonSchedule = qSelDep.FieldByName("JSON_SCHEDULE").AsString
+            if qSelDep.FieldByName("JSON_HOURRATE").AsString <> "" then
+              JsonHourRate = """hourrate"":" & qSelDep.FieldByName("JSON_HOURRATE").AsString & ","
+            end if
+        
+            objItem = "{""emplId"":""" & qSel.FieldByName("EmployeeRuid").AsString & """," & _
+              """dept"":" & JsonDept & "," & _
+              """pos"":" & JsonPos & "," & _
+              """salary"":" & JsonSalary & "," & _
+              """payForm"":" & JsonPayForm & "," & _
+              """schedule"":" & JsonSchedule & "," & _
+              JsonHourRate & _
+              """data"": [" & employeeItems & "]"  & _
+              "}"
+        
+            Jsons.Add("{""version"":""1.0""," & _
+              """customerId"":""" & customerId & """," & _
+              """rewrite"":" & b & "," & _
+              """objData"":" & objItem & "}")
+          end if
+        
+          if Transaction.InTransaction then
+            Transaction.Commit
+          end if
+        
+          if isManual then P.EndWork "Данные по расчетным листкам отправлены на сервер!", False
         End Function
+        
+        sub bot_PreparePaySlip_RollBack(Transaction)
+          if Transaction.InTransaction then
+            Transaction.Rollback
+          end if
+        end sub
         
     Set: 
       - 
         Table: "RP_ADDITIONALFUNCTION"
         Items: 
           - 
-            ADDFUNCTIONKEY: "1193785048_1320926324 bot_SendFile"
-          - 
-            ADDFUNCTIONKEY: "1193785764_1320926323 bot_PreparePaySlips"
+            ADDFUNCTIONKEY: "1630087190_1913435101 bot_GetLastTotalDocPeriod"
   - 
     Properties: 
       Class: "TgdcFunction"
-      RUID: 158513032_1444931844
+      RUID: 1193785027_1320926323
       AlwaysOverwrite: False
       DontRemove: False
       IncludeSiblings: False
-      HeadObject: 1437186325_1434991069
     Fields: 
-      NAME: "bot_exportAccDedsU"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:24+03:00
-      MODULE: "UNKNOWN"
-      MODULECODE: "1010001_17 APPLICATION"
-      OBJECTNAME: "APPLICATION"
-      OWNERNAME: ~
-      PREPAREDBYPARSER: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: 0
-      EDITIONDATE: 2020-07-06T13:32:57+03:00
-      DISPLAYSCRIPT: | 
-        BOT_EXPORTACCDEDSU
-        
-      ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        AAAAAEZOU1RQUlNUAwAAAFVSTAMAAABVUkwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARk5TVFBS
-        U1QIAAAASVNNQU5VQUwIAAAASVNNQU5VQUwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARk5TVEZM
-        UFI=
-      SCRIPT: | 
-        '#include BOT_SENDFILE
-        '#include BOT_PREPAREACCDEDS
-        Option Explicit
-        Function bot_exportAccDedsU(customerId, URL, isManual)
-          dim Json, Creator
-          set Creator = new TCreator
-          set Json = Creator.GetObject(nil, "TStringList", "")
-          'Формирование Json файла со списком начислений/удержаний
-          call bot_PrepareAccDeds(customerId, isManual, Json)
-          'Отправка на сервер
-          bot_exportAccDedsU = bot_SendFile(Json.Text, URL)
-        End Function
-        
-    Set: 
-      - 
-        Table: "RP_ADDITIONALFUNCTION"
-        Items: 
-          - 
-            ADDFUNCTIONKEY: "1193785048_1320926324 bot_SendFile"
-          - 
-            ADDFUNCTIONKEY: "1193785027_1320926323 bot_PrepareAccDeds"
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 158513034_1444931844
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-      HeadObject: 1437186325_1434991069
-    Fields: 
-      NAME: "bot_exportEmployeesU"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:24+03:00
-      MODULE: "UNKNOWN"
-      MODULECODE: "1010001_17 APPLICATION"
-      OBJECTNAME: "APPLICATION"
-      OWNERNAME: ~
-      PREPAREDBYPARSER: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: 0
-      EDITIONDATE: 2020-06-23T12:05:57+03:00
-      DISPLAYSCRIPT: | 
-        BOT_EXPORTEMPLOYEESU
-        
-      ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        AAAAAEZOU1RQUlNUCQAAAENPTVBBTllJRAkAAABDT01QQU5ZSUQAAAAAAAAAAAAAAAAAAAAAAAAA
-        AAAAAAAARk5TVFBSU1QDAAAAVVJMAwAAAFVSTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
-        UFJTVAgAAABJU01BTlVBTAgAAABJU01BTlVBTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
-        RkxQUg==
-      SCRIPT: | 
-        '#include BOT_PREPAREEMPLOYEES
-        '#include BOT_SENDFILE
-        Option Explicit
-        Function bot_exportEmployeesU(customerId, companyId, URL, isManual)
-          dim Json, Creator
-          set Creator = new TCreator
-          set Json = Creator.GetObject(nil, "TStringList", "")
-          'Формирование Json файла со списком всех сотрудников за период
-          call bot_PrepareEmployees(customerId, companyId, isManual, Json)
-          'Отправка на сервер
-          bot_exportEmployeesU = bot_SendFile(Json.Text, URL)
-        End Function
-        
-    Set: 
-      - 
-        Table: "RP_ADDITIONALFUNCTION"
-        Items: 
-          - 
-            ADDFUNCTIONKEY: "1437183754_1434991069 bot_PrepareEmployees"
-          - 
-            ADDFUNCTIONKEY: "1193785048_1320926324 bot_SendFile"
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 1173044690_1450749196
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-      HeadObject: 1173044824_1450749196
-    Fields: 
-      NAME: "bot_exportTimeSheetsU"
+      NAME: "bot_PrepareAccDeds"
       COMMENT: ~
       EVENT: ~
       FUNCTIONTYPE: ~
@@ -614,58 +724,766 @@ Objects:
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
-      PREPAREDBYPARSER: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2020-07-06T13:32:43+03:00
+      DISPLAYSCRIPT: | 
+        BOT_PREPAREACCDEDS
+        BOT_PREPAREACCDED_ROLLBACK
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAEZOU1RQUlNUCAAAAElTTUFOVUFMCAAAAElTTUFOVUFMAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAEZOU1RQUlNUBAAAAEpTT04EAAAASlNPTgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
+        RkxQUg==
+      SCRIPT: | 
+        '#include BOT_STRREPL
+        Option Explicit
+        Function bot_prepareAccDeds(customerId, isManual, ByRef Json)
+          dim Creator, Transaction
+          set Creator = new TCreator
+          set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
+          Transaction.Defaultdatabase = IBLogin.Database
+          if not Transaction.InTransaction then
+            Transaction.StartTransaction
+          end if
+        
+          except bot_prepareAccDed_RollBack(Transaction)
+        
+          if isManual then
+            dim qSelCount
+            set qSelCount = Creator.GetObject(nil, "TIBSQL", "")
+            qSelCount.Transaction = gdcBaseManager.ReadTransaction
+            qSelCount.SQL.Text = _
+              "SELECT COUNT(DISTINCT sel.ID) AS C " & _
+              "FROM " & _
+              "(SELECT ft.ID " & _
+              "FROM USR$WG_FEETYPE ft " & _
+              "  LEFT JOIN USR$WG_P_GETFEETYPEBYGROUP(<RUID XID = 184134911 DBID = 1194748640/>) gr_adv ON gr_adv.FEETYPE = ft.ID " & _
+              "  LEFT JOIN GD_P_GETRUID(ft.ID) r ON 1 = 1 " & _
+              " " & _
+              "UNION ALL " & _
+              "SELECT pt.ID " & _
+              "FROM  USR$WG_PRIVILEGETYPE pt " & _
+              "LEFT JOIN GD_P_GETRUID(pt.ID) r ON 1 = 1 " & _
+              " " & _
+              "UNION ALL " & _
+              "SELECT d.ID " & _
+              "FROM USR$WG_TAXINCOMDEDEDUCTTYPE d " & _
+              "LEFT JOIN GD_P_GETRUID(d.ID) r ON 1 = 1 " & _
+              ") sel "
+            qSelCount.ExecQuery
+        
+            dim count
+            count = qSelCount.FieldByName("C").AsInteger
+        
+            dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
+            P.StartWork "ZarobakBot", "Формируем данные..", count, True, True
+          end if
+        
+          dim qSel
+          set qSel = Creator.GetObject(nil, "TIBSQL", "")
+          qSel.Transaction = Transaction
+          qSel.SQL.Text = _
+            "SELECT ft.USR$NUMERICCODE AS N, " & _
+            "  CASE " & _
+            "    WHEN ft.ID = <RUID XID = 147653395 DBID = 119619099/> THEN 'PENSION_TAX' " & _
+            "    WHEN ft.ID = <RUID XID = 147567139 DBID = 119619099/> THEN 'INCOME_TAX' " & _
+            "    WHEN ft.ID = <RUID XID = 147653396 DBID = 119619099/> THEN 'TRADE_UNION_TAX'  /*налог*/ " & _
+            "    WHEN NOT gr_adv.FEETYPE IS NULL THEN 'ADVANCE'                        /*аванс*/ " & _
+            "    WHEN COALESCE(ft.USR$DEDUCTION, 0) = 1 THEN 'DEDUCTION'               /*удержание*/ " & _
+            "    ELSE 'ACCRUAL'                                                        /*начисление*/ " & _
+            "  END  AS category, " & _
+            "  REPLACE(ft.USR$NAME, '""', '\""')                                         AS name, " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12))  AS typeId " & _
+            "FROM USR$WG_FEETYPE ft " & _
+            "  LEFT JOIN USR$WG_P_GETFEETYPEBYGROUP(<RUID XID = 184134911 DBID = 1194748640/>) gr_adv ON gr_adv.FEETYPE = ft.ID " & _
+            "  LEFT JOIN GD_P_GETRUID(ft.ID) r ON 1 = 1 " & _
+            "   " & _
+            "UNION ALL " & _
+            "SELECT -1 AS N, " & _
+            "  'PRIVILAGE'    AS category, " & _
+            "  REPLACE(pt.USR$NAME, '""', '\""')    AS name, " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12)) AS typeId " & _
+            "FROM  USR$WG_PRIVILEGETYPE pt " & _
+            "LEFT JOIN GD_P_GETRUID(pt.ID) r ON 1 = 1 " & _
+            " " & _
+            "UNION ALL " & _
+            "SELECT -1 AS N, " & _
+            "  'TAX_DEDUCTION'    AS category, " & _
+            "  REPLACE(d.USR$NAME, '""', '\""')    AS name, " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12)) AS typeId " & _
+            "FROM USR$WG_TAXINCOMDEDEDUCTTYPE d " & _
+            "LEFT JOIN GD_P_GETRUID(d.ID) r ON 1 = 1 " & _
+            " " & _
+            "ORDER BY 1, 2, 3 "
+          qSel.ExecQuery
+        
+          dim canceled, strSortNumber
+          canceled = false
+          while not qSel.eof and not canceled
+            if isManual then
+              canceled = P.Canceled
+              P.StartStep "Вид начисления: " & qSel.FieldByName("name").AsString, 1
+            end if
+            if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+        
+            if qSel.FieldByName("n").AsInteger > 0 then
+              strSortNumber = """n"":""" & qSel.FieldByName("n").AsInteger & ""","
+            else
+              strSortNumber = ""
+            end if
+        
+            Json.Add("""" & qSel.FieldByName("typeId").AsString & """:{" & _
+              """type"":""" & bot_strRepl(qSel.FieldByName("category").AsString) & """," & _
+              strSortNumber & _
+              """name"":{""ru"":{""name"":""" & bot_strRepl(qSel.FieldByName("name").AsString) & """}}}")
+            qSel.Next
+          wend
+        
+          if Transaction.InTransaction then
+            Transaction.Commit
+          end if
+        
+          if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+        
+          if qSel.FieldByName("n").AsInteger > 0 then
+            strSortNumber = """n"":""" & qSel.FieldByName("n").AsInteger & ""","
+          else
+            strSortNumber = ""
+          end if
+        
+          Json.Add("""" & "saldo" & """:{" & _
+            """type"":""" & "SALDO" & """," & _
+            strSortNumber & _
+            """name"":{""ru"":{""name"":""" & "Сальдо" & """}}}")
+        
+          Json.Text = "{" & _
+            """version"":""1.0""," & _
+            """customerId"":""" & customerId & """," & _
+            """objData"":{" & Json.Text & "}" & _
+            "}"
+        
+          if isManual then
+            P.EndWork "Данные по видам начисления отправлены на сервер!", False
+          end if
+        End Function
+        
+        sub bot_prepareAccDed_RollBack(Transaction)
+          if Transaction.InTransaction then
+            Transaction.Rollback
+          end if
+        end sub
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "147160790_1454092899 bot_strRepl"
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1437183754_1434991069
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_PrepareEmployees"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
+      PUBLICFUNCTION: 1
+      SHORTCUT: ~
+      USEDEBUGINFO: 0
+      EDITIONDATE: 2022-09-12T16:27:49+03:00
+      DISPLAYSCRIPT: | 
+        BOT_PREPAREEMPLOYEES
+        BOT_PREPAREEMPLOYEES_ROLLBACK
+        
+      ENTEREDPARAMS: !!binary > 
+        U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAABQAAAAAAAAAA
+        AAAAAEZOU1RQUlNUCQAAAENPTVBBTllJRAkAAABDT01QQU5ZSUQAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAAAARk5TVFBSU1QIAAAASVNNQU5VQUwIAAAASVNNQU5VQUwAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAAAARk5TVFBSU1QEAAAASlNPTgQAAABKU09OAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZO
+        U1RGTFBS
+      SCRIPT: | 
+        '#include BOT_GETLASTTOTALDOCPERIOD
+        '#include BOT_STRREPL
+        Option Explicit
+        Function bot_prepareEmployees(customerId, companyId, isManual, ByRef Json)
+          dim Creator, Transaction
+          set Creator = new TCreator
+          set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
+          Transaction.Defaultdatabase = IBLogin.Database
+          if not Transaction.InTransaction then
+            Transaction.StartTransaction
+          end if
+        
+          except bot_prepareEmployees_RollBack(Transaction)
+        
+          'pDateE - дата окончания последнего итогового
+          'pDateB - дата начала последнего итогового
+          dim pDateB, pDateE, lastTotalDocPeriod
+          lastTotalDocPeriod = bot_GetLastTotalDocPeriod(companyId)
+          pDateB = lastTotalDocPeriod(0)
+          pDateE = lastTotalDocPeriod(1)
+        
+          if isManual then
+            dim qSelCount
+            set qSelCount = Creator.GetObject(nil, "TIBSQL", "")
+            qSelCount.Transaction = gdcBaseManager.ReadTransaction
+            qSelCount.SQL.Text = _
+              "SELECT COUNT(DISTINCT TRIM(card.USR$PERSONALNUMBER)) " & _
+              "FROM GD_CONTACT own " & _
+              "  LEFT JOIN GD_CONTACT c ON own.LB <= c.LB AND own.RB >= c.RB " & _
+              "  JOIN USR$WG_TOTALLINE l ON l.USR$EMPLKEY = c.ID " & _
+              "  JOIN GD_EMPLOYEE empl ON empl.CONTACTKEY = c.ID " & _
+              "  JOIN GD_PEOPLE p ON p.CONTACTKEY = c.ID " & _
+              "  JOIN USR$WG_EMPLWORKTERM w ON w.USR$EMPLKEY = c.ID " & _
+              "  LEFT JOIN USR$WG_P_EMPLCARDSTATE(c.ID, :pDateE) pcard ON 1 = 1 " & _
+              "  LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
+              "WHERE own.ID = :companyId " & _
+              "  AND COALESCE(TRIM(card.USR$PERSONALNUMBER), '') <> '' " & _
+              "  AND (w.USR$DATEEND > :pDateB OR w.USR$DATEEND IS NULL) "
+            qSelCount.ParamByName("companyId").AsInteger = companyId
+            qSelCount.ParamByName("pDateB").AsDateTime = pDateB
+            qSelCount.ParamByName("pDateE").AsDateTime = pDateE
+            qSelCount.ExecQuery
+        
+            dim count
+            count = qSelCount.FieldByName("C").AsInteger
+        
+            dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
+            P.StartWork "ZarobakBot", "Формируем данные..", count, True, True
+          end if
+        
+          dim qSel
+          set qSel = Creator.GetObject(nil, "TIBSQL", "")
+          qSel.Transaction = Transaction
+          qSel.SQL.Text = _
+            "SELECT DISTINCT p.SURNAME, p.FIRSTNAME, p.MIDDLENAME, " & _
+            "  TRIM(card.USR$PERSONALNUMBER)  AS PERSONALNUMBER, " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12))  AS ID, " & _
+            "  EXTRACT(YEAR FROM p.BIRTHDAY) || '.' || RIGHT('0' || EXTRACT(MONTH FROM p.BIRTHDAY), 2) || '.' || RIGHT('0' || EXTRACT(DAY FROM p.BIRTHDAY), 2) AS BIRTHDAY, " & _
+            "  c.EDITIONDATE " & _
+            "FROM GD_CONTACT own " & _
+            "  LEFT JOIN GD_CONTACT c ON own.LB <= c.LB AND own.RB >= c.RB " & _
+            "  JOIN USR$WG_TOTALLINE l ON l.USR$EMPLKEY = c.ID " & _
+            "  JOIN GD_PEOPLE p ON p.CONTACTKEY = c.ID " & _
+            "  LEFT JOIN GD_P_GETRUID(p.CONTACTKEY) r ON 1 = 1 " & _
+            "  JOIN USR$WG_EMPLWORKTERM w ON w.USR$EMPLKEY = c.ID " & _
+            "  LEFT JOIN USR$WG_P_EMPLCARDSTATE(c.ID, :pDateE) pcard ON 1 = 1 " & _
+            "  LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
+            "WHERE own.ID = :companyId " & _
+            "  AND COALESCE(TRIM(card.USR$PERSONALNUMBER), '') <> '' " & _
+            "  AND (w.USR$DATEEND > :pDateB OR w.USR$DATEEND IS NULL) " & _
+            "ORDER BY TRIM(card.USR$PERSONALNUMBER), c.EDITIONDATE DESC, p.SURNAME "
+        
+          qSel.ParamByName("companyId").AsInteger = companyId
+          qSel.ParamByName("pDateB").AsDateTime = pDateB
+          qSel.ParamByName("pDateE").AsDateTime = pDateE
+          qSel.ExecQuery
+        
+          dim canceled, persNumber
+          canceled = false
+          persNumber = ""
+          while not qSel.eof and not canceled
+            if persNumber <> qSel.FieldByName("PERSONALNUMBER").AsString then
+              if isManual then
+                canceled = P.Canceled
+                P.StartStep "Сотрудник: " & qSel.FieldByName("SURNAME").AsString & " " & qSel.FieldByName("FIRSTNAME").AsString & " " & qSel.FieldByName("MIDDLENAME").AsString, 1
+              end if
+              if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+              Json.Add("""" & qSel.FieldByName("ID").AsString & """:{" & _
+                """firstName"":""" & bot_strRepl(qSel.FieldByName("FIRSTNAME").AsString) & """," & _
+                """lastName"":""" & bot_strRepl(qSel.FieldByName("SURNAME").AsString) & """," & _
+                """patrName"":""" & bot_strRepl(qSel.FieldByName("MIDDLENAME").AsString) & """," & _
+                """birthday"":""" & qSel.FieldByName("BIRTHDAY").AsString & """," & _
+                """passportId"":""" & bot_strRepl(qSel.FieldByName("PERSONALNUMBER").AsString) & """}")
+            end if
+            persNumber = qSel.FieldByName("PERSONALNUMBER").AsString
+            qSel.Next
+          wend
+        
+          if Transaction.InTransaction then
+            Transaction.Commit
+          end if
+        
+          Json.Text = "{" & _
+            """version"":""1.0""," & _
+            """customerId"":""" & customerId & """," & _
+            """objData"":{" & Json.Text & "}" & _
+            "}"
+        
+          if isManual then P.EndWork "Данные по сотрудникам отправлены на сервер!", False
+        End Function
+        
+        sub bot_prepareEmployees_RollBack(Transaction)
+          if Transaction.InTransaction then
+            Transaction.Rollback
+          end if
+        end sub
+        
+    Set: 
+      - 
+        Table: "RP_ADDITIONALFUNCTION"
+        Items: 
+          - 
+            ADDFUNCTIONKEY: "1630087190_1913435101 bot_GetLastTotalDocPeriod"
+          - 
+            ADDFUNCTIONKEY: "147160790_1454092899 bot_strRepl"
+  - 
+    Properties: 
+      Class: "TgdcFunction"
+      RUID: 1173044672_1450749196
+      AlwaysOverwrite: False
+      DontRemove: False
+      IncludeSiblings: False
+    Fields: 
+      NAME: "bot_PrepareTimeSheets"
+      COMMENT: ~
+      EVENT: ~
+      FUNCTIONTYPE: ~
+      GROUPNAME: ~
+      INHERITEDRULE: 0
+      LANGUAGE: "VBScript"
+      LOCALNAME: ~
+      MODIFYDATE: 2020-07-10T13:04:24+03:00
+      MODULE: "UNKNOWN"
+      MODULECODE: "1010001_17 APPLICATION"
+      OBJECTNAME: "APPLICATION"
+      OWNERNAME: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-06T13:31:03+03:00
+      EDITIONDATE: 2020-07-06T19:54:49+03:00
       DISPLAYSCRIPT: | 
-        BOT_EXPORTTIMESHEETSU
+        BOT_PREPARETIMESHEETS
+        BOT_PREPARETIMESHEET_ROLLBACK
         
       ENTEREDPARAMS: !!binary > 
         U0xQUlBSU1QGAAAAUEVSSU9EBgAAAFBFUklPRAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
         UFJTVAoAAABDVVNUT01FUklECgAAAENVU1RPTUVSSUQAAAAAAAAAAAAAAAAFAAAAAAAAAAAAAAAA
         Rk5TVFBSU1QJAAAAQ09NUEFOWUlECQAAAENPTVBBTllJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-        AABGTlNUUFJTVAMAAABVUkwDAAAAVVJMAAAAAAAAAAAAAAAABQAAAAAAAAAAAAAAAEZOU1RQUlNU
-        CQAAAElTUkVXUklURQkAAABJU1JFV1JJVEUAAAAAAAAAAAAAAAAGAAAAAAAAAAAAAAAARk5TVEZM
-        UFI=
+        AABGTlNUUFJTVAkAAABJU1JFV1JJVEUJAAAASVNSRVdSSVRFAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+        AAAAAEZOU1RQUlNUBQAAAEpTT05TBQAAAEpTT05TAAAAAAAAAAAAAAAACwAAAAAAAAAAAAAAAEZO
+        U1RGTFBS
       SCRIPT: | 
-        '#include BOT_PREPARETIMESHEETS
         Option Explicit
-        '#include BOT_SENDFILE
-        Function bot_exportTimeSheetsU(Period, customerId, companyId, URL, isRewrite)
-          bot_exportTimeSheetsU = true
-          dim Jsons, i, Creator
+        Function bot_PrepareTimeSheets(Period, customerId, companyId, isRewrite, ByRef Jsons)
+          dim Creator, Transaction
           set Creator = new TCreator
-          set Jsons = Creator.GetObject(nil, "TStringList", "")
-          'Формирование списка Json файлов в разрезе сотрудника
-          call bot_PrepareTimeSheets(Period, customerId, companyId, isRewrite, Jsons)
-          'Отправим на сервер по одному
-          for i = 0 to Jsons.Count - 1
-            bot_exportTimeSheetsU = bot_SendFile(Jsons(i), URL)
-            if not bot_exportTimeSheetsU then
-              exit function
+          set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
+          Transaction.Defaultdatabase = IBLogin.Database
+          if not Transaction.InTransaction then
+            Transaction.StartTransaction
+          end if
+        
+          except bot_PrepareTimeSheet_RollBack(Transaction)
+        
+          'pDate - дата окончания последнего итогового
+          dim qSelDate, pDate
+          set qSelDate = Creator.GetObject(nil, "TIBSQL", "")
+          qSelDate.Transaction = gdcBaseManager.ReadTransaction
+          qSelDate.SQL.Text = _
+            "  SELECT FIRST 1 t.USR$DATEEND " & _
+            "  FROM USR$WG_TOTAL t " & _
+            "    JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
+            "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
+            "  WHERE doc.COMPANYKEY = :companyId " & _
+            "  ORDER BY t.USR$DATEEND DESC "
+          qSelDate.ParamByName("companyId").AsInteger = companyId
+          qSelDate.ExecQuery
+          pDate = qSelDate.FieldByName("USR$DATEEND").AsDateTime
+          Dim b
+          If isRewrite Then b = "true" Else b = "false"
+        
+          dim qSel
+          set qSel = Creator.GetObject(nil, "TIBSQL", "")
+          qSel.Transaction = Transaction
+          qSel.SQL.Text = _
+            "EXECUTE BLOCK  (DB DATE = :DB, DE DATE = :DE, PDATE DATE = :PDATE, COMPANYID dintkey = :COMPANYID) " & _
+            "RETURNS ( " & _
+            "  EmplName VARCHAR(160), " & _
+            "  EmployeeRuid VARCHAR(40), " & _
+            "  Str      VARCHAR(10000) " & _
+            "  ) " & _
+            "AS " & _
+            "DECLARE  EK           dforeignkey; " & _
+            "DECLARE  EMPLKEY      dforeignkey; " & _
+            "DECLARE  HOURTYPEKEY  dforeignkey; " & _
+            "DECLARE  WCODE        VARCHAR(10); " & _
+            "DECLARE  WHOUR        NUMERIC(15,4); " & _
+            "DECLARE  TDK          dforeignkey; " & _
+            "DECLARE  PrevTDK      dforeignkey; " & _
+            "DECLARE  WDATE        DATE; " & _
+            "DECLARE  DATEBEGIN    DATE; " & _
+            "DECLARE  DATEEND      DATE; " & _
+            "DECLARE  ISWORKDAY    INTEGER; " & _
+            "DECLARE  WDESCRIPTION VARCHAR(255); " & _
+            "DECLARE  DJSON        VARCHAR(20); " & _
+            " " & _
+            "DECLARE DOCTYPEKEY    dforeignkey; " & _
+            "DECLARE TBLFLEX       dintkey; /*Табель Мастера*/ " & _
+            "DECLARE TBLCALC       dintkey; /*Табель отработанного времени*/ " & _
+            "DECLARE JAVKA_ID      dintkey; /*тип часов - явка*/ " & _
+            "DECLARE JAVKA_CODE    varchar(255); /*тип часов - явка*/ " & _
+            "DECLARE FMK           dforeignkey; " & _
+            " " & _
+            "BEGIN " & _
+            "  Str = ''; " & _
+            "   " & _
+            "  SELECT " & _
+            "    ID " & _
+            "  FROM " & _
+            "    GD_RUID " & _
+            "  WHERE " & _
+            "    XID = 187613422 " & _
+            "    AND DBID = 1596169984 " & _
+            "  INTO " & _
+            "    :TBLFLEX; " & _
+            " " & _
+            "  SELECT " & _
+            "    ID " & _
+            "  FROM " & _
+            "    GD_RUID " & _
+            "  WHERE " & _
+            "    XID = 147015059 " & _
+            "    AND DBID = 119619099 " & _
+            "  INTO " & _
+            "    :TBLCALC; " & _
+            " " & _
+            "  SELECT " & _
+            "    r.ID " & _
+            "  FROM GD_RUID r " & _
+            "  LEFT JOIN USR$WG_HOURTYPE HT on HT.ID = r.ID " & _
+            "  WHERE r.XID = 147015029 " & _
+            "    AND r.DBID = 119619099 " & _
+            "  INTO " & _
+            "    :JAVKA_ID; " & _
+            " " & _
+            "  IF (JAVKA_ID IS NULL) THEN JAVKA_ID = -1; " & _
+            "   " & _
+            "  /* пробегаем по сотрудниками и итоговым*/ " & _
+            "  FOR " & _
+            "    SELECT  DISTINCT " & _
+            "      p.NICKNAME                  AS NickName, " & _
+            "      CAST(r.XID AS VARCHAR(14)) || '_' || CAST(r.DBID AS VARCHAR(14)) AS EmployeeRuid, " & _
+            "      tline.USR$EMPLKEY           AS EmployeeKey, " & _
+            "      t.DOCUMENTKEY               AS TotalDocKey, " & _
+            "      t.USR$DATEBEGIN, " & _
+            "      t.USR$DATEEND " & _
+            "    FROM USR$WG_TOTAL t " & _
+            "      LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
+            "      LEFT JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
+            "      LEFT JOIN USR$WG_P_EMPLMOVESTATE(tline.USR$EMPLKEY, t.USR$DATEEND) state ON 1 = 1 " & _
+            "      LEFT JOIN USR$WG_MOVEMENTLINE ml ON ml.DOCUMENTKEY = state.ID " & _
+            "      LEFT JOIN GD_CONTACT dep ON dep.ID = ml.USR$DEPTKEY " & _
+            "      LEFT JOIN WG_POSITION pos ON pos.ID = ml.USR$POSITIONKEY " & _
+            "      LEFT JOIN GD_PEOPLE p ON p.CONTACTKEY = tline.USR$EMPLKEY " & _
+            "      JOIN usr$wg_emplworkterm workterm ON workterm.USR$FIRSTMOVEKEY = ml.USR$FIRSTMOVE " & _
+            "      LEFT JOIN USR$WG_P_EMPLCARDSTATE(tline.USR$EMPLKEY, :pDate) pcard ON 1 = 1 " & _
+            "      LEFT JOIN USR$WG_PERSONALCARD card ON card.ID = pcard.ID " & _
+            "      LEFT JOIN GD_P_GETRUID(p.CONTACTKEY) r ON 1 = 1 " & _
+            "    WHERE COALESCE(card.USR$PERSONALNUMBER, '') <> '' AND " & _
+            "      t.USR$DATEBEGIN >= :DB AND t.USR$DATEEND <= :DE " & _
+            "      AND (ml.USR$MOVEMENTTYPE <> 3 OR tline.USR$CREDIT <> 0 OR tline.USR$DEBIT <> 0) " & _
+            "      AND doc.COMPANYKEY = :companyId " & _
+            "      AND (workterm.USR$DATEEND > :pDate OR workterm.USR$DATEEND IS NULL) " & _
+            "    ORDER BY NickName, EmployeeRuid, t.USR$DATEBEGIN " & _
+            " " & _
+            "    INTO :EmplName, :EmployeeRuid, :EK, :TDK, :DATEBEGIN,  :DATEEND " & _
+            "  DO " & _
+            "  BEGIN " & _
+            "    FOR " & _
+            "    SELECT DISTINCT " & _
+            "      EWT.USR$EMPLKEY " & _
+            "    , EWT.USR$FIRSTMOVEKEY " & _
+            "    , IIF((SELECT first (1) " & _
+            "             COALESCE(F.DOCUMENTKEY, -1) " & _
+            "           FROM " & _
+            "             USR$WG_TBLCAL_FLEX F " & _
+            "             JOIN GD_DOCUMENT DOC on DOC.ID = F.DOCUMENTKEY " & _
+            "                   AND DOC.DOCUMENTTYPEKEY = :TBLFLEX " & _
+            "             JOIN USR$WG_TBLCAL_FLEXLINE FL on FL.MASTERKEY = F.DOCUMENTKEY " & _
+            "           WHERE " & _
+            "             F.USR$TOTALDOCKEY = :TDK " & _
+            "             AND FL.USR$FIRSTMOVEKEY = EWT.USR$FIRSTMOVEKEY) > 0, :TBLFLEX, IIF((SELECT first (1) " & _
+            "                                                                                   COALESCE(U.DOCUMENTKEY, -1) " & _
+            "                                                                                 FROM " & _
+            "                                                                                   USR$WG_TBLCAL U " & _
+            "                                                                                   JOIN GD_DOCUMENT DOC on DOC.ID = U.DOCUMENTKEY " & _
+            "                                                                                         AND DOC.DOCUMENTTYPEKEY = :TBLCALC " & _
+            "                                                                                 WHERE " & _
+            "                                                                                   U.USR$FIRSTMOVEKEY = EWT.USR$FIRSTMOVEKEY " & _
+            "                                                                                   AND U.USR$TOTALDOCKEY = :TDK) > 0, :TBLCALC, -1)) as DOCTYPEKEY " & _
+            " " & _
+            "    FROM " & _
+            "      USR$WG_EMPLWORKTERM EWT " & _
+            "    WHERE " & _
+            "      EWT.USR$EMPLKEY = :EK " & _
+            "      AND EWT.USR$DATEBEGIN <= :DATEEND " & _
+            "      AND ((EWT.USR$DATEEND >= :DATEBEGIN) " & _
+            "      OR (EWT.USR$DATEEND IS NULL)) " & _
+            "    INTO " & _
+            "      :EMPLKEY, " & _
+            "      :FMK, " & _
+            "      :DOCTYPEKEY " & _
+            "    DO " & _
+            "    BEGIN " & _
+            "      IF (DOCTYPEKEY = TBLFLEX) THEN " & _
+            "      BEGIN " & _
+            "        FOR " & _
+            "          SELECT " & _
+            "            tc.WDATE, " & _
+            "            MAX(CASE COALESCE(tc.HOURTYPEKEY, -1) " & _
+            "              WHEN <RUID XID = 147015029 DBID = 119619099/> THEN 0 /*явка*/ " & _
+            "              WHEN <RUID XID = 147015030 DBID = 119619099/> THEN 1 /*ночные*/ " & _
+            "              WHEN <RUID XID = 147650782 DBID = 119619099/> THEN 4 /*отпуск*/ " & _
+            "              WHEN <RUID XID = 147650801 DBID = 119619099/> THEN 5 /*больничный*/ " & _
+            "              WHEN <RUID XID = 147650809 DBID = 119619099/> THEN 6 /*прогул*/ " & _
+            "              WHEN <RUID XID = 147650804 DBID = 119619099/> THEN 7 /*за свой счёт*/ " & _
+            "              ELSE IIF(COALESCE(tc.ISWORKDAY, 0) = 1 OR COALESCE(tc.WHOUR, 0.0000) > 0, 0, 3) /*явка или выходной*/ " & _
+            "            END) AS AsIsWorkDay, " & _
+            "            SUM(tc.WHOUR) " & _
+            "          FROM ( " & _
+            "            SELECT " & _
+            "              cast(N || '.' || extract(month FROM CAST(:DATEEND AS DATE)) || '.' || extract(year FROM CAST(:DATEEND AS DATE)) as date)  AS WDATE " & _
+            "              , COALESCE(IIF(COALESCE(sel_fl.SN, 0) > 0, sel_fl.SN || 'см', HT.USR$CODE), '') AS WCODE " & _
+            "              , COALESCE(HT.USR$ISWORKED, 0) AS ISWORKDAY " & _
+            "              , COALESCE(ND.HOURTYPEKEY, -1) AS HOURTYPEKEY " & _
+            "              , COALESCE(HT.USR$SHORTNAME, HT.USR$DISCRIPTION) AS DISCRIPTION " & _
+            "              , sum(COALESCE(S, 0)) AS WHOUR " & _
+            "          FROM " & _
+            "            USR$WG_TBLCAL_FLEX F " & _
+            "            JOIN GD_DOCUMENT DOC on DOC.ID = F.DOCUMENTKEY " & _
+            "            LEFT JOIN USR$WG_TBLCAL_FLEXLINE L on F.DOCUMENTKEY = L.MASTERKEY " & _
+            "            LEFT JOIN USR$WG_FLEX_NDATE(L.DOCUMENTKEY) ND on 1 = 1 " & _
+            "            LEFT JOIN USR$WG_HOURTYPE HT on HT.ID = ND.HOURTYPEKEY " & _
+            "            LEFT JOIN ( /*номер смены если есть*/ " & _
+            "              SELECT fl.USR$HOURTYPEKEY, min(fl.USR$NUMBER) as SN " & _
+            "              FROM USR$WG_SHIFTFLEX fl " & _
+            "              GROUP BY 1 ) sel_fl ON sel_fl.USR$HOURTYPEKEY = HT.ID " & _
+            "          WHERE " & _
+            "            N <= extract(day FROM CAST(:DATEEND AS DATE)) " & _
+            "            AND F.USR$TOTALDOCKEY = :TDK " & _
+            "            AND L.USR$EMPLKEY = :EMPLKEY " & _
+            "            AND L.USR$FIRSTMOVEKEY = :FMK " & _
+            "            AND DOC.DOCUMENTTYPEKEY = :TBLFLEX " & _
+            "          GROUP BY 1,2,3,4,5 " & _
+            "          ) tc " & _
+            "          GROUP BY 1 " & _
+            "          ORDER BY 1 " & _
+            " " & _
+            "          INTO " & _
+            "            :WDATE, " & _
+            "            :ISWORKDAY, " & _
+            "            :WHOUR " & _
+            "        DO " & _
+            "        BEGIN " & _
+            "          IF (COALESCE(WHOUR, 0) > 0 AND HOURTYPEKEY = -1) THEN " & _
+            "          BEGIN " & _
+            "            HOURTYPEKEY = JAVKA_ID; " & _
+            "            WCODE = ''; " & _
+            "            ISWORKDAY = 1; " & _
+            "          END " & _
+            "          IF (COALESCE(WDESCRIPTION, '') = '') THEN WDESCRIPTION = WCODE; " & _
+            " " & _
+            "          DJSON = EXTRACT(YEAR FROM :WDATE) || '.' || RIGHT('0' || EXTRACT(MONTH FROM :WDATE), 2) || '.' || RIGHT('0' || EXTRACT(DAY FROM :WDATE), 2); " & _
+            "          /*праздничный день*/ " & _
+            "          WDESCRIPTION = NULL; " & _
+            "          SELECT FIRST 1 h.NAME " & _
+            "          FROM WG_HOLIDAY h " & _
+            "          WHERE h.HOLIDAYDATE = :WDATE " & _
+            "          INTO :WDESCRIPTION ; " & _
+            "          IF (NOT WDESCRIPTION IS NULL) THEN " & _
+            "          BEGIN " & _
+            "            ISWORKDAY = 2; " & _
+            "          END " & _
+            " " & _
+            "          IF (WHOUR IS NULL) THEN WHOUR = 0; " & _
+            " " & _
+            "          Str = '{""d"":""' || DJSON || '""'; " & _
+            "          IF (:WHOUR <> 0) THEN Str = Str || ',""h"":' || :WHOUR; " & _
+            "          IF (:ISWORKDAY <> 0) THEN Str = Str || ',""t"":' || :ISWORKDAY; " & _
+            "          Str = Str || '}'; " & _
+            " " & _
+            "          SUSPEND; " & _
+            "      END " & _
+            "    END " & _
+            " " & _
+            "    IF (DOCTYPEKEY = TBLCALC) THEN " & _
+            "    BEGIN " & _
+            "      FOR " & _
+            "        SELECT " & _
+            "          tc.WDATE , " & _
+            "          MAX(CASE COALESCE(tc.HOURTYPEKEY, -1) " & _
+            "            WHEN <RUID XID = 147015029 DBID = 119619099/> THEN 0 /*явка*/ " & _
+            "            WHEN <RUID XID = 147015030 DBID = 119619099/> THEN 1 /*ночные*/ " & _
+            "            WHEN <RUID XID = 147650782 DBID = 119619099/> THEN 4 /*отпуск*/ " & _
+            "            WHEN <RUID XID = 147650801 DBID = 119619099/> THEN 5 /*больничный*/ " & _
+            "            WHEN <RUID XID = 147650809 DBID = 119619099/> THEN 6 /*прогул*/ " & _
+            "            WHEN <RUID XID = 147650804 DBID = 119619099/> THEN 7 /*за свой счёт*/ " & _
+            "            ELSE IIF(COALESCE(tc.ISWORKDAY, 0) = 1 OR COALESCE(tc.WHOUR, 0.0000) > 0, 0, 3) /*явка или выходной*/ " & _
+            "          END) AS AsIsWorkDay, " & _
+            "          SUM(tc.WHOUR) " & _
+            "        FROM ( " & _
+            "          SELECT " & _
+            "            UL.USR$DATE AS WDATE " & _
+            "            , COALESCE(HT.USR$CODE, '') AS WCODE " & _
+            "            , COALESCE(HT.USR$ISWORKED, 0) AS ISWORKDAY " & _
+            "            , COALESCE(UL.USR$HOURTYPE, -1) AS HOURTYPEKEY " & _
+            "            , COALESCE(HT.USR$SHORTNAME, HT.USR$DISCRIPTION) AS DISCRIPTION " & _
+            "            , sum(COALESCE(UL.USR$DURATION, 0)) AS WHOUR " & _
+            "          FROM " & _
+            "            USR$WG_TBLCAL U " & _
+            "            JOIN GD_DOCUMENT DOC on DOC.ID = U.DOCUMENTKEY " & _
+            "            LEFT JOIN USR$WG_TBLCALLINE UL on UL.MASTERKEY = U.DOCUMENTKEY " & _
+            "            LEFT JOIN USR$WG_HOURTYPE HT on HT.ID = UL.USR$HOURTYPE " & _
+            "          WHERE " & _
+            "            UL.USR$DATE <= :DATEEND " & _
+            "            AND U.USR$TOTALDOCKEY = :TDK " & _
+            "            AND U.USR$EMPLKEY = :EMPLKEY " & _
+            "            AND U.USR$FIRSTMOVEKEY = :FMK " & _
+            "            AND DOC.DOCUMENTTYPEKEY = :TBLCALC " & _
+            "          GROUP BY " & _
+            "            UL.USR$DATE, " & _
+            "            COALESCE(HT.USR$CODE, ''), " & _
+            "            COALESCE(HT.USR$ISWORKED, 0), " & _
+            "            COALESCE(UL.USR$HOURTYPE, -1), " & _
+            "            COALESCE(HT.USR$SHORTNAME, HT.USR$DISCRIPTION) " & _
+            "        UNION ALL " & _
+            "        SELECT " & _
+            "          ULE.USR$DATE AS WDATE " & _
+            "          , COALESCE(HTE.USR$CODE, '') AS WCODE " & _
+            "          , COALESCE(HTE.USR$ISWORKED, 0) AS ISWORKDAY " & _
+            "          , COALESCE(ULE.USR$HOURTYPE, -1) AS HOURTYPEKEY " & _
+            "          , COALESCE(HTE.USR$SHORTNAME, HTE.USR$DISCRIPTION) AS DISCRIPTION " & _
+            "          , sum(COALESCE(ULE.USR$DURATION, 0)) AS WHOUR " & _
+            "        FROM " & _
+            "          USR$WG_TBLCAL UE " & _
+            "          JOIN GD_DOCUMENT DOCE on DOCE.ID = UE.DOCUMENTKEY " & _
+            "          LEFT JOIN USR$WG_TBLEXTRA ULE on ULE.USR$DOCUMENTKEY = UE.DOCUMENTKEY " & _
+            "          LEFT JOIN USR$WG_HOURTYPE HTE on HTE.ID = ULE.USR$HOURTYPE " & _
+            "        WHERE " & _
+            "          ULE.USR$DATE <= :DATEEND " & _
+            "          AND UE.USR$TOTALDOCKEY = :TDK " & _
+            "          AND UE.USR$EMPLKEY = :EMPLKEY " & _
+            "          AND UE.USR$FIRSTMOVEKEY = :FMK " & _
+            "          AND DOCE.DOCUMENTTYPEKEY = :TBLCALC " & _
+            "        GROUP BY " & _
+            "          ULE.USR$DATE, " & _
+            "          COALESCE(HTE.USR$CODE, ''), " & _
+            "          COALESCE(HTE.USR$ISWORKED, 0), " & _
+            "          COALESCE(ULE.USR$HOURTYPE, -1), " & _
+            "          COALESCE(HTE.USR$SHORTNAME, HTE.USR$DISCRIPTION) " & _
+            "        ) tc " & _
+            "        GROUP BY 1 " & _
+            "        ORDER BY 1 " & _
+            "        INTO " & _
+            "          :WDATE, " & _
+            "          :ISWORKDAY, " & _
+            "          :WHOUR " & _
+            "        DO " & _
+            "        BEGIN " & _
+            "          IF (COALESCE(WDESCRIPTION, '') = '') THEN WDESCRIPTION = WCODE; " & _
+            "          DJSON = EXTRACT(YEAR FROM :WDATE) || '.' || RIGHT('0' || EXTRACT(MONTH FROM :WDATE), 2) || '.' || RIGHT('0' || EXTRACT(DAY FROM :WDATE), 2); " & _
+            "          /*праздничный день*/ " & _
+            "          WDESCRIPTION = NULL; " & _
+            "          SELECT FIRST 1 h.NAME " & _
+            "          FROM WG_HOLIDAY h " & _
+            "          WHERE h.HOLIDAYDATE = :WDATE " & _
+            "          INTO :WDESCRIPTION ; " & _
+            "          IF (NOT WDESCRIPTION IS NULL) THEN " & _
+            "          BEGIN " & _
+            "            ISWORKDAY = 2; " & _
+            "          END " & _
+            " " & _
+            "          IF (WHOUR IS NULL) THEN WHOUR = 0; " & _
+            " " & _
+            "          Str = '{""d"":""' || DJSON || '""'; " & _
+            "          IF (:WHOUR <> 0) THEN Str = Str || ',""h"":' || :WHOUR; " & _
+            "          IF (:ISWORKDAY <> 0) THEN Str = Str || ',""t"":' || :ISWORKDAY; " & _
+            "          Str = Str || '}'; " & _
+            " " & _
+            "          SUSPEND; " & _
+            "        END " & _
+            "      END " & _
+            "    END " & _
+            "  END " & _
+            "END "
+        
+        
+          qSel.ParamByName("DB").AsDateTime = Period(0)
+          qSel.ParamByName("DE").AsDateTime = Period(1)
+          qSel.ParamByName("companyId").AsInteger = companyId
+          qSel.ParamByName("pDate").AsDateTime = pDate
+          qSel.ExecQuery
+        
+          dim canceled, objItem, emplId, str
+          canceled = false
+          emplId = ""
+          while not qSel.eof and not canceled
+            if emplId <> qSel.FieldByName("EmployeeRuid").AsString and emplId <> "" then
+              objItem = "{""emplId"":""" & emplId & """," & _
+                """data"": [" & str & "]"  & _
+                "}"
+              Jsons.Add("{""version"":""2.0""," & _
+                """customerId"":""" & customerId & """," & _
+                """rewrite"":" & b & "," & _
+                """objData"":" & objItem & "}")
+              str = ""
             end if
-          next
+              
+            if str <> "" then str = str & ","
+            str = str & qSel.FieldByName("str").AsString
+              
+            emplId = qSel.FieldByName("EmployeeRuid").AsString
+            qSel.Next
+          wend
+          
+          if emplId <> "" then
+            objItem = "{""emplId"":""" & qSel.FieldByName("EmployeeRuid").AsString & """," & _
+              """data"": [" & str & "]"  & _
+              "}"
+            Jsons.Add("{""version"":""2.0""," & _
+              """customerId"":""" & customerId & """," & _
+              """rewrite"":" & b & "," & _
+              """objData"":" & objItem & "}")
+          end if
+        
+          if Transaction.InTransaction then
+            Transaction.Commit
+          end if
+        
         End Function
         
-    Set: 
-      - 
-        Table: "RP_ADDITIONALFUNCTION"
-        Items: 
-          - 
-            ADDFUNCTIONKEY: "1173044672_1450749196 bot_PrepareTimeSheets"
-          - 
-            ADDFUNCTIONKEY: "1193785048_1320926324 bot_SendFile"
+        sub bot_PrepareTimeSheet_RollBack(Transaction)
+          if Transaction.InTransaction then
+            Transaction.Rollback
+          end if
+        end sub
+        
   - 
     Properties: 
       Class: "TgdcFunction"
-      RUID: 1173044927_1450749196
+      RUID: 1173044915_1450749196
       AlwaysOverwrite: False
       DontRemove: False
       IncludeSiblings: False
     Fields: 
-      NAME: "bot_exportSchedulesU"
+      NAME: "bot_PrepareSchedules"
       COMMENT: ~
       EVENT: ~
       FUNCTIONTYPE: ~
@@ -678,51 +1496,112 @@ Objects:
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
-      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-06T18:24:28+03:00
+      EDITIONDATE: 2020-07-07T14:00:44+03:00
       DISPLAYSCRIPT: | 
-        BOT_EXPORTSCHEDULESU
+        BOT_PREPARESCHEDULES
+        BOT_PREPARESCHEDULES_ROLLBACK
         
       ENTEREDPARAMS: !!binary > 
         U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAAAAAAAAAAAAAA
         AAAAAEZOU1RQUlNUCQAAAENPTVBBTllJRAkAAABDT01QQU5ZSUQAAAAAAAAAAAAAAAAAAAAAAAAA
-        AAAAAAAARk5TVFBSU1QDAAAAVVJMAwAAAFVSTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNU
-        RkxQUg==
+        AAAAAAAARk5TVFBSU1QEAAAASlNPTgQAAABKU09OAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEZO
+        U1RGTFBS
       SCRIPT: | 
-        '#include BOT_PREPARESCHEDULES
+        '#include BOT_STRREPL
         Option Explicit
-        '#include BOT_SENDFILE
-        Function bot_exportSchedulesU(customerId, companyId, URL)
-          bot_exportSchedulesU = true
-          dim Json, i, Creator
+        Function bot_PrepareSchedules(customerId, companyId, ByRef Json)
+          dim Creator, Transaction
           set Creator = new TCreator
-          set Json = Creator.GetObject(nil, "TStringList", "")
-          'Формирование списка Json файлов в разрезе сотрудника
-          call bot_PrepareSchedules(customerId, companyId, Json)
-          'Отправка на сервер
-          bot_exportSchedulesU = bot_SendFile(Json.Text, URL)
+          set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
+          Transaction.Defaultdatabase = IBLogin.Database
+          if not Transaction.InTransaction then
+            Transaction.StartTransaction
+          end if
+        
+          except bot_prepareSchedules_RollBack(Transaction)
+        
+          dim qSel
+          set qSel = Creator.GetObject(nil, "TIBSQL", "")
+          qSel.Transaction = Transaction
+          qSel.SQL.Text = _
+            "SELECT c.NAME, " & _
+            "  CAST(r.XID AS VARCHAR(12)) || '_' || CAST(r.DBID AS VARCHAR(12))  AS ID, " & _
+            "  '{""d"":""' || EXTRACT(YEAR FROM d.THEDAY) || '.' || RIGHT('0' || EXTRACT(MONTH FROM d.THEDAY), 2) || '.' || RIGHT('0' || EXTRACT(DAY FROM d.THEDAY), 2) " & _
+            "  || '""' || IIF(d.WORKDAY <> 1, ',""t"":3', '') || IIF(d.WDURATION <> 0, ',""h"":' || CAST(d.WDURATION AS NUMERIC(15, 4)), '') || '}' as str " & _
+            "FROM WG_TBLCAL c " & _
+            "  LEFT JOIN WG_TBLCALDAY d ON d.TBLCALKEY = c.ID " & _
+            "  LEFT JOIN GD_P_GETRUID(c.ID) r ON 1 = 1 " & _
+            "WHERE d.THEDAY >= :pDate " & _
+            "ORDER BY 1, 2, 3 "
+          'графики не позднее 01.01.2017 года
+          qSel.ParamByName("pDate").AsDateTime = DateSerial(2017, 1, 1)
+          qSel.ExecQuery
+        
+          dim name, id, str, objItem
+          name = ""
+          id = ""
+          while not qSel.eof
+            if name <> qSel.FieldByName("NAME").AsString and name <> "" then
+              if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+              Json.Add("""" & id & """:{" & _
+                """name"":{""ru"":{""name"":""" & bot_strRepl(name) & """}}," & _
+                """data"":[" & str & "]}")
+              str = ""
+            end if
+            
+            if str <> "" then str = str & ","
+            str = str & qSel.FieldByName("str").AsString
+            
+            name = qSel.FieldByName("NAME").AsString
+            id = qSel.FieldByName("ID").AsString
+            qSel.Next
+          wend
+          
+          if name <> "" then
+            if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+            Json.Add("""" & qSel.FieldByName("ID").AsString & """:{" & _
+              """name"":{""ru"":{""name"":""" & bot_strRepl(qSel.FieldByName("NAME").AsString) & """}}," & _
+              """data"":[" & str & "]}")
+          end if
+        
+          if Transaction.InTransaction then
+            Transaction.Commit
+          end if
+          
+          Dim b
+        
+          Json.Text = "{" & _
+            """version"":""2.0""," & _
+            """customerId"":""" & customerId & """," & _
+            """objData"":{" & Json.Text & "}" & _
+            "}"
+        
         End Function
+        
+        sub bot_prepareSchedules_RollBack(Transaction)
+          if Transaction.InTransaction then
+            Transaction.Rollback
+          end if
+        end sub
         
     Set: 
       - 
         Table: "RP_ADDITIONALFUNCTION"
         Items: 
           - 
-            ADDFUNCTIONKEY: "1173044915_1450749196 bot_PrepareSchedules"
-          - 
-            ADDFUNCTIONKEY: "1193785048_1320926324 bot_SendFile"
+            ADDFUNCTIONKEY: "147160790_1454092899 bot_strRepl"
   - 
     Properties: 
       Class: "TgdcFunction"
-      RUID: 1173044824_1450749196
+      RUID: 1173098158_1450749196
       AlwaysOverwrite: False
       DontRemove: False
       IncludeSiblings: False
     Fields: 
-      NAME: "bot_exportTimeSheets"
+      NAME: "bot_prepareMenu"
       COMMENT: ~
       EVENT: ~
       FUNCTIONTYPE: ~
@@ -730,444 +1609,142 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODIFYDATE: 2020-08-03T18:30:20+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
       OWNERNAME: ~
-      PREPAREDBYPARSER: ~
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-06T17:50:53+03:00
+      EDITIONDATE: 2020-08-03T18:30:20+03:00
       DISPLAYSCRIPT: | 
-        BOT_EXPORTTIMESHEETS
-        
-      ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAM/l8Oju5AAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
-        UFJTVAkAAABJU1JFV1JJVEUTAAAAz+Xw5efg7+jx4PL8IPLg4eXr/wAAAAAAAAAAAAAAAAYAAAAA
-        AAAAAAAAAABGTlNURkxQUg==
-      SCRIPT: | 
-        '#include BOT_EXPORTTIMESHEETSU
-        '#include BOT_GETSERVERDATA
-        Option Explicit
-        Function bot_exportTimeSheets(Period, isRewrite)
-          const upload_timeSheets = "/zarobak/v2/upload_timeSheets"
-        
-          dim customerArray, URL, count
-          'Из констант получим параметры для отправки на сервер
-          'customerArray - массив данных по клиенту (ид и RUID организации, пример: ("id1,123_456", "id2,789_123"))
-          'URL - путь к серверу
-          call bot_GetServerData(false, customerArray, URL)
-        
-          count = UBound(customerArray)
-          if count < 0 or URL = "" then
-            exit function
-          end if
-        
-          dim Creator, i, customer, customerId, companyId
-          set Creator = new TCreator
-          dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
-          P.StartWork "ZarobakBot", "Экспорт данных", 1*(count+1), True, True
-        
-          for i = 0 to count
-            customer = Split(customerArray(i), ",")
-            customerId = customer(0)
-            companyId = gdcBaseManager.GetIDByRUIDString(customer(1))
-        
-            P.StartStep "Табеля " & customerId, 1
-            if not bot_exportTimeSheetsU(Period, customerId, companyId, URL & upload_timeSheets, isRewrite) then
-              P.EndWork "Экспорт остановлен!", False
-              exit function
-            end if
-          next
-        
-          P.EndWork "Экспорт выполнен!", False
-        End Function
-        
-    Set: 
-      - 
-        Table: "RP_ADDITIONALFUNCTION"
-        Items: 
-          - 
-            ADDFUNCTIONKEY: "1173044690_1450749196 bot_exportTimeSheetsU"
-          - 
-            ADDFUNCTIONKEY: "158512755_1444931844 bot_getServerData"
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 1173044938_1450749196
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      NAME: "bot_exportSchedules"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:23+03:00
-      MODULE: "UNKNOWN"
-      MODULECODE: "1010001_17 APPLICATION"
-      OBJECTNAME: "APPLICATION"
-      OWNERNAME: ~
-      PREPAREDBYPARSER: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-06T18:24:23+03:00
-      DISPLAYSCRIPT: | 
-        BOT_EXPORTSCHEDULES
-        
-      ENTEREDPARAMS: ~
-      SCRIPT: | 
-        '#include BOT_EXPORTSCHEDULESU
-        '#include BOT_GETSERVERDATA
-        Option Explicit
-        Function bot_exportSchedules()
-          const upload_schedules = "/zarobak/v2/upload_schedules"
-        
-          dim customerArray, URL, count
-          'Из констант получим параметры для отправки на сервер
-          'customerArray - массив данных по клиенту (ид и RUID организации, пример: ("id1,123_456", "id2,789_123"))
-          'URL - путь к серверу
-          call bot_GetServerData(false, customerArray, URL)
-        
-          count = UBound(customerArray)
-          if count < 0 or URL = "" then
-            exit function
-          end if
-        
-          dim Creator, i, customer, customerId, companyId
-          set Creator = new TCreator
-          dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
-          P.StartWork "ZarobakBot", "Экспорт данных", 1*(count+1), True, True
-        
-          for i = 0 to count
-            customer = Split(customerArray(i), ",")
-            customerId = customer(0)
-            companyId = gdcBaseManager.GetIDByRUIDString(customer(1))
-        
-            P.StartStep "Графики рабочего времени " & customerId, 1
-            if not bot_exportSchedulesU(customerId, companyId, URL & upload_schedules) then
-              P.EndWork "Экспорт остановлен!", False
-              exit function
-            end if
-        
-          next
-        
-          P.EndWork "Экспорт выполнен!", False
-        End Function
-        
-    Set: 
-      - 
-        Table: "RP_ADDITIONALFUNCTION"
-        Items: 
-          - 
-            ADDFUNCTIONKEY: "1173044927_1450749196 bot_exportSchedulesU"
-          - 
-            ADDFUNCTIONKEY: "158512755_1444931844 bot_getServerData"
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 1437186325_1434991069
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      NAME: "bot_exportData"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:24+03:00
-      MODULE: "UNKNOWN"
-      MODULECODE: "1010001_17 APPLICATION"
-      OBJECTNAME: "APPLICATION"
-      OWNERNAME: ~
-      PREPAREDBYPARSER: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: 0
-      EDITIONDATE: 2020-07-06T13:06:03+03:00
-      DISPLAYSCRIPT: | 
-        BOT_EXPORTDATA
-        
-      ENTEREDPARAMS: !!binary > 
-        U0xQUlBSU1QGAAAAUEVSSU9EBgAAAM/l8Oju5AAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAABGTlNU
-        UFJTVAkAAABJU1JFV1JJVEUdAAAAz+Xw5efg7+jx4PL8IPDg8ffl8u375SDr6PHy6ugAAAAAAAAA
-        AAAAAAAGAAAAAAAAAAAAAAAARk5TVEZMUFI=
-      SCRIPT: | 
-        '#include BOT_EXPORTPAYSLIPSU
-        '#include BOT_EXPORTEMPLOYEESU
-        '#include BOT_EXPORTACCDEDSU
-        '#include BOT_GETSERVERDATA
-        Option Explicit
-        Function bot_exportData(Period, isRewrite)
-          const upload_employees = "/zarobak/v1/upload_employees"
-          const upload_accDedRefs = "/zarobak/v1/upload_accDedRefs"
-          const upload_paySlips = "/zarobak/v1/upload_paySlips"
-        
-          dim customerArray, URL, count
-          'Из констант получим параметры для отправки на сервер
-          'customerArray - массив данных по клиенту (ид и RUID организации, пример: ("id1,123_456", "id2,789_123"))
-          'URL - путь к серверу
-          call bot_GetServerData(false, customerArray, URL)
-        
-          count = UBound(customerArray)
-          if count < 0 or URL = "" then
-            exit function
-          end if
-        
-          dim Creator, i, customer, customerId, companyId
-          set Creator = new TCreator
-          dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
-          P.StartWork "ZarobakBot", "Экспорт данных", 3*(count+1), True, True
-        
-          for i = 0 to count
-            customer = Split(customerArray(i), ",")
-            customerId = customer(0)
-            companyId = gdcBaseManager.GetIDByRUIDString(customer(1))
-        
-            P.StartStep "Виды начислений " & customerId, 1
-            if not bot_exportAccDedsU(customerId, URL & upload_accDedRefs, false) then
-              P.EndWork "Экспорт остановлен!", False
-              exit function
-            end if
-        
-            P.StartStep "Сотрудники " & customerId, 1
-            if not bot_exportEmployeesU(customerId, companyId, URL & upload_employees, false) then
-              P.EndWork "Экспорт остановлен!", False
-              exit function
-            end if
-        
-            P.StartStep "Расчетные листки " & customerId, 1
-            if not bot_exportPaySlipsU(Period, customerId, companyId, URL & upload_paySlips, isRewrite, false) then
-              P.EndWork "Экспорт остановлен!", False
-              exit function
-            end if
-          next
-        
-          P.EndWork "Экспорт выполнен!", False
-        End Function
-        
-    Set: 
-      - 
-        Table: "RP_ADDITIONALFUNCTION"
-        Items: 
-          - 
-            ADDFUNCTIONKEY: "158513035_1444931844 bot_exportPaySlipsU"
-          - 
-            ADDFUNCTIONKEY: "158513034_1444931844 bot_exportEmployeesU"
-          - 
-            ADDFUNCTIONKEY: "158513032_1444931844 bot_exportAccDedsU"
-          - 
-            ADDFUNCTIONKEY: "158512755_1444931844 bot_getServerData"
-  - 
-    Properties: 
-      Class: "TgdcExplorer"
-      RUID: 1173044906_1450749196
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      PARENT: "1193786363_1320926323 Исследователь\\Зарплата и Отдел кадров\\ZarobakBot"
-      NAME: "02. Экспорт табелей"
-      CLASSNAME: ~
-      CMD: "1173044824_1450749196"
-      CMDTYPE: 1
-      HOTKEY: ~
-      IMGINDEX: 174
-      ORDR: ~
-      SUBTYPE: ~
-      EDITIONDATE: 2020-07-06T13:08:49+03:00
-      DISABLED: 0
-  - 
-    Properties: 
-      Class: "TgdcExplorer"
-      RUID: 1173044939_1450749196
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      PARENT: "1193786363_1320926323 Исследователь\\Зарплата и Отдел кадров\\ZarobakBot"
-      NAME: "03. Экспорт графиков"
-      CLASSNAME: ~
-      CMD: "1173044938_1450749196"
-      CMDTYPE: 1
-      HOTKEY: ~
-      IMGINDEX: 174
-      ORDR: ~
-      SUBTYPE: ~
-      EDITIONDATE: 2020-07-06T16:46:42+03:00
-      DISABLED: 0
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 1173100409_1450749196
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      NAME: "bot_exportMenuU"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: 2020-07-14T17:09:22+03:00
-      MODULE: "UNKNOWN"
-      MODULECODE: "1010001_17 APPLICATION"
-      OBJECTNAME: "APPLICATION"
-      OWNERNAME: ~
-      PREPAREDBYPARSER: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-14T17:09:22+03:00
-      DISPLAYSCRIPT: | 
-        BOT_EXPORTMENUU
+        BOT_PREPAREMENU
+        BOT_PREPAREMENU_ROLLBACK
         
       ENTEREDPARAMS: !!binary > 
         U0xQUlBSU1QKAAAAQ1VTVE9NRVJJRAoAAABDVVNUT01FUklEAAAAAAAAAAAAAAAABQAAAAAAAAAA
         AAAAAEZOU1RQUlNUCQAAAENPTVBBTllJRAkAAABDT01QQU5ZSUQAAAAAAAAAAAAAAAAAAAAAAAAA
-        AAAAAAAARk5TVFBSU1QDAAAAVVJMAwAAAFVSTAAAAAAAAAAAAAAAAAUAAAAAAAAAAAAAAABGTlNU
-        UFJTVAUAAABQREFURQUAAABQREFURQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGTlNURkxQUg==
+        AAAAAAAARk5TVFBSU1QFAAAAUERBVEUFAAAAUERBVEUAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAA
+        Rk5TVFBSU1QEAAAASlNPTgQAAABKU09OAAAAAAAAAAAAAAAABQAAAAAAAAAAAAAAAEZOU1RGTFBS
       SCRIPT: | 
-        '#include BOT_PREPAREMENU
-        '#include BOT_SENDFILE
+        '#include BOT_STRREPL
         Option Explicit
-        Function bot_exportMenuU(customerId, companyId, URL, pDate)
-          dim Json, Creator
+        Function bot_prepareMenu(customerId, companyId, pDate, ByRef Json)
+          dim Creator, Transaction
           set Creator = new TCreator
-          set Json = Creator.GetObject(nil, "TStringList", "")
-          'Формирование Json файла с меню
-          call bot_PrepareMenu(customerId, companyId, pDate, Json)
-          'Отправка на сервер
-          bot_exportMenuU = bot_SendFile(Json.Text, URL)
-        End Function
-        
-    Set: 
-      - 
-        Table: "RP_ADDITIONALFUNCTION"
-        Items: 
-          - 
-            ADDFUNCTIONKEY: "1173098158_1450749196 bot_prepareMenu"
-          - 
-            ADDFUNCTIONKEY: "1193785048_1320926324 bot_SendFile"
-  - 
-    Properties: 
-      Class: "TgdcFunction"
-      RUID: 1173100410_1450749196
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      NAME: "bot_exportMenus"
-      COMMENT: ~
-      EVENT: ~
-      FUNCTIONTYPE: ~
-      GROUPNAME: ~
-      INHERITEDRULE: 0
-      LANGUAGE: "VBScript"
-      LOCALNAME: ~
-      MODIFYDATE: 2020-07-23T16:56:19+03:00
-      MODULE: "UNKNOWN"
-      MODULECODE: "1010001_17 APPLICATION"
-      OBJECTNAME: "APPLICATION"
-      OWNERNAME: ~
-      PREPAREDBYPARSER: ~
-      PUBLICFUNCTION: 1
-      SHORTCUT: ~
-      USEDEBUGINFO: ~
-      EDITIONDATE: 2020-07-23T16:56:18+03:00
-      DISPLAYSCRIPT: | 
-        BOT_EXPORTMENUS
-        
-      ENTEREDPARAMS: ~
-      SCRIPT: | 
-        '#include BOT_EXPORTMENUU
-        '#include BOT_GETSERVERDATA
-        Option Explicit
-        Function bot_exportMenus
-          const upload_menu = "/zarobak/v2/upload_canteenmenu"
-        
-          dim customerArray, URL, count
-          'Из констант получим параметры для отправки на сервер
-          'customerArray - массив данных по клиенту (ид и RUID организации, пример: ("id1,123_456", "id2,789_123"))
-          'URL - путь к серверу
-          call bot_GetServerData(false, customerArray, URL)
-        
-          count = UBound(customerArray)
-          if count < 0 or URL = "" then
-            exit function
+          set Transaction = Creator.GetObject(nil, "TIBTransaction", "")
+          Transaction.Defaultdatabase = IBLogin.Database
+          if not Transaction.InTransaction then
+            Transaction.StartTransaction
           end if
         
-          dim Creator, i, customer, customerId, companyId
-          set Creator = new TCreator
-          dim P : set P = Creator.GetObject(nil, "TgdccProgress", "")
-          P.StartWork "ZarobakBot", "Экспорт данных", 1*(count+1), True, True
+          except bot_prepareMenu_RollBack(Transaction)
+          
+          dim gdcConst, isSortByNumber, strSel
+          set gdcConst = Creator.GetObject(null, "TgdcConst", "")
+          'Константа ZarobakBot. Сортировка меню столовой
+          '1 - сортировка по usr$numbersort
+          '0 - сортировка по alias группы
+          isSortByNumber = gdcConst.QGetValueByID(gdcBaseManager.GetIDByRUIDString("1173100475_1450749196"))
+          if isSortByNumber = 1 then
+            strSel = " coalesce(gg.USR$NUMBERSORT, -1) as n, "
+          else
+            strSel = " coalesce(gg.alias, -1) as n, "
+          end if
         
-          for i = 0 to count
-            customer = Split(customerArray(i), ",")
-            customerId = customer(0)
-            companyId = gdcBaseManager.GetIDByRUIDString(customer(1))
+          dim qSel
+          set qSel = Creator.GetObject(nil, "TIBSQL", "")
+          qSel.Transaction = Transaction
+          qSel.SQL.Text = _
+            " SELECT " & _
+            "   con.name || ' -- ' || mn.usr$name  as menuname, " & _
+            "   con.id || mn.id as menuid, " & _
+            strSel & _
+            "   gg.name as groupname, " & _
+            "   g.name as goodname, " & _
+            "   mc.usr$outputstr as det, " & _
+            "   ml.usr$cost as cost " & _
+            " FROM usr$mn_menu mm " & _
+            " LEFT JOIN usr$mn_menuline ml on mm.documentkey = ml.masterkey " & _
+            " LEFT JOIN gd_good g on g.id = ml.usr$goodkey " & _
+            " LEFT JOIN usr$mn_calccard mc on mc.documentkey = ml.usr$cardkey " & _
+            " LEFT JOIN GD_GOODGROUP gg on gg.id = g.groupkey " & _
+            " JOIN usr$mn_menuname mn on mm.usr$menunamekey = mn.id " & _
+            " JOIN gd_contact con on mm.usr$depotkey = con.id " & _
+            " JOIN GD_DOCUMENT d ON d.id = mm.documentkey " & _
+            " WHERE d.documentdate <= :pDate AND mm.usr$todate >= :pDate AND d.companykey = :companyId " & _
+            "   AND mm.DOCUMENTKEY = " & _
+            "   ( " & _
+            "    SELECT FIRST 1 doc.ID " & _
+            "    FROM usr$mn_menu menu " & _
+            "    LEFT JOIN GD_DOCUMENT doc ON doc.id = menu.documentkey " & _
+            "    WHERE doc.documentdate <= :pDate AND menu.usr$todate >= :pDate AND doc.companykey = :companyId " & _
+            "      AND menu.USR$DEPOTKEY = mm.USR$DEPOTKEY AND menu.USR$MENUNAMEKEY = mm.USR$MENUNAMEKEY " & _
+            "    ORDER BY doc.documentdate DESC " & _
+            "    ) " & _
+            " ORDER BY con.name, mn.usr$name, n, gg.name, mc.usr$posinmenu, g_s_delchar(g.alias) "
+          qSel.ParamByName("companyId").AsInteger = companyId
+          qSel.ParamByName("pDate").AsDateTime = pDate
+          qSel.ExecQuery
         
-            P.StartStep "Меню " & customerId, 1
-            if not bot_exportMenuU(customerId, companyId, URL & upload_menu, Date()) then
-              P.EndWork "Экспорт остановлен!", False
-              exit function
+          dim  name, str, groupname, strgroup, n, id
+          name = ""
+          groupname = ""
+          while not qSel.eof
+            if (name <> qSel.FieldByName("menuname").AsString and name <> "") then
+              if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+              Json.Add("{""id"":""" & id & """," & _
+                """name"":{""ru"":"""  & bot_strRepl(name) & """}," & _
+                """data"":[" & strgroup & "]}")
+              strgroup = ""
             end if
-          next
+            if groupname <> qSel.FieldByName("groupname").AsString and groupname <> "" then
+              if strgroup <> "" then strgroup = strgroup & ","
+              strgroup = strgroup & "{""group"":{""ru"":""" & bot_strRepl(groupname) & """}," & _
+                """n"":" & n & "," & _
+                """groupdata"":[" & str & "]}"
+                str = ""
+            end if
+            if str <> "" then str = str & ","
+            str = str & "{""good"":{""ru"":""" & bot_strRepl(qSel.FieldByName("goodname").AsString) & """}," & _
+              """det"":""" &  bot_strRepl(qSel.FieldByName("det").AsString) & """," & _
+              """cost"":" & Replace(qSel.FieldByName("cost").AsCurrency, ",", ".") & "}"
+            name = qSel.FieldByName("menuname").AsString
+            groupname = qSel.FieldByName("groupname").AsString
+            n = qSel.FieldByName("n").AsString
+            id = qSel.FieldByName("menuid").AsString
+            qSel.Next
+          wend
         
-          P.EndWork "Экспорт выполнен!", False
+          if (name <> "") then
+            if Json.Count > 0 then Json.Strings(Json.Count - 1) = Json.Strings(Json.Count - 1) & ","
+            Json.Add("{""id"":""" & id & """," & _
+              """name"": {""ru"":"""  & bot_strRepl(name) & """}," & _
+              """data"":[" & strgroup & "]}")
+          end if
+        
+          Json.Text = "{" & _
+            """version"":""2.0""," & _
+            """customerId"":""" & customerId & """," & _
+            """date"":""" & Year(pDate) & "." & Right("0" & Month(pDate), 2) & "." & Right("0" & Day(pDate), 2) & """," & _
+            """objData"":[" & Json.Text & "]" & _
+            "}"
+        
+          if Transaction.InTransaction then
+            Transaction.Commit
+          end if
         End Function
+        
+        sub bot_prepareMenu_RollBack(Transaction)
+          if Transaction.InTransaction then
+            Transaction.Rollback
+          end if
+        end sub
         
     Set: 
       - 
         Table: "RP_ADDITIONALFUNCTION"
         Items: 
           - 
-            ADDFUNCTIONKEY: "1173100409_1450749196 bot_exportMenuU"
-          - 
-            ADDFUNCTIONKEY: "158512755_1444931844 bot_getServerData"
-  - 
-    Properties: 
-      Class: "TgdcExplorer"
-      RUID: 1173100412_1450749196
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      PARENT: "1193786363_1320926323 Исследователь\\Зарплата и Отдел кадров\\ZarobakBot"
-      NAME: "04. Экспорт меню столовой"
-      CLASSNAME: ~
-      CMD: "1173100410_1450749196"
-      CMDTYPE: 1
-      HOTKEY: ~
-      IMGINDEX: 174
-      ORDR: ~
-      SUBTYPE: ~
-      EDITIONDATE: 2020-07-22T16:23:10+03:00
-      DISABLED: 0
-  - 
-    Properties: 
-      Class: "TgdcConst"
-      RUID: 1173100475_1450749196
-      AlwaysOverwrite: False
-      DontRemove: False
-      IncludeSiblings: False
-    Fields: 
-      NAME: "ZarobakBot. Сортировка меню столовой"
-      COMMENT: "1 = сортировать меню столовой по usr$numbersort, 0 = по alias"
-      CONSTTYPE: 0
-      DATATYPE: "N"
-      EDITIONDATE: 2020-08-03T18:24:37+03:00
+            ADDFUNCTIONKEY: "147160790_1454092899 bot_strRepl"
