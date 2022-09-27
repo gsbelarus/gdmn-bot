@@ -11,4 +11,4 @@
 
 Более подробно см. по этой [ссылке](http://gsbelarus.com/pw/front-page/solutions/android/chat-bot-moia-zarplata/).
 
-Copyright (c) 2020 by Golden Software of Belarus, Ltd
+Copyright (c) 2020-22 by Golden Software of Belarus, Ltd
