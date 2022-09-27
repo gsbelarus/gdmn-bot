@@ -118,6 +118,7 @@ data/telegram/dialogstates.json
 /ssl/**/*.crt
 /ssl/**/*.p7b
 /ssl/**/*.txt
+/ssl/backup
 src/config.ts
 state_after.json
 state_before.json
