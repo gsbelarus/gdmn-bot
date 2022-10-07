@@ -77,7 +77,7 @@ router.post('/zarobak/v1/upload_employees', (ctx, next) => {
     bot.uploadEmployees(customerId, objData);
     ctx.response.status = 200;
     ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
-  } catch(err) {
+  } catch(err: any) {
     log.error(`Error in employees uploading. ${err.message}`);
     ctx.response.status = 500;
     ctx.response.body = JSON.stringify({ status: 500, result: err.message });
@@ -91,7 +91,7 @@ router.post('/zarobak/v1/upload_accDedRefs', (ctx, next) => {
     bot.uploadAccDeds(customerId, objData);
     ctx.response.status = 200;
     ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
-  } catch(err) {
+  } catch(err: any) {
     log.error(`Error in accdedrefs uploading. ${err.message}`);
     ctx.response.status = 500;
     ctx.response.body = JSON.stringify({ status: 500, result: err.message });
@@ -107,7 +107,7 @@ router.post('/zarobak/v1/upload_paySlips', (ctx, next) => {
     //await bot.sendLatestPayslip(customerId, objData.emplId);
     ctx.response.status = 200;
     ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
-  } catch(err) {
+  } catch(err: any) {
     log.error(`Error in payslips uploading. ${err.message}`);
     ctx.response.status = 500;
     ctx.response.body = JSON.stringify({ status: 500, result: err.message });
@@ -121,7 +121,7 @@ router.post('/zarobak/v2/upload_timeSheets', (ctx, next) => {
     bot.upload_timeSheets(customerId, objData, rewrite);
     ctx.response.status = 200;
     ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
-  } catch(err) {
+  } catch(err: any) {
     log.error(`Error in timesheets uploading. ${err.message}`);
     ctx.response.status = 500;
     ctx.response.body = JSON.stringify({ status: 500, result: err.message });
@@ -135,7 +135,7 @@ router.post('/zarobak/v2/upload_schedules', (ctx, next) => {
     bot.upload_schedules(customerId, objData, rewrite);
     ctx.response.status = 200;
     ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
-  } catch(err) {
+  } catch(err: any) {
     log.error(`Error in schedules uploading. ${err.message}`);
     ctx.response.status = 500;
     ctx.response.body = JSON.stringify({ status: 500, result: err.message });
@@ -153,7 +153,7 @@ router.post('/zarobak/v2/upload_canteenmenu', (ctx, next) => {
     bot.upload_canteenMenu(customerId, objData, date);
     ctx.response.status = 200;
     ctx.response.body = JSON.stringify({ status: 200, result: `ok` });
-  } catch(err) {
+  } catch(err: any) {
     log.error(`Error in menu uploading. ${err.message}`);
     ctx.response.status = 500;
     ctx.response.body = JSON.stringify({ status: 500, result: err.message });

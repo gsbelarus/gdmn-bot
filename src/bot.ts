@@ -291,7 +291,7 @@ export class Bot {
         } finally {
           this._telegramSemaphore.release();
         }
-      } catch (e) {
+      } catch (e: any) {
         // TODO: где-то здесь отловится ошибка, если чат был пользователем удален
         // а мы пытаемся слать в него сообщения. надо определить ее код и удалять
         // запись из акаунт линк.
@@ -2112,7 +2112,7 @@ export class Bot {
 
         const data = [
           '^FIXED',
-          `Server started: ${new Intl.DateTimeFormat("be", dateOptions).format(this._botStarted)}`,
+          `Server started: ${new Intl.DateTimeFormat("be", dateOptions as any).format(this._botStarted)}`,
           `Node version: ${process.versions.node}`,
           `RSS memory: ${new Intl.NumberFormat().format(process.memoryUsage().rss)} bytes`,
           `This chat id: ${chatId}`,
