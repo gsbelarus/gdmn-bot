@@ -1925,8 +1925,10 @@ export class Bot {
 
   async launchTelegram(callbackHost?: string, hookPath?: string, port?: number, tlsOptions?: { key: Buffer, cert: Buffer, ca: string }) {
     if (callbackHost && hookPath && port && tlsOptions) {
+      console.log(`Starting telegram bot at ${callbackHost}:${port}${hookPath}...`);
       await this._telegram.telegram.setWebhook(`${callbackHost}:${port}${hookPath}`, undefined, 100);
       await this._telegram.startWebhook(hookPath, tlsOptions, port);
+      console.log('Telegram bot has been started...');
     } else {
       await this._telegram.launch();
     }
