@@ -42,9 +42,11 @@ export const testNormalizeStr = (a: string, b: string) => normalizeStr(a) === no
  * Преобразует дату в строку вида YYYY.MM.DD. или DD.MM.YYYY
  * @param date Дата.
  */
-export const date2str = (date: Date, format: 'YYYY.MM.DD' | 'DD.MM.YYYY' | 'DD.MM.YY' = 'YYYY.MM.DD') =>
+export const date2str = (date: Date, format: 'YYYY.MM.DD' | 'DD.MM.YYYY' | 'DD.MM.YY' | 'YYYY-M-D' = 'YYYY.MM.DD') =>
   format === 'YYYY.MM.DD'
     ? `${date.getFullYear()}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getDate().toString().padStart(2, '0')}`
+    : format === 'YYYY-M-D'
+    ? `${date.getFullYear().toString()}-${(date.getMonth() + 1).toString()}-${date.getDate().toString()}`
     : format === 'DD.MM.YY'
     ? `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear().toString().slice(-2)}`
     : `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}.${date.getFullYear()}`;

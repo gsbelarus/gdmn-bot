@@ -204,7 +204,7 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
     });
   }
 
-  const strDate = date2str(date, 'YYYY.MM.DD');
+  const strDate = date2str(date, 'YYYY-M-D');
   const ratesForDate = ratesDB.read(strDate);
   let rate = ratesForDate?.[currId];
 
