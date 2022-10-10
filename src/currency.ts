@@ -97,7 +97,7 @@ export async function initCurrencies(log: ILogger) {
       fdb.flush();
     }
     catch (e) {
-      console.error(`Error fetching currency list: ${e}`);
+      log.error(`Error fetching currency list: ${e}`);
     }
   }
 
@@ -226,7 +226,7 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout( controller.abort, 15000);
+    const timeoutId = setTimeout( () => controller.abort(), 15000);
     const fetched = await fetch(`${URLNBRBRATES}?periodicity=0&ondate=${strDate}`, { signal: controller.signal });
     clearTimeout(timeoutId);
     const parsed: INBRBRate[] = await fetched.json();
