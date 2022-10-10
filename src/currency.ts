@@ -248,7 +248,7 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
     }
   }
   catch (e) {
-    console.error(`Error fetching currencyRate list: ${e}`);
+    log.error(`Error fetching currencyRate list: ${e}`);
     return undefined;
   }
   return rate;
