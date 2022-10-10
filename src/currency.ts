@@ -226,7 +226,10 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
   };
 
   try {
-    const fetched = await fetch(`${URLNBRBRATES}?periodicity=0&ondate=${strDate}`, {});
+    const controller = new AbortController();
+    const timeoutId = setTimeout( controller.abort, 15000);
+    const fetched = await fetch(`${URLNBRBRATES}?periodicity=0&ondate=${strDate}`, { signal: controller.signal });
+    clearTimeout(timeoutId);
     const parsed: INBRBRate[] = await fetched.json();
 
     if (Array.isArray(parsed)) {
