@@ -14,7 +14,6 @@
 import { FileDB, IData } from './util/fileDB';
 import { date2str } from './util/utils';
 import { MINDATE, URLNBRBRATES, URLNBRBCURRENCIES } from './constants';
-import fetch from 'node-fetch';
 import { LName, Language, getLName } from './stringResources';
 import { IDate } from './types';
 import { ILogger } from './log';
