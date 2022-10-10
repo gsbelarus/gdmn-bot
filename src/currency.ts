@@ -224,10 +224,11 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
     Cur_OfficialRate: number;
   };
 
+  const url = `${URLNBRBRATES}?periodicity=0&ondate=${strDate}`;
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout( () => controller.abort(), 15000);
-    const fetched = await fetch(`${URLNBRBRATES}?periodicity=0&ondate=${strDate}`, { signal: controller.signal });
+    const fetched = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
     const parsed: INBRBRate[] = await fetched.json();
 
@@ -250,7 +251,7 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
     }
   }
   catch (e) {
-    log.error(`Error fetching currencyRate list: ${e}`);
+    log.error(`Error fetching ${url}: ${e}`);
     return undefined;
   }
   return rate;
