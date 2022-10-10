@@ -226,7 +226,7 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
   };
 
   try {
-    const fetched = await fetch(`${URLNBRBRATES}?Periodicity=0&onDate=${strDate}`, {});
+    const fetched = await fetch(`${URLNBRBRATES}?periodicity=0&ondate=${strDate}`, {});
     const parsed: INBRBRate[] = await fetched.json();
 
     if (Array.isArray(parsed)) {
