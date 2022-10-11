@@ -203,8 +203,8 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
       ignore: true
     });
   }
-
-  const strDate = date2str(date, 'YYYY-M-D');
+  
+  const strDate = date2str(date, 'YYYY.MM.DD');
   const ratesForDate = ratesDB.read(strDate);
   let rate = ratesForDate?.[currId];
 
@@ -224,7 +224,7 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
     Cur_OfficialRate: number;
   };
 
-  const url = `${URLNBRBRATES}?periodicity=0&ondate=${strDate}`;
+  const url = `${URLNBRBRATES}?periodicity=0&ondate=${date2str(date, 'YYYY-M-D')}`;
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout( () => {
