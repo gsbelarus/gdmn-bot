@@ -240,6 +240,8 @@ export const getCurrRateForDate = async (date: Date, currency: string, log: ILog
       const scale = c?.['Cur_Scale'];
       const officialRate = c?.['Cur_OfficialRate'];
 
+      log.debug(`${strDate} - ${currId} - ${c?.['Cur_ID'].toString()} - ${scale} - ${officialRate}`);
+
       if (scale && scale > 0 && officialRate && officialRate > 0) {
         rate = parseFloat((officialRate / scale).toFixed(4));
 
