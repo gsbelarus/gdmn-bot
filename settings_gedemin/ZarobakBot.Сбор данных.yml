@@ -5,10 +5,10 @@ Properties:
   RUID: 1537551605_1913435101
   Name: "ZarobakBot.Сбор данных"
   Caption: "ZarobakBot.Сбор данных"
-  Version: "1.0.0.44"
+  Version: "1.0.0.45"
   Optional: False
   Internal: True
-  MD5: B18B99C54EDEFD9800BAB5C9F94E4419
+  MD5: DD909FF2806650818844FA3E5A7245AF
 Objects: 
   - 
     Properties: 
@@ -26,7 +26,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:24+03:00
+      MODIFYDATE: 2020-06-23T14:18:40+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -77,7 +77,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2022-09-12T15:01:32+03:00
+      EDITIONDATE: 2024-05-21T18:38:16+03:00
       DISPLAYSCRIPT: | 
         BOT_GETLASTTOTALDOCPERIOD
         
@@ -89,6 +89,7 @@ Objects:
         Function bot_GetLastTotalDocPeriod(companyId)
           'pDateE - дата окончания последнего итогового
           'pDateB - дата начала последнего итогового
+          'COALESCE(t.USR$PRINTPAYILIP, 0) = 1 - другой вариант ограничения !!!
           dim qSelDate, pDateB, pDateE, Creator
           set Creator = new TCreator
           set qSelDate = Creator.GetObject(nil, "TIBSQL", "")
@@ -98,7 +99,7 @@ Objects:
             "  FROM USR$WG_TOTAL t " & _
             "    JOIN USR$WG_TOTALLINE tline ON tline.MASTERKEY = t.DOCUMENTKEY " & _
             "    LEFT JOIN GD_DOCUMENT doc ON doc.ID = t.DOCUMENTKEY " & _
-            "  WHERE doc.COMPANYKEY = :companyId " & _
+            "  WHERE doc.COMPANYKEY = :companyId AND COALESCE(t.USR$BLOCKED, 0) = 1 " & _
             "  ORDER BY t.USR$DATEEND DESC "
           qSelDate.ParamByName("companyId").AsInteger = companyId
           qSelDate.ExecQuery
@@ -131,7 +132,7 @@ Objects:
       PUBLICFUNCTION: 1
       SHORTCUT: ~
       USEDEBUGINFO: 0
-      EDITIONDATE: 2022-09-12T16:28:13+03:00
+      EDITIONDATE: 2024-05-21T18:40:28+03:00
       DISPLAYSCRIPT: | 
         BOT_PREPAREPAYSLIPS
         BOT_PREPAREPAYSLIP_ROLLBACK
@@ -484,8 +485,8 @@ Objects:
             "      CAST(rDept.XID AS VARCHAR(14)) || '_' || CAST(rDept.DBID AS VARCHAR(14)), " & _
             "      Trim(Replace(Replace(Replace(Replace(Replace(dept.NAME, '\', '\\'), '""', '\""'), '" & vbCrLf & "', '\n'), '" & vbTab & "', '\t'), '" & vbCr & "', '\n')), " & _
             "      CAST(rSch.XID AS VARCHAR(14)) || '_' || CAST(rSch.DBID AS VARCHAR(14)), " & _
-            "      ml.USR$MSALARY, " & _
-            "      ml.USR$MHOURRATE, " & _
+            "      COALESCE(ml.USR$MSALARY, 0), " & _
+            "      COALESCE(ml.USR$MHOURRATE, 0), " & _
             "      ml.USR$DATEBEGIN, " & _
             "      COALESCE(ml.USR$PAYFORMKEY, 0) " & _
             "    FROM " & _
@@ -719,7 +720,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODIFYDATE: 2020-07-06T13:32:43+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -1059,7 +1060,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:24+03:00
+      MODIFYDATE: 2020-07-06T19:54:50+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
@@ -1491,7 +1492,7 @@ Objects:
       INHERITEDRULE: 0
       LANGUAGE: "VBScript"
       LOCALNAME: ~
-      MODIFYDATE: 2020-07-10T13:04:23+03:00
+      MODIFYDATE: 2020-07-07T14:00:44+03:00
       MODULE: "UNKNOWN"
       MODULECODE: "1010001_17 APPLICATION"
       OBJECTNAME: "APPLICATION"
